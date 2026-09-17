@@ -28,7 +28,7 @@ import {
 
 const PORT = Number(process.env.PORT ?? 3001);
 // Comma-separated, so a phone on the LAN can be let in without a rebuild.
-const CLIENT_ORIGIN = "*"
+const CLIENT_ORIGIN = (process.env.CLIENT_ORIGIN ?? "http://localhost:5173")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
