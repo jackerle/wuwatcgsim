@@ -1,0 +1,26 @@
+{
+  "name": "@wuwatcg/shared",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.scripts.json",
+    "validate:cards": "tsx scripts/validate-cards.ts",
+    "sync:cards": "tsx scripts/sync-card-stubs.ts",
+    "test:effects": "tsx scripts/test-effects.ts",
+    "test:rules": "tsx scripts/test-rules.ts",
+    "test": "npm run typecheck && npm run test:effects && npm run test:rules && npm run test:cards && npm run test:abilities && npm run test:match && npm run test:session && npm run test:fuzz && npm run validate:cards",
+    "test:match": "tsx scripts/test-match.ts",
+    "import:cards": "tsx scripts/import-cards.ts",
+    "test:cards": "tsx scripts/test-cards.ts",
+    "test:abilities": "tsx scripts/test-abilities.ts",
+    "test:session": "tsx scripts/test-session.ts",
+    "test:fuzz": "tsx scripts/test-fuzz.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,239 @@
+// The layer between the engine and a socket.
+//
+// `step` is a pure rules function and does not care who called it. Over a
+// network that is not enough: someone has to decide which seat is allowed to
+// speak, hold a half-finished move while its question is open, and hand each
+// player a view with the other hand taken out. That is MatchSession, and this
+// is what checks it — especially the parts where getting it wrong would let
+// one player drive the other's turn or read their hand.
+//
+// Run with: npm run test:session
+import { requireCard } from "../src/cardDb";
+import { playableCharacters } from "../src/decks";
+import { HIDDEN_CARD_ID } from "../src/game";
+import type { ActionCard, CharacterCard } from "../src/game";
+import { createMatch } from "../src/match";
+import { ACTION_DECK_SIZE } from "../src/rules";
+import { MatchSession, dealMatch } from "../src/session";
+import type { Seat } from "../src/types";
+
+let pass = 0;
+let fail = 0;
+const check = (name: string, ok: boolean, detail = "") => {
+  console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  [${detail}]` : ""}`);
+  ok ? (pass += 1) : (fail += 1);
+};
+
+const [FIRST, SECOND] = playableCharacters();
+const PICKS: Record<Seat, string> = { p1: FIRST, p2: SECOND };
+
+function fresh(): MatchSession {
+  return MatchSession.deal("test", PICKS, 12345);
+}
+
+function character(id: string): CharacterCard {
+  const def = requireCard(id);
+  if (def.type !== "leader") throw new Error(`${id} is not a character card`);
+  return { id: def.id, name: def.name, level: def.level, imageId: def.imageId };
+}
+
+function action(id: string): ActionCard {
+  const def = requireCard(id);
+  if (def.type !== "action") throw new Error(`${id} is not an action card`);
+  return {
+    id: def.id,
+    name: def.name,
+    color: def.color,
+    cost: def.cost,
+    damage: def.attack,
+    speed: def.speed ?? 0,
+    imageId: def.imageId,
+  };
+}
+
+/** A 40-card deck built by repeating the ids given, in order. */
+function deck(ids: string[]): ActionCard[] {
+  const out: ActionCard[] = [];
+  while (out.length < ACTION_DECK_SIZE) out.push(action(ids[out.length % ids.length]));
+  return out;
+}
+
+const SHOREKEEPER = ["BP01-010", "BP01-008", "BP01-024", "BP01-027"].map(character);
+const ENCORE = ["BP01-015", "BP01-013", "BP01-030", "BP01-033"].map(character);
+
+// --- Dealing ---------------------------------------------------------------
+
+{
+  const state = dealMatch("test", PICKS, 99);
+  check("แจกการ์ดแล้วได้ผู้เล่นสองฝั่ง", Object.keys(state.boards).join(",") === "p1,p2");
+  check("p1 เริ่มก่อน", state.turnPlayerId === "p1" && state.startingPlayerId === "p1");
+  check("ทั้งคู่มีการ์ดในมือ", state.boards.p1.hand.length > 0 && state.boards.p2.hand.length > 0);
+  check(
+    "สองฝั่งจั่วไม่เหมือนกัน",
+    state.boards.p1.hand.map((c) => c.id).join(",") !==
+      state.boards.p2.hand.map((c) => c.id).join(",")
+  );
+
+  const again = dealMatch("test", PICKS, 99);
+  check(
+    "seed เดิม -> แจกเหมือนเดิม",
+    again.boards.p1.hand.map((c) => c.id).join(",") ===
+      state.boards.p1.hand.map((c) => c.id).join(",")
+  );
+  const other = dealMatch("test", PICKS, 100);
+  check(
+    "seed ใหม่ -> แจกไม่เหมือนเดิม",
+    other.boards.p1.hand.map((c) => c.id).join(",") !==
+      state.boards.p1.hand.map((c) => c.id).join(",")
+  );
+}
+
+// --- Who is allowed to speak ----------------------------------------------
+//
+// startTurn and resolveCounter act on the board rather than on a player, so
+// the engine never looks at who asked. Without a check here, either player
+// could drive the other's turn from their own browser.
+
+{
+  const session = fresh();
+  check("ไม่ใช่เทิร์นตัวเอง: เริ่มเทิร์นแทนอีกฝ่ายไม่ได้", !session.apply("p2", { kind: "startTurn" }));
+  check("และได้เหตุผลกลับมา", session.errorFor("p2") === "It is not your turn", session.errorFor("p2") ?? "");
+  check("อีกฝ่ายไม่เห็น error ของคนอื่น", session.errorFor("p1") === null);
+  check("เจ้าของเทิร์นเริ่มเทิร์นได้", session.apply("p1", { kind: "startTurn" }));
+  check("เข้าเฟสแอ็กชัน", session.state.phase === "action", session.state.phase);
+}
+
+{
+  const session = fresh();
+  session.apply("p1", { kind: "startTurn" });
+  check(
+    "ไม่ใช่เทิร์นตัวเอง: จบเทิร์นให้อีกฝ่ายไม่ได้",
+    !session.apply("p2", { kind: "endTurn" })
+  );
+  check(
+    "แต่ลงการ์ดคว่ำในเทิร์นอีกฝ่ายได้",
+    session.apply("p2", { kind: "commit", cardId: session.state.boards.p2.hand[0].id }),
+    session.errorFor("p2") ?? ""
+  );
+  check("การ์ดคว่ำอยู่ที่ p2 จริง", session.state.facedown.p2 !== null);
+}
+
+// เปิดการ์ดเป็นของเจ้าของเทิร์น
+{
+  const session = fresh();
+  session.apply("p1", { kind: "startTurn" });
+  session.apply("p1", { kind: "commit", cardId: session.state.boards.p1.hand[0].id });
+  session.apply("p2", { kind: "commit", cardId: session.state.boards.p2.hand[0].id });
+  check("เปิดการ์ด: อีกฝ่ายสั่งไม่ได้", !session.apply("p2", { kind: "resolveCounter" }));
+  check("เปิดการ์ด: เจ้าของเทิร์นสั่งได้", session.apply("p1", { kind: "resolveCounter" }));
+}
+
+// --- Each side's own view -------------------------------------------------
+
+{
+  const session = fresh();
+  const mine = session.updateFor("p1").view;
+  check("มุมมอง p1: เห็นมือตัวเอง", mine.boards.p1.hand.every((c) => !c.id.startsWith(HIDDEN_CARD_ID)));
+  check(
+    "มุมมอง p1: มือ p2 เป็นการ์ดคว่ำ แต่ยังนับใบได้",
+    mine.boards.p2.hand.length === session.state.boards.p2.hand.length &&
+      mine.boards.p2.hand.every((c) => c.id.startsWith(HIDDEN_CARD_ID))
+  );
+  check("มุมมองไม่แตะของจริง", session.state.boards.p2.hand.every((c) => c.name !== ""));
+}
+
+// --- A question stops the move until it is answered ------------------------
+//
+// Built deliberately rather than played into: BP01-010 Shorekeeper asks its
+// controller a question when they counter with a green card, so putting
+// Shorekeeper on p2 and the green card in p2's hand produces the case that
+// only exists over a network — p1 makes the move, p2 is the one asked.
+
+function withQuestion(): MatchSession {
+  const state = createMatch({
+    matchId: "session-question",
+    startingPlayerId: "p1",
+    players: [
+      { playerId: "p1", characterDeck: ENCORE, actionDeck: deck(["BP01-044"]) },
+      { playerId: "p2", characterDeck: SHOREKEEPER, actionDeck: deck(["BP01-052"]) },
+    ],
+  });
+  state.phase = "counter";
+  state.boards.p1.hand = [action("BP01-044")]; // red
+  state.boards.p2.hand = [action("BP01-058")]; // green — this is what asks
+
+  const session = new MatchSession(state);
+  session.apply("p1", { kind: "commit", cardId: "BP01-044" });
+  session.apply("p2", { kind: "commit", cardId: "BP01-058" });
+  session.apply("p1", { kind: "resolveCounter" });
+  return session;
+}
+
+{
+  const session = withQuestion();
+  const open = session.question;
+  check("เปิดการ์ดแล้วมีคำถามค้าง", open !== null);
+
+  if (open) {
+    check("คนสั่งคือ p1 แต่คนถูกถามคือ p2", open.actor === "p1" && open.choice.playerId === "p2");
+    check("p2 เห็นคำถาม", session.updateFor("p2").pending !== null);
+    check("p1 ไม่เห็นคำถามของ p2", session.updateFor("p1").pending === null);
+    check("แต่ p1 รู้ว่ากำลังรอ p2 อยู่", session.updateFor("p1").askingSeat === "p2");
+
+    // The half-applied board is a move that has not landed yet. Only the
+    // person deciding sees it — cancelling would take it straight back.
+    check(
+      "p2 เห็นกระดานครึ่งทาง (การ์ดเปิดแล้ว)",
+      session.updateFor("p2").view.actionZone.p2.length > 0
+    );
+    check(
+      "p1 ยังเห็นกระดานเดิม ไม่ใช่ครึ่งทาง",
+      session.updateFor("p1").view.actionZone.p2.length === 0
+    );
+
+    check("p1 ตอบแทน p2 ไม่ได้", !session.answer("p1", true));
+    check("และคำถามยังค้างอยู่", session.question !== null);
+    check("p2 ยกเลิกการสั่งของ p1 ไม่ได้", !session.cancel("p2"));
+    check("ระหว่างมีคำถามค้าง สั่งอย่างอื่นไม่ได้", !session.apply("p1", { kind: "endTurn" }));
+    check(
+      "และได้เหตุผลว่าติดคำถามอยู่",
+      session.errorFor("p1") === "There is a question waiting to be answered",
+      session.errorFor("p1") ?? ""
+    );
+
+    const before = session.state.boards.p2.hand.length;
+    check("p2 ตอบเองได้", session.answer("p2", true));
+    check("ตอบแล้วคำถามหายไป", session.question === null);
+    check(
+      "ตอบตกลง -> p2 ได้การ์ดขึ้นมือ",
+      session.state.boards.p2.hand.length === before + 1,
+      `${before} -> ${session.state.boards.p2.hand.length}`
+    );
+  }
+}
+
+// --- Cancelling belongs to whoever made the move ---------------------------
+
+{
+  const session = withQuestion();
+  const zoneBefore = JSON.stringify(session.state.actionZone);
+  check("คนที่ไม่ได้สั่งยกเลิกไม่ได้", !session.cancel("p2"));
+  check("คนที่สั่งยกเลิกได้", session.cancel("p1"));
+  check("ยกเลิกแล้วไม่มีคำถามค้าง", session.question === null);
+  check(
+    "และกระดานกลับไปเหมือนก่อนสั่ง",
+    JSON.stringify(session.state.actionZone) === zoneBefore
+  );
+}
+
+// --- Conceding ------------------------------------------------------------
+
+{
+  const session = fresh();
+  check("ยอมแพ้ได้ตลอด", session.apply("p2", { kind: "concede" }));
+  check("อีกฝ่ายชนะ", session.winnerId === "p1", String(session.winnerId));
+  check("จบแล้วสั่งต่อไม่ได้", !session.apply("p1", { kind: "startTurn" }));
+}
+
+console.log(`\n${pass} passed, ${fail} failed`);
+if (fail > 0) process.exit(1);

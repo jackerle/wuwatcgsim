@@ -1,0 +1,936 @@
+/* Game Board (60%) | Right Panel (40%), side by side as real grid columns
+   — never an overlay, so neither can ever cover the other. */
+.game-ui {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 60fr 40fr;
+  gap: 1rem;
+}
+
+.game-board {
+  /* The board has to fit an exact 100vh with no scrolling, and it stacks
+     seven rows of cards to do it: two hands, two character rows, two Action
+     Areas and the control bar. So card size is one token derived from the
+     viewport height rather than a pixel value repeated per component —
+     every card box below sizes off these two. */
+  --card-h: clamp(84px, 11.6vh, 176px);
+  --card-w: calc(var(--card-h) * 0.727);
+  --hand-card-h: calc(var(--card-h) * 0.72);
+  --hand-card-w: calc(var(--hand-card-h) * 0.72);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.35rem;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.75rem 1.5rem;
+  background: radial-gradient(circle at top, #1b2a4a, #0c1526);
+  border-radius: 16px;
+  color: #eef2ff;
+}
+
+/* --- Right Panel: Preview | Detail on top, Chat | Battle Log on bottom --- */
+
+.right-panel {
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  min-width: 0;
+  min-height: 0;
+  color: #eef2ff;
+}
+
+.right-panel-row {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+}
+
+.right-panel-row.top-panel {
+  grid-template-columns: 1fr auto 1fr;
+}
+
+.right-panel-row.bottom-panel {
+  grid-template-columns: 65fr auto 35fr;
+}
+
+.panel-divider {
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.panel-divider.horizontal {
+  height: 1px;
+  width: 100%;
+}
+
+.panel-divider.vertical {
+  width: 1px;
+  height: 100%;
+}
+
+.panel-cell {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+}
+
+/* The image preview always fits via object-fit:contain — it never needs
+   to scroll, so don't let a sub-pixel rounding difference show a
+   scrollbar there. */
+.panel-cell:has(.hover-preview-panel) {
+  overflow: hidden;
+}
+
+.side-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.side-panel-header {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  padding: 0.5rem 0.75rem 0.3rem;
+}
+
+.side-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.side-panel-body.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.8rem;
+  opacity: 0.5;
+}
+
+.detail-name {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.detail-meta {
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
+  opacity: 0.55;
+}
+
+/* The printed categories a card carries — Normal Attack, Heavy Attack and so
+   on. Other cards name these in their text, so they earn a row of their own
+   rather than being buried in the ability paragraph. */
+.detail-tags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0;
+  margin: 0 0 0.6rem;
+}
+
+.detail-tag {
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(140, 170, 255, 0.45);
+  background: rgba(140, 170, 255, 0.12);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.detail-stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+}
+
+.detail-stats dt {
+  opacity: 0.6;
+}
+
+.detail-stats dd {
+  margin: 0;
+}
+
+.detail-note {
+  font-size: 0.7rem;
+  opacity: 0.5;
+  margin: 0;
+}
+
+.phase-bar {
+  text-align: center;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  padding: 0.35rem 0;
+}
+
+.player-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.player-zone.mirrored {
+  flex-direction: column-reverse;
+}
+
+/* --- Top row: Concerto/Charge area + this player's Action Area + name/life --- */
+
+/* Shared column template for all three rows in a player zone — this is
+   what keeps ChargeArea/Pool sharing one X (left col) and Deck/Trash
+   sharing another (right col) even though they're in different rows. */
+.zone-row {
+  display: grid;
+  grid-template-columns: 80px 1fr var(--card-w) 100px;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.zone-top-row {
+  align-items: stretch;
+}
+
+.charge-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 80px;
+  padding: 0.5rem 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.charge-area-label {
+  font-size: 0.6rem;
+  opacity: 0.7;
+  letter-spacing: 0.05em;
+}
+
+.charge-area-stack {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: -8px;
+  min-height: calc(var(--card-h) * 0.74);
+}
+
+.charge-area-empty {
+  width: 70%;
+  height: 60%;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+}
+
+.charge-card {
+  position: relative;
+  width: 58px;
+  height: 40px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  margin-top: -14px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.charge-card:first-child {
+  margin-top: 0;
+}
+
+.charge-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* cards are "charged sideways" per the rules */
+  transform: rotate(90deg) scale(1.5);
+}
+
+.charge-area-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.own-action-slot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.5rem;
+}
+
+.action-slot-card {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.action-slot-card.empty {
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.action-slot-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.action-slot-label {
+  font-size: 0.6rem;
+  opacity: 0.6;
+  letter-spacing: 0.05em;
+}
+
+.stats-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.3rem;
+  min-width: 100px;
+}
+
+.player-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.stat {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+/* --- Characters row: leader raised in front, back characters behind --- */
+
+.characters-row {
+  align-items: flex-end;
+  padding: 0.5rem 0;
+}
+
+/* Wraps back/leader/back so they center within the row's main column,
+   independent of the Pool pile sitting in the left column. */
+.characters-group {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+/* One character (Leader/Back) + its own card stack directly beneath it. */
+.character-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* --- Card stack: a fanned pile of up to 5 cards (Action Zone, or the
+   per-character stacks). Container reserves the full 5-card footprint at
+   all times so it never resizes as cards are added/removed. --- */
+
+.card-stack {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.stack-card {
+  position: absolute;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.stack-card img,
+.stack-card .card-back {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.stack-card-top {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.char-slot {
+  position: relative;
+  width: 108px;
+  height: 142px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.char-slot.back {
+  width: 92px;
+  height: 122px;
+  opacity: 0.92;
+}
+
+.char-slot.leader {
+  border-color: #f2c94c;
+  width: 130px;
+  height: 172px;
+  box-shadow: 0 4px 14px rgba(242, 201, 76, 0.25);
+  z-index: 1;
+}
+
+.char-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.char-slot.empty {
+  border-style: dashed;
+}
+
+.char-level {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 0.65rem;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+/* --- Hand row: Pool pile (left) + hand (center) + Trash pile (right) --- */
+
+.hand-row {
+  align-items: flex-end;
+}
+
+.pile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pile-stack {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+}
+
+.pile-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: repeating-linear-gradient(45deg, #24365f, #24365f 5px, #1a2847 5px, #1a2847 10px);
+}
+
+.pile-layer-2 {
+  transform: translate(5px, 5px);
+  opacity: 0.5;
+}
+
+.pile-layer-1 {
+  transform: translate(2.5px, 2.5px);
+  opacity: 0.75;
+}
+
+.pile-top img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+  display: block;
+}
+
+.pile-stack.empty .pile-top {
+  background: transparent;
+  border-style: dashed;
+}
+
+.pile-label {
+  font-size: 0.65rem;
+  opacity: 0.75;
+}
+
+.pile-clickable {
+  cursor: pointer;
+}
+
+.pile-clickable:hover .pile-stack:not(.empty) {
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.5);
+}
+
+/* --- Pile modal: click Pool/Trash to browse every card (up to 40) --- */
+
+/* Absolute (not fixed) so it's scoped to .game-board (position:relative)
+   — it never covers the Right Panel, which stays usable (hovering a card
+   in the modal still drives the Preview/Detail panels over there). */
+.pile-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.pile-modal {
+  width: min(90vw, 1100px);
+  height: min(85vh, 900px);
+  display: flex;
+  flex-direction: column;
+  background: #101a30;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  color: #eef2ff;
+  overflow: hidden;
+}
+
+.pile-modal-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.pile-modal-close {
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #eef2ff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.pile-modal-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  padding: 1.25rem;
+  align-content: start;
+}
+
+.pile-modal-card {
+  aspect-ratio: 5 / 7;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.pile-modal-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pile-modal-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  opacity: 0.6;
+  padding: 2rem 0;
+}
+
+/* --- Hover highlight: pop + glow whatever card the pointer is currently
+   over. Transform is on the container itself (not the <img>) so it isn't
+   clipped by the container's own overflow:hidden. --- */
+
+.hand-card:hover,
+.char-slot:hover,
+.action-slot-card:not(.empty):hover,
+.charge-card:hover,
+.stack-card:hover,
+.pile-stack:not(.empty):hover {
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.5);
+  transform: scale(1.08);
+  z-index: 8;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+/* --- Hand --- */
+
+.hand {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  min-height: var(--hand-card-h);
+}
+
+.hand-card {
+  position: relative;
+  width: var(--hand-card-w);
+  height: var(--hand-card-h);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #10192e;
+}
+
+.hand-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.hand.face-down .hand-card {
+  width: calc(var(--hand-card-w) * 0.64);
+  height: calc(var(--hand-card-h) * 0.64);
+}
+
+/* Texture only — sizing comes from whatever class it's combined with
+   (.hand-card, .action-slot-card, ...) so it doesn't fight column-flex
+   parents that would otherwise stretch a bare width:100%/height:100%. */
+.card-back {
+  background: repeating-linear-gradient(45deg, #24365f, #24365f 6px, #1a2847 6px, #1a2847 12px);
+  border-radius: 6px;
+}
+
+.stat-pill {
+  position: absolute;
+  top: 2px;
+  font-size: 0.6rem;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.stat-pill.cost {
+  left: 2px;
+}
+
+.stat-pill.color-badge {
+  right: 2px;
+}
+
+.color-red {
+  color: #ff6b6b;
+}
+
+.color-green {
+  color: #6bff9e;
+}
+
+.color-blue {
+  color: #6bb8ff;
+}
+
+.stat-row {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  right: 2px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6rem;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  padding: 0 3px;
+}
+
+/* --- Preview cell: large card art for whatever's currently hovered --- */
+
+/* Fills its grid cell fully and constantly (width+height never depend on
+   whether a card is hovered), so showing/hiding the image never resizes
+   or shifts anything else in the layout. */
+.hover-preview-panel {
+  /* border-box so the padding is included in the 100%/100%, not added on
+     top of it — that was pushing this a few px past its cell each time,
+     forcing a scrollbar. */
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  pointer-events: none;
+}
+
+.hover-preview-panel img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* --- Choice dialog ------------------------------------------------------
+   Shown when a card ability needs an answer from the player. Scoped to the
+   game board the same way the pile modal is, so it never covers the right
+   panel. */
+.choice-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+}
+
+.choice-dialog {
+  box-sizing: border-box;
+  /* Sized to what is actually being asked: one card to pick from should not
+     open a dialog the width of the board. Capped so a long list wraps
+     instead of running off the screen. */
+  width: fit-content;
+  min-width: min(340px, 90%);
+  max-width: min(90%, 1000px);
+  max-height: 88%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: #131a2c;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+  color: #eef2ff;
+}
+
+.choice-prompt {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+/* Laid out like the Pool/Trash viewer, because it is the same job: a wall of
+   cards to look through. The cards themselves are sized by the grid and
+   cropped to a card shape — without that the art renders at its natural size
+   and one card fills the whole dialog. */
+.choice-cards {
+  /* Wrapping flex rather than a grid: it is what lets the fit-content dialog
+     above measure the whole row, so a long list widens the dialog up to its
+     cap before it starts wrapping. A grid with auto-fit columns collapses to
+     one column when measured, and the dialog comes out narrow and tall. */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: start;
+  gap: 0.75rem;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0.25rem;
+}
+
+.choice-card {
+  flex: 0 0 120px;
+  aspect-ratio: 5 / 7;
+  padding: 0;
+  background: none;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+.choice-card img,
+.choice-card .card-art-missing {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.choice-card:hover {
+  transform: scale(1.05);
+}
+
+.choice-card.picked {
+  border-color: #6ee7ff;
+  box-shadow: 0 0 14px rgba(110, 231, 255, 0.6);
+}
+
+.choice-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.choice-option {
+  padding: 0.5rem 0.9rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.choice-option.picked {
+  background: rgba(110, 231, 255, 0.18);
+  border-color: #6ee7ff;
+}
+
+.choice-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.choice-yes,
+.choice-no {
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+  font: inherit;
+}
+
+.choice-yes {
+  background: #2563eb;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.choice-yes:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.choice-no {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5f5;
+}
+
+.choice-demo-button {
+  position: absolute;
+  left: 1.5rem;
+  bottom: 0.75rem;
+  z-index: 150;
+  padding: 0.35rem 0.8rem;
+  font: inherit;
+  color: #cbd5f5;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.choice-demo-result {
+  position: absolute;
+  left: 1.5rem;
+  bottom: 0.75rem;
+  z-index: 150;
+  margin: 0;
+  padding: 0.35rem 0.8rem;
+  color: #a7f3d0;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 8px;
+}
+
+/* --- Chat -------------------------------------------------------------- */
+/* The panel has a fixed height, so the log scrolls and the input never moves
+   off the bottom of it. */
+
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+
+.chat-line {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  word-break: break-word;
+}
+
+.chat-from {
+  flex-shrink: 0;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.chat-input {
+  flex-shrink: 0;
+  display: flex;
+  gap: 0.35rem;
+  padding: 0 0.75rem 0.6rem;
+}
+
+.chat-input input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0.45rem;
+  border-radius: 5px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font-size: 0.8rem;
+}
+
+.chat-input button {
+  flex-shrink: 0;
+  padding: 0.3rem 0.6rem;
+  border-radius: 5px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.chat-input button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

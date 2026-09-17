@@ -1,0 +1,19 @@
+{
+  "name": "wuwatcgsim",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Web-based simulator for the Wuthering Waves TCG mini-game",
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client",
+    "build:shared": "npm run build -w shared",
+    "build:server": "npm run build -w server",
+    "build:client": "npm run build -w client",
+    "validate:cards": "npm run validate:cards -w shared"
+  }
+}

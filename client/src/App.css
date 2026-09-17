@@ -1,0 +1,150 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+/* Floating corner button, outside the board's flex flow entirely — so it
+   never competes with the board for the fixed vertical budget and can
+   never get clipped regardless of exact content height. */
+.leave-room-button {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 100;
+  padding: 0.3rem 1rem;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(20, 28, 48, 0.85);
+  color: #eef2ff;
+  cursor: pointer;
+}
+
+/* Board view must never scroll — it should always exactly fit the screen. */
+.board-page {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+  overflow: hidden;
+  /* Definite height (not min-height) so the flex chain below has a real
+     size to stretch/shrink against instead of growing to fit content
+     (which is what let the hover image blow the whole page taller).
+     border-box so the padding is included in that 100vh, not added on
+     top of it — that's what was still adding a few px of page overflow. */
+  box-sizing: border-box;
+  height: 100vh;
+  padding: 0.5rem 1rem;
+  /* The board and the panels beside it are designed dark and set light text
+     colours, so this page carries its own dark ground rather than inheriting
+     --bg, which follows the OS light/dark setting. Without it the Right
+     Panel is pale text on white. */
+  background: #10131a;
+}
+
+.card {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.card h1 {
+  font-size: 1.4rem;
+  margin: 0 0 0.5rem;
+  text-align: center;
+}
+
+.card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.card input {
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  font-size: 1rem;
+}
+
+.card button {
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.card button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.divider {
+  text-align: center;
+  font-size: 0.75rem;
+  opacity: 0.6;
+  margin: 0.25rem 0;
+}
+
+.status {
+  text-align: center;
+  opacity: 0.8;
+  margin: 0;
+}
+
+.player-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.player-list li {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.player-list li.disconnected {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.error {
+  color: #d64545;
+  font-size: 0.85rem;
+  text-align: center;
+  margin: 0;
+}
+
+/* The lobby's character picker matches the text inputs above it. */
+.card select {
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  font-size: 1rem;
+  background: inherit;
+  color: inherit;
+}
+
+.hint {
+  text-align: center;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  margin: 0;
+}
+
+.hint a {
+  color: inherit;
+}
