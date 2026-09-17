@@ -7,4 +7,5 @@ export * from "./effects";
 export * from "./rules";
 export * from "./match";
 export * from "./decks";
+export * from "./deckList";
 export * from "./session";

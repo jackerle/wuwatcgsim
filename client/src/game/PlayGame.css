@@ -288,6 +288,106 @@
   font-size: 12px;
 }
 
+/* --- Level Up picker: a hand-rolled dropdown ----------------------------
+   A native <select> can't be hovered while open (no event fires on a closed
+   OS-drawn <option> list), so it can never drive the Preview/Detail panels
+   the way every other card in the app does. This is a plain menu of buttons
+   instead, positioned relative to the trigger. */
+
+.level-picker {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.level-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.level-picker-trigger-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.level-picker-caret {
+  opacity: 0.7;
+  font-size: 10px;
+}
+
+.level-picker-menu {
+  /* Portalled to <body> (see LevelUpPicker.tsx) — position is set inline
+     from the trigger's own bounding box, fixed rather than absolute since
+     it no longer shares a positioning ancestor with the trigger at all. */
+  position: fixed;
+  z-index: 250;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 260px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+  background: #1b1d24;
+  border: 1px solid #3a3f4d;
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+}
+
+.level-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: #e6e8ef;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.level-picker-option:hover {
+  background: #262a34;
+}
+
+.level-picker-option.picked {
+  border-color: #4d79ef;
+  background: #232c40;
+}
+
+.level-picker-thumb {
+  flex-shrink: 0;
+  width: 32px;
+  height: 45px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.level-picker-thumb img,
+.level-picker-thumb .card-art-missing {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  font-size: 7px;
+}
+
+.level-picker-label {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.level-picker-label small {
+  opacity: 0.65;
+  font-size: 10px;
+}
+
 .character-slot.clickable {
   cursor: pointer;
 }

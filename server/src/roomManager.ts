@@ -1,10 +1,13 @@
 import {
   MatchSession,
   SEATS,
-  playableCharacters,
+  deckIssues,
   type ChatMessage,
+  type DeckList,
   type Player,
   type Room,
+  type RoomSummary,
+  type RoomVisibility,
   type Seat,
 } from "@wuwatcg/shared";
 
@@ -27,6 +30,12 @@ const EMPTY_ROOM_GRACE_MS = 5 * 60_000;
 export interface RoomRecord {
   room: Room;
   session: MatchSession | null;
+  /**
+   * The deck each seat handed in. Kept here rather than on `room`, which is
+   * broadcast to both players — a deck list is 40 cards of information an
+   * opponent has no business reading before the match starts.
+   */
+  decks: Partial<Record<Seat, DeckList>>;
   chat: ChatMessage[];
   /** Bumped on every restart so a fresh deal is actually a fresh deal. */
   seed: number;
@@ -49,10 +58,21 @@ function generateRoomCode(): string {
 }
 
 function newRecord(room: Room): RoomRecord {
-  return { room, session: null, chat: [], seed: Math.floor(Math.random() * 1e9), reapTimer: null };
+  return {
+    room,
+    session: null,
+    decks: {},
+    chat: [],
+    seed: Math.floor(Math.random() * 1e9),
+    reapTimer: null,
+  };
 }
 
-export function createRoom(playerId: string, playerName: string): RoomRecord {
+export function createRoom(
+  playerId: string,
+  playerName: string,
+  visibility: RoomVisibility = "public"
+): RoomRecord {
   const code = generateRoomCode();
   const host: Player = {
     id: playerId,
@@ -66,6 +86,7 @@ export function createRoom(playerId: string, playerName: string): RoomRecord {
     players: [host],
     status: "waiting",
     maxPlayers: MAX_PLAYERS,
+    visibility,
     picks: {},
     inMatch: false,
   });
@@ -147,10 +168,20 @@ export function seatInfo(record: RoomRecord): {
   return { names, connected };
 }
 
-export function pickCharacter(record: RoomRecord, seat: Seat, character: string): string | null {
+/**
+ * Takes a seat's deck for the coming match. Returns an error message, or null.
+ *
+ * The deck is checked here rather than trusted: a client can send whatever
+ * it likes down a socket, and a 60-card deck or one holding another
+ * character's cards would deal a match nobody agreed to play.
+ */
+export function submitDeck(record: RoomRecord, seat: Seat, deck: DeckList): string | null {
   if (record.room.inMatch) return "เกมเริ่มไปแล้ว";
-  if (!playableCharacters().includes(character)) return `ไม่มีตัวละครชื่อ ${character}`;
-  record.room.picks[seat] = character;
+  const issues = deckIssues(deck);
+  if (issues.length > 0) return issues.join("; ");
+
+  record.decks[seat] = deck;
+  record.room.picks[seat] = [...deck.characters];
   return null;
 }
 
@@ -164,22 +195,44 @@ export function startMatch(record: RoomRecord): string | null {
   const { room } = record;
   if (room.players.length < MAX_PLAYERS) return "ยังรอผู้เล่นอีกคน";
 
-  const picks = {} as Record<Seat, string>;
+  const decks = {} as Record<Seat, DeckList>;
   for (const seat of SEATS) {
-    const pick = room.picks[seat];
-    if (!pick) return `${nameOf(record, seat)} ยังไม่ได้เลือกตัวละคร`;
-    picks[seat] = pick;
+    const deck = record.decks[seat];
+    if (!deck) return `${nameOf(record, seat)} ยังไม่ได้เลือกเด็ค`;
+    decks[seat] = deck;
   }
 
   record.seed = (record.seed + 1) >>> 0;
   try {
-    record.session = MatchSession.deal(`${room.code}-${record.seed}`, picks, record.seed);
+    record.session = MatchSession.deal(`${room.code}-${record.seed}`, decks, record.seed);
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
   }
   room.inMatch = true;
   room.status = "playing";
   return null;
+}
+
+/**
+ * The rooms a browsing player may join: public, not full, not already
+ * playing. Private rooms are reachable by code alone and never listed.
+ */
+export function publicRooms(): RoomSummary[] {
+  const out: RoomSummary[] = [];
+  for (const record of rooms.values()) {
+    const { room } = record;
+    if (room.visibility !== "public" || room.inMatch) continue;
+    if (room.players.length >= room.maxPlayers) continue;
+    if (!room.players.some((p) => p.connected)) continue;
+    out.push({
+      code: room.code,
+      hostName: room.players.find((p) => p.isHost)?.name ?? room.players[0]?.name ?? "?",
+      players: room.players.length,
+      maxPlayers: room.maxPlayers,
+      picks: room.players.map((p) => room.picks[p.seat] ?? []),
+    });
+  }
+  return out;
 }
 
 export function endMatch(record: RoomRecord): void {

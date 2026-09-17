@@ -18,12 +18,13 @@ npm run dev:server   # Socket.IO/Express server on :3001
 npm run dev:client   # Vite dev server on :5173 (in another terminal)
 ```
 
-Open http://localhost:5173, enter a name, and create a room. Share the
-4-character code with a friend so they can join from their own browser. Pick a
-character each, and the host presses start.
+Open http://localhost:5173 and enter a name. **Deck** builds a deck — three
+characters, then cards from what they bring — and **Play** finds a game: join
+a public room from the list, type a private room's code, or open one of your
+own. Once both players are in and have chosen a deck, the host presses start.
 
 `?play` on the same URL opens a hotseat game instead: both sides on one screen,
-no server involved. Handy for trying a card out alone.
+no server involved, no deck needed. Handy for trying a card out alone.
 
 ### Playing with someone on the same network
 
@@ -37,6 +38,32 @@ npm run dev:client -- --host
 
 The client reads the server URL from `client/.env` (`VITE_SERVER_URL`, defaults
 to `http://localhost:3001`).
+
+## Decks
+
+A deck is three characters plus 40 Action cards. The three bring their own
+cards to the pool, plus the 10 Echoes that belong to no character, and no card
+may appear more than four times. The Character Deck is not a choice: each
+character is printed with exactly five cards, so three of them fill its 15
+slots exactly.
+
+Decks live in the browser's localStorage — there are no accounts to hang them
+on. They travel as text instead, one card per line:
+
+```
+# สายบุกแดง
+BP01-001x1
+SD01-010x3
+```
+
+Export copies that out, import pastes it back. The parser takes bare ids,
+`x3`, `3x`, comments and blank lines, and reports any line it could not read
+rather than dropping it silently.
+
+What is legal lives in one place, `deckIssues()` in shared/src/deckList.ts.
+The builder shows what it says, and the server runs the same function on a
+deck as it is handed in — a client that skips the builder and posts its own
+40 copies of one card is refused there.
 
 ## How a match runs
 
@@ -59,9 +86,9 @@ and there is nothing to dig out of a devtools console.
 ## Project layout
 
 ```
-client/   React app: lobby, board, and the two match controllers
+client/   React app: menu, room browser, deck builder, board
 server/   Express + Socket.IO, in-memory rooms, one MatchSession each
-shared/   Rules engine, card data, decks, and the shared socket contracts
+shared/   Rules engine, card data, deck lists, and the socket contracts
 ```
 
 ## Tests
@@ -71,8 +98,9 @@ npm test -w @wuwatcg/shared
 ```
 
 Type-checks the library and its scripts, then runs the suites: effects, rules,
-card data, abilities, a full match, the session layer, and a validator that
-every printed card has its effect filled in.
+card data, abilities, a full match, the session layer, deck lists, a fuzz pass
+that plays whole games checking Life only ever moves when the log says so, and
+a validator that every printed card has its effect filled in.
 
 ## Status
 
@@ -82,4 +110,5 @@ every printed card has its effect filled in.
 - [x] Game rules / turn structure
 - [x] In-match UI (board, hand, actions, battle log)
 - [x] Two-player networked matches, with reconnect and table chat
-- [ ] Deck building (starter decks stand in for now)
+- [x] Deck building, with text import/export
+- [x] Main menu, public room browser and private rooms

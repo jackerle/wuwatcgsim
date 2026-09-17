@@ -39,6 +39,7 @@ export function PlayerZone({
   onHandCardClick,
   unplayable,
   hideHand,
+  dealKey,
 }: {
   board: PlayerBoard;
   name: string;
@@ -54,6 +55,8 @@ export function PlayerZone({
   unplayable?: (card: ActionCard, index: number) => string | null;
   /** Show this player's hand as card backs — they are not the one looking. */
   hideHand?: boolean;
+  /** Forwarded to Hand — see its own doc comment. */
+  dealKey?: string | number;
 }) {
   const poolCards = board.characterPool.map(toCharacterPreview);
   const trashCards = board.trash.map(toActionPreview);
@@ -110,6 +113,7 @@ export function PlayerZone({
           selected={selectedHand}
           unplayable={unplayable}
           onCardClick={hideHand ? undefined : onHandCardClick}
+          dealKey={dealKey}
         />
       </div>
     </div>

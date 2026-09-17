@@ -14,7 +14,8 @@ import { HIDDEN_CARD_ID } from "../src/game";
 import type { ActionCard, CharacterCard } from "../src/game";
 import { createMatch } from "../src/match";
 import { ACTION_DECK_SIZE } from "../src/rules";
-import { MatchSession, dealMatch } from "../src/session";
+import { MatchSession, dealMatch, starterDeck } from "../src/session";
+import type { DeckList } from "../src/deckList";
 import type { Seat } from "../src/types";
 
 let pass = 0;
@@ -25,7 +26,7 @@ const check = (name: string, ok: boolean, detail = "") => {
 };
 
 const [FIRST, SECOND] = playableCharacters();
-const PICKS: Record<Seat, string> = { p1: FIRST, p2: SECOND };
+const PICKS: Record<Seat, DeckList> = { p1: starterDeck(FIRST), p2: starterDeck(SECOND) };
 
 function fresh(): MatchSession {
   return MatchSession.deal("test", PICKS, 12345);

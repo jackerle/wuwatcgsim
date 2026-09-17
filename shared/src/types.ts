@@ -4,6 +4,7 @@
 
 import type { MatchState } from "./game";
 import type { ChoiceAnswer, PendingChoice } from "./cardDef";
+import type { DeckList } from "./deckList";
 import type { ResolvedEffect } from "./effects";
 import type { MatchIntent } from "./match";
 
@@ -29,15 +30,40 @@ export interface Player {
 
 export type RoomStatus = "waiting" | "playing" | "finished";
 
+/**
+ * Who may find this room.
+ *
+ * "public" lists it in the room browser for anyone to join; "private" is
+ * reachable only by typing its code. Both are joined the same way — this
+ * only decides whether the code has to be shared by hand.
+ */
+export type RoomVisibility = "public" | "private";
+
 export interface Room {
   code: string; // short shareable join code, e.g. "AB12"
   players: Player[];
   status: RoomStatus;
   maxPlayers: number;
-  /** The character each seat has picked in the lobby, once they have. */
-  picks: Partial<Record<Seat, string>>;
+  visibility: RoomVisibility;
+  /**
+   * The three characters each seat is bringing, once they have chosen a
+   * deck. The deck list itself stays on the server — an opponent should not
+   * be handed your 40 cards before the first turn — but who is on the field
+   * is public the moment the match starts anyway.
+   */
+  picks: Partial<Record<Seat, string[]>>;
   /** True once a match is running, so a rejoining client goes to the board. */
   inMatch: boolean;
+}
+
+/** One row in the room browser. */
+export interface RoomSummary {
+  code: string;
+  hostName: string;
+  players: number;
+  maxPlayers: number;
+  /** Characters already chosen, so a browser shows what is being brought. */
+  picks: string[][];
 }
 
 export interface ApiError {
@@ -87,7 +113,7 @@ export interface JoinResult {
 
 export interface ClientToServerEvents {
   createRoom: (
-    payload: { playerName: string; playerId: string },
+    payload: { playerName: string; playerId: string; visibility: RoomVisibility },
     callback: (result: JoinResult | { error: string }) => void
   ) => void;
 
@@ -98,8 +124,17 @@ export interface ClientToServerEvents {
 
   leaveRoom: (payload: { roomCode: string }) => void;
 
-  /** Lobby: pick the character this seat will lead with. */
-  pickCharacter: (payload: { character: string }) => void;
+  /**
+   * Lobby: hand in the deck this seat will play. The server keeps it and
+   * only publishes the three character names.
+   */
+  submitDeck: (payload: { deck: DeckList }, callback: (result: { ok: true } | { error: string }) => void) => void;
+
+  /**
+   * Start or stop receiving the public room list. Browsing is opt-in so an
+   * update isn't pushed at every socket in a match.
+   */
+  watchRooms: (payload: { watching: boolean }) => void;
 
   /** Host only. Deals both decks and puts the match on the table. */
   startMatch: (callback: (result: { ok: true } | { error: string }) => void) => void;
@@ -121,6 +156,8 @@ export interface ClientToServerEvents {
 
 export interface ServerToClientEvents {
   roomUpdate: (room: Room) => void;
+  /** The public rooms waiting for an opponent, for anyone watching. */
+  roomsUpdate: (rooms: RoomSummary[]) => void;
   matchUpdate: (update: MatchUpdate) => void;
   matchEnded: () => void;
   chatMessage: (message: ChatMessage) => void;

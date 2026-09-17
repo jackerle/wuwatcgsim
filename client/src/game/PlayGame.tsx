@@ -78,6 +78,7 @@ export function PlayGame({ match, children }: { match: MatchController; children
               hideHand
               facedown={state.facedown[top]}
               actionZone={state.actionZone[top]}
+              dealKey={state.matchId}
             />
 
             <ControlBar
@@ -115,6 +116,7 @@ export function PlayGame({ match, children }: { match: MatchController; children
               selectedHand={selected}
               onHandCardClick={(card, index) => handleHandClick(bottom, card, index)}
               unplayable={(card) => whyUnplayable(state, card, bottom)}
+              dealKey={state.matchId}
             />
 
             <PileModal />

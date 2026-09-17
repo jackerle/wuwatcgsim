@@ -13,6 +13,7 @@ import {
   type MatchIntent,
   type MatchState,
 } from "@wuwatcg/shared";
+import { LevelUpPicker } from "./LevelUpPicker";
 
 export interface ControlBarProps {
   state: MatchState;
@@ -144,17 +145,7 @@ export function ControlBar({
           each. The picker keeps every choice without flooding the bar. */}
       {allowed.includes("levelUp") && levelTargets.length > 0 && (
         <span className="control-group">
-          <select
-            className="control-select"
-            value={levelChoice}
-            onChange={(event) => setLevelChoice(event.target.value)}
-          >
-            {levelTargets.map((card) => (
-              <option key={card.id} value={card.id}>
-                {card.name} Lv.{card.level} ({card.id}) — ทิ้ง {card.level}
-              </option>
-            ))}
-          </select>
+          <LevelUpPicker options={levelTargets} value={levelChoice} onChange={setLevelChoice} />
           <button
             type="button"
             data-card-id={chosenLevel?.id}

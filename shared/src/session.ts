@@ -11,6 +11,7 @@
 // the engine.
 
 import type { ChoiceAnswer, PendingChoice } from "./cardDef";
+import { deckToSetup, type DeckList } from "./deckList";
 import { shuffle, starterFor } from "./decks";
 import type { ResolvedEffect } from "./effects";
 import type { MatchState } from "./game";
@@ -60,15 +61,15 @@ export interface SeatUpdate {
 }
 
 /**
- * Deals a fresh match between two picked characters.
+ * Deals a fresh match from the two players' deck lists.
  *
  * The seat ids are the engine's player ids, so nothing has to be translated
  * on the way to the client.
  */
-export function dealMatch(matchId: string, picks: Record<Seat, string>, seed: number): MatchState {
+export function dealMatch(matchId: string, decks: Record<Seat, DeckList>, seed: number): MatchState {
   const [first, second] = SEATS;
-  const mine = starterFor(picks[first]);
-  const theirs = starterFor(picks[second]);
+  const mine = deckToSetup(decks[first]);
+  const theirs = deckToSetup(decks[second]);
   return createMatch({
     matchId,
     startingPlayerId: first,
@@ -82,6 +83,17 @@ export function dealMatch(matchId: string, picks: Record<Seat, string>, seed: nu
       },
     ],
   });
+}
+
+/**
+ * A ready-made deck around one character, for the hotseat screen and tests —
+ * anywhere a real deck list would only be ceremony.
+ */
+export function starterDeck(character: string): DeckList {
+  const starter = starterFor(character);
+  const cards: Record<string, number> = {};
+  for (const card of starter.actionDeck) cards[card.id] = (cards[card.id] ?? 0) + 1;
+  return { id: `starter-${character}`, name: character, characters: starter.characters, cards };
 }
 
 export class MatchSession {
@@ -101,8 +113,8 @@ export class MatchSession {
     this.state = state;
   }
 
-  static deal(matchId: string, picks: Record<Seat, string>, seed: number): MatchSession {
-    return new MatchSession(dealMatch(matchId, picks, seed));
+  static deal(matchId: string, decks: Record<Seat, DeckList>, seed: number): MatchSession {
+    return new MatchSession(dealMatch(matchId, decks, seed));
   }
 
   get winnerId(): string | null {

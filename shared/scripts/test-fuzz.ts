@@ -10,7 +10,8 @@
 //
 // Run with: npm run test:fuzz
 import { playableCharacters } from "../src/decks";
-import { MatchSession } from "../src/session";
+import { MatchSession, starterDeck } from "../src/session";
+import type { DeckList } from "../src/deckList";
 import type { Seat } from "../src/types";
 
 const names = playableCharacters();
@@ -20,7 +21,10 @@ let mismatched = 0;
 let earlyWins = 0;
 
 for (let g = 0; g < 25; g += 1) {
-  const picks = { p1: names[g % names.length], p2: names[(g + 3) % names.length] } as Record<Seat, string>;
+  const picks = {
+    p1: starterDeck(names[g % names.length]),
+    p2: starterDeck(names[(g + 3) % names.length]),
+  } as Record<Seat, DeckList>;
   const s = MatchSession.deal(`fuzz-${g}`, picks, g * 7919 + 13);
   let life = { p1: s.state.boards.p1.life, p2: s.state.boards.p2.life };
   let seen = 0;

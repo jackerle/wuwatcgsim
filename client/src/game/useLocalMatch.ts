@@ -17,6 +17,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import {
   MatchSession,
   SEATS,
+  starterDeck,
   type ChoiceAnswer,
   type MatchIntent,
   type Seat,
@@ -31,7 +32,14 @@ export interface LocalMatchOptions {
 
 function deal(options: LocalMatchOptions): MatchSession {
   const seed = options.seed ?? 1;
-  return MatchSession.deal(`local-${seed}`, options.picks, seed);
+  // The hotseat screen still picks a character rather than a deck — it is
+  // there to try cards out, not to play a built list — so a ready-made deck
+  // stands in for one.
+  return MatchSession.deal(
+    `local-${seed}`,
+    { p1: starterDeck(options.picks.p1), p2: starterDeck(options.picks.p2) },
+    seed
+  );
 }
 
 export function useLocalMatch(options: LocalMatchOptions): MatchController {

@@ -18,10 +18,11 @@ import {
   joinRoom,
   leaveRoom,
   markPlayerDisconnected,
-  pickCharacter,
+  publicRooms,
   seatInfo,
   seatOf,
   startMatch,
+  submitDeck,
   type RoomRecord,
 } from "./roomManager.js";
 
@@ -80,6 +81,16 @@ function emitRoom(record: RoomRecord): void {
 }
 
 /**
+ * The room browser's channel. Only sockets that asked to browse are in it,
+ * so a match in progress never pays for someone else's lobby refresh.
+ */
+const LOBBY = "lobby";
+
+function emitRooms(): void {
+  io.to(LOBBY).emit("roomsUpdate", publicRooms());
+}
+
+/**
  * Live sockets per player.
  *
  * A refresh opens the new socket before the old one's `disconnect` always
@@ -126,11 +137,12 @@ io.on("connection", (socket) => {
     trackSocket(playerId, socket.id);
   }
 
-  socket.on("createRoom", ({ playerName, playerId }, callback) => {
+  socket.on("createRoom", ({ playerName, playerId, visibility }, callback) => {
     const id = playerId || socket.id;
-    const record = createRoom(id, playerName.trim() || "Player");
+    const record = createRoom(id, playerName.trim() || "Player", visibility);
     attach(record, id);
     callback({ room: record.room, seat: record.room.players[0].seat, playerId: id });
+    emitRooms();
   });
 
   socket.on("joinRoom", ({ roomCode, playerName, playerId }, callback) => {
@@ -148,6 +160,8 @@ io.on("connection", (socket) => {
     attach(result, id);
     callback({ room: result.room, seat, playerId: id });
     emitRoom(result);
+    // The room may have just filled up, which takes it off the browser.
+    emitRooms();
     socket.emit("chatHistory", result.chat);
     // A rejoin lands mid-match: hand the board straight back rather than
     // making them wait for the other player's next move to redraw it.
@@ -164,19 +178,33 @@ io.on("connection", (socket) => {
       emitRoom(record);
       io.to(record.room.code).emit("matchEnded");
     }
+    emitRooms();
   });
 
-  socket.on("pickCharacter", ({ character }) => {
+  socket.on("watchRooms", ({ watching }) => {
+    if (watching) {
+      socket.join(LOBBY);
+      socket.emit("roomsUpdate", publicRooms());
+    } else {
+      socket.leave(LOBBY);
+    }
+  });
+
+  socket.on("submitDeck", ({ deck }, callback) => {
     const record = recordFor(socket);
-    if (!record) return;
-    const seat = seatOf(record, socket.data.playerId);
-    if (!seat) return;
-    const error = pickCharacter(record, seat, character);
-    if (error) {
-      socket.emit("errorMessage", { message: error });
+    const seat = record && seatOf(record, socket.data.playerId);
+    if (!record || !seat) {
+      callback({ error: "ยังไม่ได้อยู่ในห้อง" });
       return;
     }
+    const error = submitDeck(record, seat, deck);
+    if (error) {
+      callback({ error });
+      return;
+    }
+    callback({ ok: true });
     emitRoom(record);
+    emitRooms();
   });
 
   socket.on("startMatch", (callback) => {
@@ -198,6 +226,8 @@ io.on("connection", (socket) => {
     callback({ ok: true });
     emitRoom(record);
     emitMatch(record);
+    // A room that just started playing drops off the browser.
+    emitRooms();
   });
 
   socket.on("matchIntent", ({ intent }) => {
@@ -253,6 +283,7 @@ io.on("connection", (socket) => {
     if (!untrackSocket(playerId, socket.id)) return;
     const record = markPlayerDisconnected(playerId);
     if (record) emitRoom(record);
+    emitRooms();
   });
 });
 

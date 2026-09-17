@@ -1,21 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { playableCharacters, type Room, type Seat } from "@wuwatcg/shared";
+import type { Room, RoomVisibility, Seat } from "@wuwatcg/shared";
 import { socket } from "./socket";
 import { playerId, rememberName, rememberRoom, rememberedName, rememberedRoom } from "./identity";
 import { clearMatch } from "./game/matchStore";
 import { HotseatGame } from "./game/HotseatGame";
 import { NetGame } from "./game/NetGame";
+import { MainMenu } from "./menu/MainMenu";
+import { PlayMenu } from "./menu/PlayMenu";
+import { DeckManager } from "./decks/DeckManager";
+import { loadDecks } from "./decks/storage";
+import { Lobby } from "./menu/Lobby";
 import "./App.css";
 
-const CHARACTERS = playableCharacters();
 const ME = playerId();
 
+/** Which screen is up. A room or a running match overrides this entirely. */
+type Screen = "menu" | "play" | "decks";
+
 export default function App() {
+  const [screen, setScreen] = useState<Screen>("menu");
   const [playerName, setPlayerName] = useState(rememberedName);
-  const [joinCode, setJoinCode] = useState("");
   const [room, setRoom] = useState<Room | null>(null);
   const [seat, setSeat] = useState<Seat | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hotseat, setHotseat] = useState(false);
   /** Stops the refresh-rejoin from firing again on every reconnect. */
   const rejoined = useRef(false);
 
@@ -58,47 +66,39 @@ export default function App() {
     join(code, rememberedName() || "Player", true);
   }, [join]);
 
-  function handleCreateRoom() {
-    setError(null);
-    rememberName(playerName);
-    socket.emit("createRoom", { playerName, playerId: ME }, (result) => {
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      setRoom(result.room);
-      setSeat(result.seat);
-      rememberRoom(result.room.code);
-    });
-  }
+  const createRoom = useCallback(
+    (visibility: RoomVisibility) => {
+      setError(null);
+      rememberName(playerName);
+      socket.emit("createRoom", { playerName, playerId: ME, visibility }, (result) => {
+        if ("error" in result) {
+          setError(result.error);
+          return;
+        }
+        setRoom(result.room);
+        setSeat(result.seat);
+        rememberRoom(result.room.code);
+      });
+    },
+    [playerName]
+  );
 
-  function handleJoinRoom() {
-    rememberName(playerName);
-    join(joinCode, playerName);
-  }
-
-  const handleLeaveRoom = useCallback(() => {
+  const leaveRoom = useCallback(() => {
     if (room) socket.emit("leaveRoom", { roomCode: room.code });
     clearMatch();
     rememberRoom(null);
     setRoom(null);
     setSeat(null);
+    setScreen("play");
   }, [room]);
 
-  // Open with ?play for a hotseat game on this screen alone — handy for
-  // trying a card out without needing a second person.
+  // ?play still opens a hotseat game straight off, which is how the board gets
+  // exercised without needing a second person or a server.
   const params = new URLSearchParams(location.search);
-  const hotseat = params.has("play") || params.has("boardPreview");
-
-  if (hotseat) {
+  if (hotseat || params.has("play") || params.has("boardPreview")) {
     return (
       <main className="page board-page">
-        <HotseatGame
-          picks={{
-            p1: params.get("you") ?? CHARACTERS[0] ?? "Camellya",
-            p2: params.get("vs") ?? CHARACTERS[1] ?? "Encore",
-          }}
-        />
+        <HotseatGame picks={{ p1: params.get("you") ?? "Camellya", p2: params.get("vs") ?? "Encore" }} />
       </main>
     );
   }
@@ -107,142 +107,50 @@ export default function App() {
     const isHost = room.players.find((p) => p.id === ME)?.isHost ?? false;
     return (
       <main className="page board-page">
-        <NetGame isHost={isHost} onLeave={handleLeaveRoom} />
+        <NetGame isHost={isHost} onLeave={leaveRoom} />
       </main>
     );
   }
 
   if (room && seat) {
-    return <Lobby room={room} seat={seat} error={error} onLeave={handleLeaveRoom} />;
+    return <Lobby room={room} me={ME} error={error} onLeave={leaveRoom} />;
+  }
+
+  if (screen === "decks") {
+    return <DeckManager onBack={() => setScreen("menu")} />;
+  }
+
+  if (screen === "play") {
+    return (
+      <PlayMenu
+        error={error}
+        onBack={() => {
+          setError(null);
+          setScreen("menu");
+        }}
+        onJoin={(code) => {
+          rememberName(playerName);
+          join(code, playerName || "Player");
+        }}
+        onCreate={createRoom}
+      />
+    );
   }
 
   return (
-    <main className="page">
-      <div className="card">
-        <h1>WuWa TCG Simulator</h1>
-        <label>
-          ชื่อผู้เล่น
-          <input
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="ใส่ชื่อของคุณ"
-          />
-        </label>
-
-        <button type="button" onClick={handleCreateRoom} disabled={!playerName.trim()}>
-          สร้างห้อง
-        </button>
-
-        <div className="divider">หรือ</div>
-
-        <label>
-          รหัสห้อง
-          <input
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            placeholder="เช่น AB12"
-            maxLength={4}
-          />
-        </label>
-        <button
-          type="button"
-          onClick={handleJoinRoom}
-          disabled={!playerName.trim() || !joinCode.trim()}
-        >
-          เข้าร่วมห้อง
-        </button>
-
-        <p className="hint">
-          <a href="?play">หรือเล่นคนเดียวสองฝั่งบนจอนี้</a>
-        </p>
-
-        {error && <p className="error">{error}</p>}
-      </div>
-    </main>
-  );
-}
-
-/**
- * The waiting room: pick a character, and once both seats have picked, the
- * host deals. Picks are shown to both players — there is no advantage in
- * hiding which character someone brought, and seeing it is half the fun.
- */
-function Lobby({
-  room,
-  seat,
-  error,
-  onLeave,
-}: {
-  room: Room;
-  seat: Seat;
-  error: string | null;
-  onLeave: () => void;
-}) {
-  const [startError, setStartError] = useState<string | null>(null);
-  const me = room.players.find((p) => p.id === ME);
-  const ready = room.players.length === room.maxPlayers && room.picks.p1 && room.picks.p2;
-
-  return (
-    <main className="page">
-      <div className="card">
-        <h1>ห้อง {room.code}</h1>
-        <p className="status">
-          {room.players.length < room.maxPlayers
-            ? "รอผู้เล่นอีกคน... บอกรหัสห้องให้เพื่อน"
-            : "ผู้เล่นครบแล้ว — เลือกตัวละครได้เลย"}
-        </p>
-
-        <ul className="player-list">
-          {room.players.map((p) => (
-            <li key={p.id} className={p.connected ? "" : "disconnected"}>
-              {p.name}
-              {p.isHost && " (host)"}
-              {p.id === ME && " (คุณ)"}
-              {room.picks[p.seat] && ` — ${room.picks[p.seat]}`}
-              {!p.connected && " — หลุดการเชื่อมต่อ"}
-            </li>
-          ))}
-        </ul>
-
-        <label>
-          ตัวละครของคุณ
-          <select
-            value={room.picks[seat] ?? ""}
-            onChange={(e) => socket.emit("pickCharacter", { character: e.target.value })}
-          >
-            <option value="" disabled>
-              เลือกตัวละคร
-            </option>
-            {CHARACTERS.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {me?.isHost ? (
-          <button
-            type="button"
-            disabled={!ready}
-            onClick={() =>
-              socket.emit("startMatch", (result) =>
-                setStartError("error" in result ? result.error : null)
-              )
-            }
-          >
-            เริ่มเกม
-          </button>
-        ) : (
-          <p className="status">รอเจ้าของห้องกดเริ่มเกม</p>
-        )}
-
-        <button type="button" onClick={onLeave}>
-          ออกจากห้อง
-        </button>
-
-        {(error || startError) && <p className="error">{error ?? startError}</p>}
-      </div>
-    </main>
+    <MainMenu
+      playerName={playerName}
+      deckCount={loadDecks().length}
+      onNameChange={(name) => {
+        setPlayerName(name);
+        rememberName(name);
+      }}
+      onPlay={() => {
+        setError(null);
+        setScreen("play");
+      }}
+      onDecks={() => setScreen("decks")}
+      onHotseat={() => setHotseat(true)}
+    />
   );
 }

@@ -17,12 +17,12 @@ export interface Starter {
   actionDeck: ActionCard[];
 }
 
-function toCharacterCard(def: CardDef): CharacterCard {
+export function toCharacterCard(def: CardDef): CharacterCard {
   if (def.type !== "leader") throw new Error(`${def.id} is not a character card`);
   return { id: def.id, name: def.name, level: def.level, imageId: def.imageId };
 }
 
-function toActionCard(def: CardDef): ActionCard {
+export function toActionCard(def: CardDef): ActionCard {
   if (def.type !== "action") throw new Error(`${def.id} is not an action card`);
   return {
     id: def.id,
@@ -46,7 +46,7 @@ export function playableCharacters(): string[] {
   return [...names].sort();
 }
 
-function cardsFor(character: string) {
+export function cardsFor(character: string) {
   const mine = ALL_CARDS.filter((card) => card.character === character);
   return {
     characters: mine.filter((card) => card.type === "leader"),

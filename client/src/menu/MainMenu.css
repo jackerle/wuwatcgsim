@@ -1,0 +1,276 @@
+/* Main menu and the room browser — the screens before a board exists. */
+
+.menu-page,
+.play-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 0%, #1a2340 0%, #0d1017 60%);
+  color: #e6e8ef;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(92%, 400px);
+  padding: 32px 28px;
+  border-radius: 16px;
+  border: 1px solid #2c2f3a;
+  background: rgba(20, 24, 34, 0.9);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.menu-title {
+  margin: 0;
+  text-align: center;
+  font-size: 2rem;
+  letter-spacing: 0.04em;
+}
+
+.menu-sub {
+  margin: 0 0 8px;
+  text-align: center;
+  font-size: 0.8rem;
+  opacity: 0.55;
+}
+
+.menu-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.menu-name input {
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid #3a3f4d;
+  background: #262a34;
+  color: #e6e8ef;
+  font-size: 15px;
+}
+
+.menu-button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid #3a3f4d;
+  background: #222735;
+  color: #e6e8ef;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.menu-button:hover:not(:disabled) {
+  background: #2c3243;
+  border-color: #4d79ef;
+}
+
+.menu-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.menu-button.primary {
+  background: #2f4fa8;
+  border-color: #4d79ef;
+}
+
+.menu-button.primary:hover:not(:disabled) {
+  background: #3a5fc4;
+}
+
+.menu-button-label {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.menu-button-sub {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.menu-link {
+  margin-top: 4px;
+  padding: 6px;
+  border: none;
+  background: none;
+  color: #8fa6dd;
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* --- Room browser -------------------------------------------------------- */
+
+.play-page {
+  align-items: flex-start;
+  padding: 28px 0 48px;
+}
+
+.play-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(92%, 640px);
+}
+
+.play-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.play-head h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.play-spacer {
+  flex: 1;
+}
+
+.play-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid #2c2f3a;
+  background: rgba(20, 24, 34, 0.9);
+}
+
+.play-card h2 {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.play-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.play-row input {
+  flex: 1;
+  min-width: 140px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #3a3f4d;
+  background: #262a34;
+  color: #e6e8ef;
+  font-size: 14px;
+}
+
+.play-panel button {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #3a3f4d;
+  background: #262a34;
+  color: #e6e8ef;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.play-panel button:hover:not(:disabled) {
+  background: #323848;
+}
+
+.play-panel button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.play-panel button.primary {
+  background: #3f6ae0;
+  border-color: #4d79ef;
+}
+
+.play-panel button.primary:hover:not(:disabled) {
+  background: #4d79ef;
+}
+
+/* The public/private toggle: two halves of one control, so it reads as a
+   single choice rather than two unrelated buttons. */
+.visibility-toggle {
+  display: inline-flex;
+  border: 1px solid #3a3f4d;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.visibility-toggle button {
+  border: none;
+  border-radius: 0;
+  background: #1c2029;
+  font-size: 12px;
+  padding: 8px 14px;
+}
+
+.visibility-toggle button.on {
+  background: #3f6ae0;
+  color: #fff;
+}
+
+.room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.room-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #2c2f3a;
+  border-radius: 10px;
+  background: #171b25;
+}
+
+.room-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.room-row-host {
+  font-weight: 600;
+}
+
+.room-row-sub {
+  font-size: 0.76rem;
+  opacity: 0.6;
+}
+
+.room-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.12em;
+  opacity: 0.8;
+}
+
+.play-empty {
+  margin: 0;
+  padding: 14px 0;
+  text-align: center;
+  font-size: 0.8rem;
+  opacity: 0.5;
+}
+
+.play-error {
+  margin: 0;
+  color: #ff9d9d;
+  font-size: 0.82rem;
+}
