@@ -101,6 +101,8 @@ export function useLocalMatch(options: LocalMatchOptions): MatchController {
       send,
       answer,
       cancel,
+      // One screen, both seats: whoever is sat there made the move.
+      canCancel: current.question !== null,
       restart,
       canRestart: true,
       chat: null,

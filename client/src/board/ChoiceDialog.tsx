@@ -10,20 +10,46 @@ import { CardImage } from "./CardImage";
  * dialog appears. Answering sends the reply back and the effect runs again
  * with it. See resolveTrigger in shared/src/effects.ts.
  */
+/**
+ * The single card a pickCard question offers, if it offers exactly one.
+ *
+ * Empty for everything else: a confirm has no cards, a pickOption is a menu
+ * of actions rather than of targets, and a real choice between several is
+ * the player's to make from scratch.
+ */
+function onlyOption(choice: PendingChoice | null): string[] {
+  if (!choice || choice.kind !== "pickCard" || choice.options.length !== 1) return [];
+  return [choice.options[0].value];
+}
+
 export function ChoiceDialog({
   choice,
   onAnswer,
+  onCancel,
   lang = "th",
 }: {
   choice: PendingChoice | null;
   onAnswer: (answer: ChoiceAnswer) => void;
+  /**
+   * Drops the whole move this question belongs to, when it is this player's
+   * move to drop. The dialog is modal and covers the board, so a question
+   * that cannot be got rid of takes the game with it — this is the way out.
+   */
+  onCancel?: (() => void) | null;
   lang?: "th" | "en";
 }) {
   const [selected, setSelected] = useState<string[]>([]);
 
-  // A new question always starts from a clean selection.
+  // A new question starts from a clean selection — except when there is
+  // nothing to choose between. "Take a red Encore card from your trash" with
+  // exactly one red Encore in there is not a choice of WHICH, only of
+  // whether, so the one card is marked for them.
+  //
+  // Marked, never sent: the card says "you MAY", and pressing ยืนยัน is how
+  // the player says yes. Answering it for them would spend an optional
+  // ability they were about to decline.
   useEffect(() => {
-    setSelected([]);
+    setSelected(onlyOption(choice));
   }, [choice]);
 
   if (!choice) return null;
@@ -61,14 +87,14 @@ export function ChoiceDialog({
                 className={`choice-card ${selected.includes(option.value) ? "picked" : ""}`}
                 onClick={() => toggle(option.value)}
               >
-                {/* For pickCard the option value IS the card number, so it
-                    doubles as the id: that is what lets the art fall through
-                    to a parallel printing, and what the Detail panel looks
-                    the ability up by while you are choosing. */}
+                {/* The card number comes from `cardId`, not from `value`:
+                    several options can be the same printed card (four copies
+                    in a trash pile), so the value has to be unique per
+                    option while the art is looked up by the number. */}
                 <CardImage
                   card={{
-                    cardId: option.value,
-                    imageId: option.value,
+                    cardId: option.cardId ?? option.value,
+                    imageId: option.cardId ?? option.value,
                     name: localize(option.label, lang),
                     kind: "action",
                   }}
@@ -94,6 +120,16 @@ export function ChoiceDialog({
         )}
 
         <div className="choice-actions">
+          {onCancel && (
+            <button
+              type="button"
+              className="choice-cancel"
+              title="ยกเลิกการสั่งทั้งหมด แล้วกลับไปที่กระดานเดิม"
+              onClick={onCancel}
+            >
+              ยกเลิกการสั่ง
+            </button>
+          )}
           {kind === "confirm" ? (
             <>
               <button type="button" className="choice-no" onClick={() => onAnswer(false)}>

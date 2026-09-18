@@ -30,7 +30,7 @@ import type {
   ModifierDuration,
 } from "./cards";
 import type { CardColor, CharacterLevel } from "./game";
-import { KEYWORD_LABEL, isContinuous, isTrigger, localize } from "./cards";
+import { KEYWORD_COLOR, KEYWORD_LABEL, isContinuous, isTrigger, keywordForTag, localize } from "./cards";
 import type { ActionCard, MatchState, PlayerBoard } from "./game";
 
 // --- What an effect can see and do -----------------------------------------
@@ -146,8 +146,19 @@ export interface EffectContext {
     duration?: ModifierDuration,
     options?: BuffOptions
   ): void;
-  /** Change how much damage a player takes. Positive means they take more. */
-  modifyDamageTaken(amount: number, playerId?: string, duration?: ModifierDuration): void;
+  /**
+   * Change how much damage a player takes. Positive means they take more.
+   *
+   * `limit` counts HITS rather than cards: `{ limit: 1 }` is "each round,
+   * damage taken -1" — it softens the first hit of the turn and is spent,
+   * however many follow-ups land after it.
+   */
+  modifyDamageTaken(
+    amount: number,
+    playerId?: string,
+    duration?: ModifierDuration,
+    options?: { limit?: number }
+  ): void;
 
   // --- handing abilities to other cards ---
   /**
@@ -184,10 +195,24 @@ export interface EffectContext {
   // --- characters ---
   /**
    * Level a character up from an effect rather than as the turn's action.
-   * Takes the lowest legal card for that character out of the pool. Returns
-   * false when there is nothing to play.
+   *
+   * The player picks which card to use when more than one is legal, and the
+   * usual pair of triggers fires — [Enter] on the card arriving, [Level up]
+   * on the one it covers — so an ability that levels a character up is worth
+   * exactly what levelling them up by hand would have been. Returns false
+   * when there is nothing in the pool to play.
+   *
+   * `level` is for a card that names the level it puts into play, rather than
+   * telling the character to climb: "put an 「Encore」 Level 2 card on top of
+   * your 「Encore」" (BP01-062). Only cards of exactly that level are offered,
+   * and the one-step ladder does not apply — naming the level IS the point of
+   * such a card. Without it the ordinary ladder rules, same as the Action
+   * Phase move.
    */
-  levelUpCharacter(characterName: string, playerId?: string): boolean;
+  levelUpCharacter(
+    characterName: string,
+    options?: { level?: CharacterLevel; playerId?: string }
+  ): boolean;
   /** Switch the Leader to the named character, if they are in the back. */
   switchLeaderTo(characterName: string, playerId?: string): boolean;
 
@@ -276,9 +301,19 @@ export type ChoiceKind = "confirm" | "pickCard" | "pickOption";
 
 /** One option the player can pick, for pickCard / pickOption. */
 export interface ChoiceOption {
-  /** Card number for pickCard, or a caller-defined key for pickOption. */
+  /**
+   * What comes back as the answer. Unique within one question — a trash pile
+   * holds several copies of the same printed card, and two options that read
+   * the same are two options the player cannot tell apart or pick between.
+   */
   value: string;
   label: LocalizedText;
+  /**
+   * Which card this option shows, when the option IS a card. Separate from
+   * `value` precisely because several options can be the same card; this is
+   * what the art and the Detail panel are looked up by.
+   */
+  cardId?: string;
 }
 
 /** A question the engine is waiting on before an effect can finish. */
@@ -395,20 +430,109 @@ export function isManual(effect: CardEffect): boolean {
 }
 
 /**
+ * The keyword tags an effect leads with, written the way a card prints them:
+ * "[Enter][Follow{2}]".
+ *
+ * Each tag keeps the keyword it came from. Reading it back out of the text
+ * afterwards would work only for as long as no two keywords ever share a
+ * display name, and that is not a promise the labels make.
+ */
+function effectTags(
+  effect: CardEffect,
+  lang: Lang
+): { text: string; keyword: CardKeyword }[] {
+  return keywordsOf(effect.condition).map((keyword) => {
+    const label = KEYWORD_LABEL[keyword][lang];
+    const text =
+      keyword === "follow" && effect.followCount !== undefined
+        ? `[${label}{${effect.followCount}}]`
+        : `[${label}]`;
+    return { text, keyword };
+  });
+}
+
+/**
+ * Drops the keyword tags the imported text opens with.
+ *
+ * The printed text carries its own "[Enter] / [Level up]" prefix and the
+ * engine writes the same keywords out from the effect's conditions, so
+ * showing both reads "[ลงสนาม][เลเวลอัป] [Enter] / [Level up] ...". Only the
+ * opening run goes: a tag further in is part of the sentence — "+8
+ * [follow-up attack]", or a tag inside an ability being quoted — and means
+ * something the conditions do not say.
+ */
+function withoutLeadingTags(body: string): string {
+  let at = 0;
+  for (;;) {
+    const rest = body.slice(at);
+    // "[Enter] / [Level up]" — the slash joins a pair rather than starting
+    // the sentence, so it is skipped along with the tag it follows.
+    const match = /^\s*\/?\s*\[([^\]\n]+)\]/.exec(rest);
+    if (!match || !keywordForTag(match[1])) break;
+    at += match[0].length;
+  }
+  return at === 0 ? body : body.slice(at).trimStart();
+}
+
+/**
  * The printed ability in one language, with the keyword tags in front the
  * way the card shows them: "[Enter][Follow{2}] draw two cards".
  */
 export function formatEffect(effect: CardEffect, lang: Lang = "en"): string {
-  const tags = keywordsOf(effect.condition)
-    .map((keyword) => {
-      const label = KEYWORD_LABEL[keyword][lang];
-      return keyword === "follow" && effect.followCount !== undefined
-        ? `[${label}{${effect.followCount}}]`
-        : `[${label}]`;
-    })
+  const tags = effectTags(effect, lang)
+    .map((tag) => tag.text)
     .join("");
-  const body = localize(effect.text, lang);
+  const body = withoutLeadingTags(localize(effect.text, lang));
   return body ? `${tags} ${body}` : tags;
+}
+
+/**
+ * One run of an ability's text: either plain wording, or a keyword tag with
+ * the colour it is printed in.
+ */
+export interface EffectSegment {
+  text: string;
+  keyword?: CardKeyword;
+  color?: string;
+}
+
+/**
+ * formatEffect, split so a keyword can be drawn as the coloured tag it is
+ * rather than as bracketed prose.
+ *
+ * Every bracket is looked at, not just the ones in front: an ability that
+ * quotes another ability, or that names 〈follow-up attack〉 mid-sentence,
+ * has keywords in the middle of it and they are the same keywords. A bracket
+ * naming nothing we know stays exactly as printed — unrecognised is not the
+ * same as absent, and silently dropping it would hide a card we have not
+ * finished importing.
+ */
+export function effectSegments(effect: CardEffect, lang: Lang = "en"): EffectSegment[] {
+  const segments: EffectSegment[] = [];
+  const push = (text: string, keyword?: CardKeyword | null) => {
+    if (!text) return;
+    if (keyword) segments.push({ text, keyword, color: KEYWORD_COLOR[keyword] });
+    else segments.push({ text });
+  };
+
+  for (const tag of effectTags(effect, lang)) {
+    push(tag.text, tag.keyword);
+  }
+
+  const body = withoutLeadingTags(localize(effect.text, lang));
+  if (!body) return segments;
+  if (segments.length > 0) push(" ");
+
+  let at = 0;
+  for (const match of body.matchAll(/\[([^\]\n]+)\]/g)) {
+    const keyword = keywordForTag(match[1]);
+    if (!keyword) continue;
+    push(body.slice(at, match.index));
+    push(match[0], keyword);
+    at = match.index + match[0].length;
+  }
+  push(body.slice(at));
+  return segments;
 }
 
 // --- Card definitions ------------------------------------------------------

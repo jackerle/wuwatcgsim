@@ -18,6 +18,7 @@ import {
   joinRoom,
   leaveRoom,
   markPlayerDisconnected,
+  onMatchForfeited,
   publicRooms,
   seatInfo,
   seatOf,
@@ -27,11 +28,25 @@ import {
 } from "./roomManager.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
-// Comma-separated, so a phone on the LAN can be let in without a rebuild.
-const CLIENT_ORIGIN = (process.env.CLIENT_ORIGIN ?? "http://localhost:5173")
+
+/**
+ * Who may connect, for CORS.
+ *
+ * Comma-separated, so a phone on the LAN can be let in without a rebuild.
+ * Left unset, this reflects whatever Origin a request actually arrives with
+ * (the `cors` package's and Socket.IO's own meaning of `origin: true`)
+ * rather than guessing a fixed one — a wrong guess here is a silent
+ * connection failure with nothing useful in the browser console. There is no
+ * per-origin trust boundary to protect: a player's identity is a random id
+ * it hands over itself, not a cookie tied to where the request came from, so
+ * this only widens who CAN connect, never what they can do once they have.
+ * Set CLIENT_ORIGIN explicitly to lock it down to known hosts.
+ */
+const configuredOrigins = (process.env.CLIENT_ORIGIN ?? "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+const CLIENT_ORIGIN: boolean | string[] = configuredOrigins.length > 0 ? configuredOrigins : true;
 
 const app = express();
 app.use(cors({ origin: CLIENT_ORIGIN }));
@@ -122,9 +137,38 @@ function recordFor(socket: { data: SocketData }): RoomRecord | null {
   return getRoomForPlayer(playerId) ?? null;
 }
 
+// A player who never comes back within the grace period is forfeited on a
+// timer inside roomManager, well after the socket event that started the
+// countdown has finished handling. This is how that reaches the remaining
+// player — the timer itself has no socket to send anything with.
+onMatchForfeited((record) => {
+  emitMatch(record);
+  emitRoom(record);
+});
+
 io.on("connection", (socket) => {
   socket.data.roomCode = null;
   socket.data.playerId = "";
+
+  /**
+   * Runs a handler without letting a throw take the whole process with it.
+   *
+   * A move that raises deep inside a card effect used to crash the server:
+   * no update was ever sent, so both clients sat on the board they last
+   * received — and if that board carried an open question, on a modal whose
+   * buttons did nothing. The bug is still a bug, but it is now one player's
+   * refused move rather than everybody's match.
+   */
+  function guard(what: string, run: () => void): void {
+    try {
+      run();
+    } catch (error) {
+      console.error(`[${what}] handler failed:`, error);
+      socket.emit("errorMessage", {
+        message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์ — ลองอีกครั้ง",
+      });
+    }
+  }
 
   /** Joins the socket to its room channel and its own private channel. */
   function attach(record: RoomRecord, playerId: string): void {
@@ -175,8 +219,12 @@ io.on("connection", (socket) => {
     socket.leave(socket.data.playerId);
     socket.data.roomCode = null;
     if (record && record.room.players.length > 0) {
+      // leaveRoom() has already forfeited any match that was running and
+      // left `inMatch` as it was, so whoever is left still sees the board
+      // with a clear "จบเกม" banner instead of being dropped back to the
+      // lobby with no explanation.
+      emitMatch(record);
       emitRoom(record);
-      io.to(record.room.code).emit("matchEnded");
     }
     emitRooms();
   });
@@ -231,41 +279,49 @@ io.on("connection", (socket) => {
   });
 
   socket.on("matchIntent", ({ intent }) => {
-    const record = recordFor(socket);
-    const seat = record && seatOf(record, socket.data.playerId);
-    if (!record?.session || !seat) return;
-    record.session.apply(seat, intent);
-    emitMatch(record);
+    guard("matchIntent", () => {
+      const record = recordFor(socket);
+      const seat = record && seatOf(record, socket.data.playerId);
+      if (!record?.session || !seat) return;
+      record.session.apply(seat, intent);
+      emitMatch(record);
+    });
   });
 
   socket.on("matchAnswer", ({ answer }) => {
-    const record = recordFor(socket);
-    const seat = record && seatOf(record, socket.data.playerId);
-    if (!record?.session || !seat) return;
-    record.session.answer(seat, answer);
-    emitMatch(record);
+    guard("matchAnswer", () => {
+      const record = recordFor(socket);
+      const seat = record && seatOf(record, socket.data.playerId);
+      if (!record?.session || !seat) return;
+      record.session.answer(seat, answer);
+      emitMatch(record);
+    });
   });
 
   socket.on("cancelChoice", () => {
-    const record = recordFor(socket);
-    const seat = record && seatOf(record, socket.data.playerId);
-    if (!record?.session || !seat) return;
-    record.session.cancel(seat);
-    emitMatch(record);
+    guard("cancelChoice", () => {
+      const record = recordFor(socket);
+      const seat = record && seatOf(record, socket.data.playerId);
+      if (!record?.session || !seat) return;
+      record.session.cancel(seat);
+      emitMatch(record);
+    });
   });
 
   socket.on("restartMatch", () => {
-    const record = recordFor(socket);
-    if (!record) return;
-    endMatch(record);
-    const error = startMatch(record);
-    if (error) {
-      socket.emit("errorMessage", { message: error });
+    guard("restartMatch", () => {
+      const record = recordFor(socket);
+      if (!record) return;
+      endMatch(record);
+      const error = startMatch(record);
+      if (error) {
+        socket.emit("errorMessage", { message: error });
+        emitRoom(record);
+        return;
+      }
       emitRoom(record);
-      return;
-    }
-    emitRoom(record);
-    emitMatch(record);
+      emitMatch(record);
+    });
   });
 
   socket.on("sendChat", ({ text }) => {
@@ -289,6 +345,16 @@ io.on("connection", (socket) => {
 
 // Exported for tests / reuse; not required for `npm run dev`.
 export { app, io, getRoom };
+
+// A last line of defence for anything that escapes `guard` — a timer, a
+// promise, the socket library itself. A crashed process drops every match in
+// memory, which is a far worse outcome than one logged stack trace.
+process.on("uncaughtException", (error) => {
+  console.error("uncaught exception:", error);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("unhandled rejection:", reason);
+});
 
 httpServer.listen(PORT, () => {
   console.log(`WuwaTCGSim server listening on http://localhost:${PORT}`);

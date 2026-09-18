@@ -55,6 +55,8 @@ export function useNetMatch({ isHost }: NetMatchOptions): MatchController | null
       send,
       answer,
       cancel,
+      // The move is this seat's, so dropping it is this seat's to do.
+      canCancel: update.actorSeat === update.seat,
       restart,
       canRestart: isHost,
       chat,

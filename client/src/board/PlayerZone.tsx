@@ -1,6 +1,7 @@
-import type { ActionCard, CharacterCard, PlayerBoard } from "@wuwatcg/shared";
+import type { ActionCard, CharacterCard, CharacterInstance, PlayerBoard } from "@wuwatcg/shared";
 import type { HoverPreviewCard } from "./HoverPreviewContext";
-import { CharacterSlot } from "./CharacterSlot";
+import { CharacterSlot, type SlotActions } from "./CharacterSlot";
+import type { CardMenuItem } from "./CardMenu";
 import { Hand } from "./Hand";
 import { ChargeArea } from "./ChargeArea";
 import { OwnActionSlot } from "./OwnActionSlot";
@@ -36,10 +37,13 @@ export function PlayerZone({
   facedown,
   actionZone,
   selectedHand,
+  handSelectionMeans,
   onHandCardClick,
   unplayable,
   hideHand,
   dealKey,
+  actionsFor,
+  handMenuFor,
 }: {
   board: PlayerBoard;
   name: string;
@@ -50,6 +54,8 @@ export function PlayerZone({
   actionZone?: ActionCard[];
   /** Hand positions picked out — see Hand. */
   selectedHand?: number[];
+  /** What that selection means — see Hand's `selectionMeans`. */
+  handSelectionMeans?: "pick" | "return";
   onHandCardClick?: (card: ActionCard, index: number) => void;
   /** Why a card in hand cannot be played right now — see Hand. */
   unplayable?: (card: ActionCard, index: number) => string | null;
@@ -57,6 +63,14 @@ export function PlayerZone({
   hideHand?: boolean;
   /** Forwarded to Hand — see its own doc comment. */
   dealKey?: string | number;
+  /**
+   * What each character in play can be told to do — Level Up, Switch, or
+   * just be looked at. Given only for a board this screen may actually move
+   * right now; see CharacterSlot.
+   */
+  actionsFor?: (slot: CharacterInstance) => SlotActions | undefined;
+  /** What each card in hand can be told to do — see Hand. */
+  handMenuFor?: (card: ActionCard, index: number) => CardMenuItem[] | undefined;
 }) {
   const poolCards = board.characterPool.map(toCharacterPreview);
   const trashCards = board.trash.map(toActionPreview);
@@ -93,9 +107,16 @@ export function PlayerZone({
           cards={poolCards}
         />
         <div className="characters-group">
-          <CharacterSlot slot={board.back[0] ?? null} label="หลัง" />
-          <CharacterSlot slot={board.leader} label="Leader" />
-          <CharacterSlot slot={board.back[1] ?? null} label="หลัง" />
+          {([board.back[0] ?? null, board.leader, board.back[1] ?? null] as const).map(
+            (slot, index) => (
+              <CharacterSlot
+                key={slot?.card.id ?? `empty-${index}`}
+                slot={slot}
+                label={index === 1 ? "Leader" : "หลัง"}
+                actions={slot ? actionsFor?.(slot) : undefined}
+              />
+            )
+          )}
         </div>
         <Pile
           label="Trash"
@@ -111,8 +132,10 @@ export function PlayerZone({
           cards={board.hand}
           faceDown={hideHand}
           selected={selectedHand}
+          selectionMeans={handSelectionMeans}
           unplayable={unplayable}
           onCardClick={hideHand ? undefined : onHandCardClick}
+          menuFor={hideHand ? undefined : handMenuFor}
           dealKey={dealKey}
         />
       </div>

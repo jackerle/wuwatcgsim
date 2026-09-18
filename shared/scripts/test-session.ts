@@ -14,9 +14,10 @@ import { HIDDEN_CARD_ID } from "../src/game";
 import type { ActionCard, CharacterCard } from "../src/game";
 import { createMatch } from "../src/match";
 import { ACTION_DECK_SIZE } from "../src/rules";
-import { MatchSession, dealMatch, starterDeck } from "../src/session";
+import { MatchSession, dealMatch, firstSeatFor, starterDeck } from "../src/session";
 import type { DeckList } from "../src/deckList";
 import type { Seat } from "../src/types";
+import { SEATS } from "../src/types";
 
 let pass = 0;
 let fail = 0;
@@ -28,8 +29,15 @@ const check = (name: string, ok: boolean, detail = "") => {
 const [FIRST, SECOND] = playableCharacters();
 const PICKS: Record<Seat, DeckList> = { p1: starterDeck(FIRST), p2: starterDeck(SECOND) };
 
+/**
+ * A session sat at turn 1 with p1 to move.
+ *
+ * Both defaults are pinned: a real deal tosses a coin for the first turn and
+ * opens on the mulligan, and these cases are about who is allowed to speak,
+ * not about either of those. The opening itself is checked below.
+ */
 function fresh(): MatchSession {
-  return MatchSession.deal("test", PICKS, 12345);
+  return MatchSession.deal("test", PICKS, 12345, { startingPlayerId: "p1", skipMulligan: true });
 }
 
 function character(id: string): CharacterCard {
@@ -67,7 +75,13 @@ const ENCORE = ["BP01-015", "BP01-013", "BP01-030", "BP01-033"].map(character);
 {
   const state = dealMatch("test", PICKS, 99);
   check("แจกการ์ดแล้วได้ผู้เล่นสองฝั่ง", Object.keys(state.boards).join(",") === "p1,p2");
-  check("p1 เริ่มก่อน", state.turnPlayerId === "p1" && state.startingPlayerId === "p1");
+  check(
+    "สุ่มคนเริ่มก่อน และเทิร์นแรกเป็นของคนนั้น",
+    SEATS.includes(state.startingPlayerId as Seat) &&
+      state.turnPlayerId === state.startingPlayerId,
+    state.startingPlayerId
+  );
+  check("แจกแล้วเริ่มที่เฟสเปลี่ยนการ์ด", state.phase === "mulligan", state.phase);
   check("ทั้งคู่มีการ์ดในมือ", state.boards.p1.hand.length > 0 && state.boards.p2.hand.length > 0);
   check(
     "สองฝั่งจั่วไม่เหมือนกัน",
@@ -81,12 +95,50 @@ const ENCORE = ["BP01-015", "BP01-013", "BP01-030", "BP01-033"].map(character);
     again.boards.p1.hand.map((c) => c.id).join(",") ===
       state.boards.p1.hand.map((c) => c.id).join(",")
   );
+  check(
+    "seed เดิม -> ได้คนเริ่มก่อนคนเดิม",
+    again.startingPlayerId === state.startingPlayerId
+  );
   const other = dealMatch("test", PICKS, 100);
   check(
     "seed ใหม่ -> แจกไม่เหมือนเดิม",
     other.boards.p1.hand.map((c) => c.id).join(",") !==
       state.boards.p1.hand.map((c) => c.id).join(",")
   );
+
+  // A coin toss that always lands the same way is not a coin toss. Over a
+  // spread of seeds both seats must come up.
+  const opened = new Set(
+    Array.from({ length: 40 }, (_, i) => firstSeatFor("coin", i * 7919 + 3))
+  );
+  check("สุ่มแล้วได้ทั้งสองฝั่ง ไม่ใช่ฝั่งเดิมตลอด", opened.size === SEATS.length, [...opened].join(","));
+}
+
+// --- The opening mulligan over a session -----------------------------------
+//
+// Both seats answer it, neither is the "turn player" for it, and the match
+// does not start until both are in.
+
+{
+  const session = MatchSession.deal("mull", PICKS, 4242);
+  check("แจกแล้วอยู่ที่เฟสเปลี่ยนการ์ด", session.state.phase === "mulligan", session.state.phase);
+  check(
+    "log บอกว่าใครเริ่มก่อน",
+    session.log.some((line) => line.includes(session.state.startingPlayerId)),
+    session.log[0] ?? ""
+  );
+  check(
+    "ระหว่างเปลี่ยนการ์ด เริ่มเทิร์นไม่ได้",
+    !session.apply(session.state.startingPlayerId as Seat, { kind: "startTurn" })
+  );
+
+  const backs = session.state.boards.p2.hand.slice(0, 2).map((card) => card.id);
+  check("ฝ่ายที่ไม่ใช่เจ้าของเทิร์นก็เปลี่ยนการ์ดได้", session.apply("p2", { kind: "mulligan", cardIds: backs }), session.errorFor("p2") ?? "");
+  check("ยังไม่เริ่ม เพราะอีกฝ่ายยังไม่เลือก", session.state.phase === "mulligan");
+  check("เลือกซ้ำไม่ได้", !session.apply("p2", { kind: "mulligan", cardIds: [] }));
+  check("อีกฝ่ายเลือกแล้วเกมเริ่ม", session.apply("p1", { kind: "mulligan", cardIds: [] }));
+  check("เข้าเฟสจั่ว", session.state.phase === "draw", session.state.phase);
+  check("มือยังเป็น 5 ใบทั้งคู่", session.state.boards.p1.hand.length === 5 && session.state.boards.p2.hand.length === 5);
 }
 
 // --- Who is allowed to speak ----------------------------------------------
@@ -234,6 +286,44 @@ function withQuestion(): MatchSession {
   check("ยอมแพ้ได้ตลอด", session.apply("p2", { kind: "concede" }));
   check("อีกฝ่ายชนะ", session.winnerId === "p1", String(session.winnerId));
   check("จบแล้วสั่งต่อไม่ได้", !session.apply("p1", { kind: "startTurn" }));
+}
+
+// --- Forfeiting: for a player who left, not one still asking to concede ----
+//
+// This is what the server calls when someone leaves the room or disappears
+// past their grace period — never a move the player themselves sent, so it
+// must not go through the same refusals a real move would.
+
+{
+  const session = fresh();
+  session.forfeit("p2");
+  check("ฝ่ายที่เหลือชนะ", session.winnerId === "p1", String(session.winnerId));
+  check(
+    "บันทึกลง log ว่าออกจากเกม",
+    session.log.some((line) => line.includes("p2") && line.includes("left")),
+    session.log.at(-1) ?? ""
+  );
+}
+
+{
+  // The one case forfeit exists for: a question is open (so apply() would
+  // refuse everything, concede included) and nobody is coming back to
+  // answer it.
+  const session = withQuestion();
+  check("มีคำถามค้างอยู่ก่อน", session.question !== null);
+  session.forfeit(session.question!.actor);
+  check("forfeit เคลียร์คำถามที่ค้างอยู่ได้ ไม่ติดขัด", session.question === null);
+  check("ประกาศผู้ชนะได้ทั้งที่คำถามค้าง", session.winnerId !== null, String(session.winnerId));
+}
+
+{
+  // A match already decided stays decided — a stray disconnect timer firing
+  // after the fact must not overturn a real result.
+  const session = fresh();
+  session.apply("p2", { kind: "concede" });
+  const before = session.winnerId;
+  session.forfeit("p1");
+  check("จบไปแล้วครั้งหนึ่ง -> forfeit อีกฝ่ายไม่เปลี่ยนผล", session.winnerId === before, String(session.winnerId));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -8,12 +8,14 @@ import type { ActionCard, CharacterLevel } from "./game";
 import {
   emptyTurnLog,
   HAND_LIMIT,
+  shuffleWithState,
   type ActionKind,
   type CharacterCard,
   type MatchState,
   type PlayerBoard,
   type TurnPhase,
 } from "./game";
+import { LOG } from "./log";
 
 // --- Deck building ---------------------------------------------------------
 
@@ -53,6 +55,10 @@ export function validateDecks(
  * Turn order. "counter" is the phase the rules text calls the Reaction
  * Phase — both names refer to the step where the two players reveal their
  * face-down cards simultaneously.
+ *
+ * "mulligan" is deliberately absent: it happens once, before turn 1, and the
+ * turn cycle never reaches it again. nextPhase("mulligan") is therefore null,
+ * and the engine moves out of it by hand once both players have chosen.
  */
 export const TURN_PHASE_ORDER: readonly TurnPhase[] = [
   "draw",
@@ -63,9 +69,13 @@ export const TURN_PHASE_ORDER: readonly TurnPhase[] = [
 ] as const;
 
 export const PHASE_LABEL: Record<TurnPhase, { en: string; th: string }> = {
+  mulligan: { en: "Mulligan", th: "เปลี่ยนการ์ดในมือ" },
   draw: { en: "Draw Phase", th: "เฟสจั่ว" },
   action: { en: "Action Phase", th: "เฟสแอ็กชัน" },
-  counter: { en: "Reaction Phase", th: "เฟสตอบโต้" },
+  // `counter` is the engine's name for it, and the cards print [Counter];
+  // the game's own word for the step is Battle, and that is what a player
+  // reads — here and in KEYWORD_LABEL.
+  counter: { en: "Battle Phase", th: "เฟสประลอง" },
   combo: { en: "Combo Step", th: "ขั้นคอมโบ" },
   end: { en: "End Phase", th: "เฟสจบเทิร์น" },
 };
@@ -86,6 +96,54 @@ export function nextPhase(phase: TurnPhase): TurnPhase | null {
  */
 export function drawCount(turnNumber: number, isStartingPlayer: boolean): number {
   return turnNumber === 1 && isStartingPlayer ? 1 : 2;
+}
+
+/**
+ * Shuffles the trash back into an empty deck, and says whether it did.
+ *
+ * Running the deck out is not a loss in these rules — the pile is recycled
+ * and play continues — so this is the whole of that rule. It fires only on
+ * an EMPTY deck: a deck with one card left is not out yet, and mixing the
+ * trash in underneath while a card is still on top would quietly change
+ * which card comes off next.
+ */
+export function recycleTrash(state: MatchState, board: PlayerBoard, log?: string[]): boolean {
+  if (board.actionDeck.length > 0 || board.trash.length === 0) return false;
+  board.actionDeck = shuffleWithState(state, board.trash);
+  board.trash = [];
+  log?.push(LOG.recyclesTrash(board.playerId, board.actionDeck.length));
+  return true;
+}
+
+/**
+ * Takes `count` cards off the top of a deck, recycling the trash whenever it
+ * runs dry — including part-way through the count, so drawing two with one
+ * card left takes that card, recycles, and takes the second off the new deck.
+ *
+ * Every path that moves cards off the top of a deck goes through here, which
+ * is what keeps the recycle rule in one place instead of in the six separate
+ * effects that draw, mill, reveal or charge from it.
+ *
+ * Returns fewer cards than asked only when both piles are empty — the one
+ * case where there is genuinely nothing left to give.
+ */
+export function takeFromDeck(
+  state: MatchState,
+  board: PlayerBoard,
+  count: number,
+  log?: string[]
+): ActionCard[] {
+  const taken: ActionCard[] = [];
+  while (taken.length < count) {
+    if (board.actionDeck.length === 0 && !recycleTrash(state, board, log)) {
+      // Deck and trash both empty. Not a loss, but not something to pass
+      // over in silence either.
+      log?.push(LOG.deckEmpty(board.playerId));
+      break;
+    }
+    taken.push(board.actionDeck.shift()!);
+  }
+  return taken;
 }
 
 // --- Action Phase ----------------------------------------------------------
@@ -226,10 +284,31 @@ export function recordCardPlayed(
   return next;
 }
 
+/**
+ * Records a character card reaching the field, however it got there.
+ *
+ * Levelling up is the only way one does, so this sits beside every level up
+ * — the Action Phase move and the ability that does it for you.
+ */
+export function recordCharacterPlayed(
+  state: MatchState,
+  playerId: string,
+  cardId: string
+): MatchState {
+  const next = structuredClone(state);
+  const played = (next.turnLog.charactersPlayed[playerId] ??= []);
+  if (!played.includes(cardId)) played.push(cardId);
+  return next;
+}
+
 /** Records damage that did not come from a card effect, e.g. combat damage. */
 export function recordDamage(state: MatchState, playerId: string, amount: number): MatchState {
   const next = structuredClone(state);
   next.turnLog.damageTaken[playerId] = (next.turnLog.damageTaken[playerId] ?? 0) + amount;
+  // Counted even when the amount came out at zero: a hit that was reduced to
+  // nothing still happened, and an ability that only softens the first one
+  // has spent itself on it.
+  next.turnLog.hitsTaken[playerId] = (next.turnLog.hitsTaken[playerId] ?? 0) + 1;
   return next;
 }
 

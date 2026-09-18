@@ -147,13 +147,17 @@ const check = (name: string, ok: boolean, detail = "") => {
   );
   check(
     "ถามเฉพาะการ์ดที่เข้าเงื่อนไขหมวด",
-    asked.pending?.options.length === 1 && asked.pending.options[0].value === "BP01-044",
-    JSON.stringify(asked.pending?.options.map((o) => o.value))
+    asked.pending?.options.length === 1 && asked.pending.options[0].cardId === "BP01-044",
+    JSON.stringify(asked.pending?.options.map((o) => o.cardId))
   );
   check("ถามถูกคน", asked.pending?.playerId === "p1" && asked.pending.cardId === "BP01-003");
 
-  // Player says yes, take BP01-044.
-  const took = resolveTrigger(base, "enter", [src("BP01-003")], ["BP01-044"]);
+  // Player says yes, take BP01-044. The answer is the option's own value,
+  // which names a POSITION in the list offered — several copies of one card
+  // can be on it, and its number would name all of them at once.
+  const took = resolveTrigger(base, "enter", [src("BP01-003")], [
+    asked.pending!.options[0].value,
+  ]);
   check(
     "ตอบว่าเอา -> การ์ดย้ายจากกองทิ้งขึ้นมือ",
     took.pending === null &&

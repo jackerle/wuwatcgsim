@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./game";
 export * from "./cards";
+export * from "./log";
 export * from "./cardDef";
 export * from "./cardDb";
 export * from "./effects";

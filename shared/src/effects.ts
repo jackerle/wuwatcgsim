@@ -15,6 +15,7 @@ import {
   matchesFilter,
   type CardFilter,
   type FilterableCard,
+  type LocalizedText,
   type ModifierDuration,
   type StatModifier,
 } from "./cards";
@@ -30,12 +31,15 @@ import {
   type CardDef,
   type CardEffect,
   type ChoiceAnswer,
+  type ChoiceOption,
   type Condition,
   type EffectContext,
   type PendingChoice,
 } from "./cardDef";
 import type { CardKeyword, ContinuousKeyword, EffectTrigger } from "./cards";
 import { getCard } from "./cardDb";
+import { LOG, PROMPT } from "./log";
+import { recordCharacterPlayed, recycleTrash, takeFromDeck } from "./rules";
 import { characterStack, nextRandom, shuffleWithState } from "./game";
 import type {
   ActionCard,
@@ -149,13 +153,83 @@ function createContext(
   log: string[],
   /** Set while recomputing continuous effects — see recomputeContinuous. */
   derived = false,
-  cursor: AnswerCursor = { answers: [], next: 0 }
+  cursor: AnswerCursor = { answers: [], next: 0 },
+  /**
+   * The effect being resolved, when there is one. Only the parts of the
+   * context that have to tell one of a card's abilities from another look at
+   * it — see grantFollowUp.
+   */
+  effect?: CardEffect
 ): EffectContext {
   const opponentId = Object.keys(state.boards).find((id) => id !== controllerId) ?? "";
   const boardOf = (playerId?: string): PlayerBoard => {
     const board = state.boards[playerId ?? controllerId];
     if (!board) throw new Error(`No board for player "${playerId ?? controllerId}"`);
     return board;
+  };
+
+  /**
+   * Which cards to take out of a pile, asked of the player when there is a
+   * real choice to make.
+   *
+   * "Take a red Encore card from your trash" is a decision when the trash
+   * holds three of them, and the engine has no business making it — it used
+   * to take the most recently binned one and say nothing. Asked only when it
+   * matters: fewer matches than the card wants (or exactly as many) leaves
+   * nothing to decide, so nothing is asked.
+   *
+   * Returns the cards themselves, still in the pile; the caller moves them.
+   */
+  const pickFrom = (
+    pile: ActionCard[],
+    count: number,
+    filter: CardFilter | undefined,
+    owner: string,
+    prompt: LocalizedText
+  ): ActionCard[] => {
+    // Newest first, which is the order these piles are read in and the one
+    // the old silent behaviour used.
+    const candidates = [...pile]
+      .reverse()
+      .filter((c) => !filter || matchesFilter(filterableFor(c), filter));
+    if (candidates.length <= count) return candidates;
+    // Copies of one printed card are not a choice, they are the same card
+    // twice. This is also what keeps a card that already asked — "you MAY
+    // take a {Basic Attack}", then take the one they named — from asking a
+    // second time on the way through here.
+    if (new Set(candidates.map((c) => c.id)).size === 1) return candidates.slice(0, count);
+
+    const answer = ask(cursor, {
+      kind: "pickCard",
+      playerId: owner,
+      cardId: card.id,
+      prompt,
+      options: candidates.map(cardOption),
+      min: count,
+      max: count,
+    });
+    const picked = Array.isArray(answer) ? answer : [answer].filter((v) => typeof v === "string");
+    const seen = new Set<number>();
+    const chosen: ActionCard[] = [];
+    for (const value of picked as string[]) {
+      const at = optionIndex(value);
+      if (seen.has(at) || !candidates[at]) continue;
+      seen.add(at);
+      chosen.push(candidates[at]);
+    }
+    // An answer that named nothing usable still has to move the game on, so
+    // fall back to what the engine would have taken on its own.
+    return chosen.length > 0 ? chosen : candidates.slice(0, count);
+  };
+
+  /** Lifts specific cards out of a pile, by identity. */
+  const lift = (pile: ActionCard[], cards: ActionCard[]): ActionCard[] => {
+    const out: ActionCard[] = [];
+    for (const target of cards) {
+      const at = pile.indexOf(target);
+      if (at >= 0) out.push(...pile.splice(at, 1));
+    }
+    return out;
   };
 
   const pushModifier = (modifier: Omit<StatModifier, "id" | "derived">) => {
@@ -214,8 +288,15 @@ function createContext(
       (state.turnLog.cardsPlayed[playerId ?? controllerId] ?? []).filter((c) =>
         matchesFilter(filterableFor(c), filter)
       ).length,
-    selfPlayedThisTurn: (playerId) =>
-      (state.turnLog.cardsPlayed[playerId ?? controllerId] ?? []).some((c) => c.id === card.id),
+    selfPlayedThisTurn: (playerId) => {
+      const who = playerId ?? controllerId;
+      // Either pile: an action card is played by being turned up, a
+      // character by being levelled onto the field.
+      return (
+        (state.turnLog.cardsPlayed[who] ?? []).some((c) => c.id === card.id) ||
+        (state.turnLog.charactersPlayed[who] ?? []).includes(card.id)
+      );
+    },
     damageTakenThisTurn: (playerId) => state.turnLog.damageTaken[playerId ?? controllerId] ?? 0,
     healedThisTurn: (playerId) => state.turnLog.healed[playerId ?? controllerId] ?? 0,
     useLimit(max, label) {
@@ -229,42 +310,48 @@ function createContext(
       const target = playerId ?? controllerId;
       const list = (state.turnLog.flags[target] ??= []);
       if (!list.includes(flag)) list.push(flag);
-      log.push(`${target} restricted this turn: ${flag}`);
+      log.push(LOG.restricted(target, flag));
     },
     isRestricted: (flag, playerId) =>
       (state.turnLog.flags[playerId ?? controllerId] ?? []).includes(flag),
 
     draw(count, playerId) {
       const board = boardOf(playerId);
-      const drawn = board.actionDeck.splice(0, count);
+      const drawn = takeFromDeck(state, board, count, log);
       board.hand.push(...drawn);
-      log.push(`${board.playerId} draws ${drawn.length}`);
+      log.push(LOG.draws(board.playerId, drawn.length));
     },
     damage(amount, targetId) {
       const board = boardOf(targetId ?? opponentId);
       board.life -= amount;
       const seen = state.turnLog.damageTaken[board.playerId] ?? 0;
       state.turnLog.damageTaken[board.playerId] = seen + amount;
-      log.push(`${board.playerId} takes ${amount} from ${card.name} [${card.id}] (life ${board.life})`);
+      log.push(LOG.takesFrom(board.playerId, amount, `${card.name} [${card.id}]`, board.life));
     },
     heal(amount, playerId) {
       const board = boardOf(playerId);
       board.life += amount;
       const seen = state.turnLog.healed[board.playerId] ?? 0;
       state.turnLog.healed[board.playerId] = seen + amount;
-      log.push(`${board.playerId} heals ${amount} from ${card.name} [${card.id}] (life ${board.life})`);
+      log.push(LOG.healsFrom(board.playerId, amount, `${card.name} [${card.id}]`, board.life));
     },
     discard(count, playerId) {
       const board = boardOf(playerId);
-      const moved = board.hand.splice(0, count);
+      const moved = lift(
+        board.hand,
+        pickFrom(board.hand, count, undefined, board.playerId, PROMPT.discard(count))
+      );
       board.trash.push(...moved);
-      log.push(`${board.playerId} discards ${moved.length}`);
+      log.push(LOG.discards(board.playerId, moved.length));
     },
     charge(count, playerId) {
       const board = boardOf(playerId);
-      const moved = board.hand.splice(0, count);
+      const moved = lift(
+        board.hand,
+        pickFrom(board.hand, count, undefined, board.playerId, PROMPT.charge(count))
+      );
       board.competitionArea.push(...moved);
-      log.push(`${board.playerId} charges ${moved.length}`);
+      log.push(LOG.chargesCards(board.playerId, moved.length));
     },
     returnToCharacterDeck() {
       const board = boardOf();
@@ -278,7 +365,7 @@ function createContext(
         (entry) => entry.card.id === card.id || entry.under.some((c) => c.id === card.id)
       );
       if (!slot) {
-        log.push(`${card.id} is not on the field — nothing to return`);
+        log.push(LOG.notOnField(card.id));
         return;
       }
 
@@ -287,20 +374,20 @@ function createContext(
         board.characterPool.push(slot.card);
         if (beneath) {
           slot.card = beneath;
-          log.push(`${card.id} returns to the Character Deck; ${beneath.id} is exposed underneath`);
+          log.push(LOG.returnsToCharacterDeckExposing(card.id, beneath.id));
           return;
         }
         // Nothing underneath: the character leaves the field entirely.
         if (board.leader === slot) board.leader = null;
         else board.back = board.back.filter((entry) => entry !== slot);
-        log.push(`${card.id} returns to the Character Deck, leaving the slot empty`);
+        log.push(LOG.returnsToCharacterDeckEmptying(card.id));
         return;
       }
 
       // Buried in the pile: pull just that card out, the rest closes up.
       const at = slot.under.findIndex((c) => c.id === card.id);
       board.characterPool.push(...slot.under.splice(at, 1));
-      log.push(`${card.id} returns to the Character Deck from under the pile`);
+      log.push(LOG.returnsToCharacterDeck(card.id));
     },
     switchLeader(toCardId, playerId) {
       const board = boardOf(playerId);
@@ -308,7 +395,7 @@ function createContext(
         ? board.back.findIndex((slot) => slot.card.id === toCardId)
         : 0;
       if (index < 0 || !board.back[index]) {
-        log.push("no back character to switch with");
+        log.push(LOG.noBackCharacter());
         return;
       }
       const incoming = board.back[index];
@@ -317,48 +404,49 @@ function createContext(
       board.leader = { ...incoming, position: "leader" };
       if (outgoing) board.back[index] = { ...outgoing, position: "back" };
       else board.back.splice(index, 1);
-      log.push(`${board.playerId} switches leader to ${incoming.card.id}`);
+      log.push(LOG.switchesLeader(board.playerId, incoming.card.id));
     },
     revealTop(count, playerId) {
       const board = boardOf(playerId);
+      // Peeking, not taking — but an empty deck still has to be refilled
+      // first, or there is nothing to show and the card that follows this
+      // ("...then take it") finds the deck empty too.
+      recycleTrash(state, board, log);
       const revealed = board.actionDeck.slice(0, count);
-      log.push(`${board.playerId} reveals ${revealed.length} from the top`);
+      log.push(LOG.revealsTop(board.playerId, revealed.length));
       return revealed;
     },
     topToConcerto(count, playerId) {
       const board = boardOf(playerId);
-      const moved = board.actionDeck.splice(0, count);
+      const moved = takeFromDeck(state, board, count, log);
       board.competitionArea.push(...moved);
-      log.push(`${board.playerId} puts ${moved.length} from the deck into the Concerto area`);
+      log.push(LOG.deckToConcerto(board.playerId, moved.length));
     },
     deckToHand(count, playerId) {
       const board = boardOf(playerId);
-      const moved = board.actionDeck.splice(0, count);
+      const moved = takeFromDeck(state, board, count, log);
       board.hand.push(...moved);
-      log.push(`${board.playerId} takes ${moved.length} from the top of the deck`);
+      log.push(LOG.deckToHand(board.playerId, moved.length));
       return moved;
     },
     deckToTrash(count, playerId) {
       const board = boardOf(playerId);
-      const moved = board.actionDeck.splice(0, count);
+      const moved = takeFromDeck(state, board, count, log);
       board.trash.push(...moved);
-      log.push(`${board.playerId} bins ${moved.length} from the top of the deck`);
+      log.push(LOG.deckToTrash(board.playerId, moved.length));
       return moved;
     },
     trashToHand(count, filter, playerId) {
       const board = boardOf(playerId);
-      let taken = 0;
-      for (let i = board.trash.length - 1; i >= 0 && taken < count; i -= 1) {
-        const candidate = board.trash[i];
-        if (filter && !matchesFilter(filterableFor(candidate), filter)) continue;
-        board.hand.push(candidate);
-        board.trash.splice(i, 1);
-        taken += 1;
-      }
+      const moved = lift(
+        board.trash,
+        pickFrom(board.trash, count, filter, board.playerId, PROMPT.trashToHand(count))
+      );
+      board.hand.push(...moved);
       // Silent when nothing matched — an ability that found no target should
       // not leave a line in the battle log claiming it did something.
-      if (taken > 0) {
-        log.push(`${board.playerId} returns ${taken} card(s) from the trash to hand`);
+      if (moved.length > 0) {
+        log.push(LOG.trashToHand(board.playerId, moved.length));
       }
     },
     buff(filter: CardFilter, stat, amount, duration: ModifierDuration = "turn", options = {}) {
@@ -371,7 +459,7 @@ function createContext(
         duration,
         ...(options.limit ? { limit: options.limit } : {}),
       });
-      log.push(`${describeFilter(filter)} ${stat} ${amount >= 0 ? "+" : ""}${amount} (${duration})`);
+      log.push(LOG.statChange(describeFilter(filter), stat, amount, duration));
     },
     setStat(filter: CardFilter, stat, value, duration: ModifierDuration = "turn", options = {}) {
       pushModifier({
@@ -384,7 +472,7 @@ function createContext(
         duration,
         ...(options.limit ? { limit: options.limit } : {}),
       });
-      log.push(`${describeFilter(filter)} ${stat} = ${value} (${duration})`);
+      log.push(LOG.statSet(describeFilter(filter), stat, value, duration));
     },
 
     grantEffect(filter: CardFilter, grantKey, duration: ModifierDuration = "turn", options = {}) {
@@ -401,7 +489,7 @@ function createContext(
         ...(options.limit ? { limit: options.limit } : {}),
         ...(derived ? { derived: true } : {}),
       });
-      log.push(`${describeFilter(filter)} gains an ability (${duration})`);
+      log.push(LOG.gainsAbility(describeFilter(filter), duration));
     },
 
     limitActionArea(filter: CardFilter, max, playerId) {
@@ -416,6 +504,19 @@ function createContext(
       });
     },
     grantFollowUp(count, playerId) {
+      // An ACTION card's own Follow{x} is already applied by combat, at the
+      // moment it wins the clash — comboGrantFor() reads `followCount` off
+      // the printed card and that is what opens the Combo window. An effect
+      // that declares `followCount` and then hands the same number out here
+      // is the one ability written down twice, and the player gets both:
+      // Follow{2} allowed four follow-ups, Follow{8} sixteen.
+      //
+      // The printed number wins, so this call is dropped. A LEADER's Follow
+      // is a different thing and still goes through: comboGrantFor is only
+      // ever asked about the winning action card, so a Leader Skill granting
+      // follow-ups has no other way to do it — its own `followCount` is there
+      // to print "[Follow{3}]" in the card text, nothing more.
+      if (card.type === "action" && typeof effect?.followCount === "number") return;
       const target = playerId ?? controllerId;
       const window = state.combo;
       if (window && window.playerId === target) {
@@ -425,57 +526,100 @@ function createContext(
         // Combo Step has a window set up.
         state.combo = { playerId: target, unlimited: false, remaining: count };
       }
-      log.push(`${target} gains ${count} follow-up attack(s)`);
+      log.push(LOG.gainsFollowUp(target, count));
     },
     returnToHand() {
       const board = boardOf();
       const zone = state.actionZone[controllerId] ?? [];
       const at = zone.findIndex((c) => c.id === card.id);
       if (at < 0) {
-        log.push(`${card.id} is not in the Action Area`);
+        log.push(LOG.notInActionArea(card.id));
         return;
       }
       board.hand.push(...zone.splice(at, 1));
-      log.push(`${card.id} returns to hand`);
+      log.push(LOG.returnsToHand(card.id));
     },
 
-    levelUpCharacter(characterName, playerId) {
-      const board = boardOf(playerId);
+    levelUpCharacter(characterName, options = {}) {
+      const board = boardOf(options.playerId);
       const slot = [board.leader, ...board.back].find(
         (entry) => entry?.card.name === characterName
       );
       if (!slot) {
-        log.push(`${characterName} is not in play`);
+        log.push(LOG.notInPlay(characterName));
         return false;
       }
-      // Lowest legal card first, so an effect never burns a Level 2 when a
-      // Level 1 would have done. Levelling moves one step at a time, same as
-      // the Action Phase move — see canLevelUpOnto.
+      // A card that names the level it puts into play says exactly which
+      // cards it means, and the one-step ladder is not one of the things it
+      // has to obey — reaching Level 2 out of turn is what makes such a card
+      // worth playing. Everything else climbs the usual way: one step at a
+      // time, and a card of the level they are already at counts, same as
+      // canLevelUpOnto in rules.ts.
+      const wanted = options.level;
+      const legalLevel = (level: number) =>
+        wanted !== undefined
+          ? level === wanted
+          : level >= slot.card.level && level <= slot.card.level + 1;
       const candidates = board.characterPool
         .map((c, index) => ({ c, index }))
-        .filter(
-          ({ c }) =>
-            c.name === characterName &&
-            c.level > 0 &&
-            c.level >= slot.card.level &&
-            c.level <= slot.card.level + 1
-        )
+        .filter(({ c }) => c.name === characterName && c.level > 0 && legalLevel(c.level))
         .sort((a, b) => a.c.level - b.c.level);
       if (candidates.length === 0) {
-        log.push(`no Level Up card left for ${characterName}`);
+        log.push(LOG.noLevelUpCardLeft(characterName));
         return false;
       }
-      const [picked] = board.characterPool.splice(candidates[0].index, 1);
+
+      // Which card goes on top is the player's call, not the engine's: the
+      // levels legal here are different cards with different abilities, and
+      // staying at the level you are on to pick up a second Level 1 skill is
+      // a real play. Only worth asking when the answer is not forced.
+      let chosen = candidates[0];
+      if (candidates.length > 1) {
+        const answer = ask(cursor, {
+          kind: "pickCard",
+          playerId: board.playerId,
+          cardId: card.id,
+          prompt: {
+            th: `Level up ${characterName} ด้วยการ์ดใบไหน`,
+            en: `Level ${characterName} up with which card?`,
+          },
+          options: candidates.map(({ c }) => ({
+            value: c.id,
+            label: { th: `${c.name} Lv.${c.level}`, en: `${c.name} Lv.${c.level}` },
+          })),
+          min: 1,
+          max: 1,
+        });
+        const pickedId = Array.isArray(answer) ? answer[0] : answer;
+        chosen = candidates.find(({ c }) => c.id === pickedId) ?? candidates[0];
+      }
+
+      const [picked] = board.characterPool.splice(chosen.index, 1);
+      const covered = slot.card;
       slot.under.push(slot.card);
       slot.card = picked;
-      log.push(`${board.playerId} levels ${characterName} up to ${picked.level}`);
+      adoptState(state, recordCharacterPlayed(state, board.playerId, picked.id));
+      log.push(LOG.levelsUp(board.playerId, characterName, picked.level));
+
+      // The same two triggers the Action Phase move raises, for the same two
+      // cards: [Enter] for the one arriving, [Level up] for the one it was
+      // played over. See levelUp() in match.ts. Without them an ability that
+      // levels a character up quietly swallows both.
+      const zone: EffectZone = slot.position === "leader" ? "leader" : "back";
+      fireHere(state, "enter", picked, board.playerId, zone, cursor, log);
+      fireHere(state, "levelUp", covered, board.playerId, zone, cursor, log);
       return true;
     },
     switchLeaderTo(characterName, playerId) {
       const board = boardOf(playerId);
       const at = board.back.findIndex((slot) => slot.card.name === characterName);
       if (at < 0) {
-        log.push(`${characterName} is not a back character`);
+        // Already leading is the common case — half these abilities read
+        // "switch your Leader to X" on a card X is printed on, so they are
+        // offered while X is in front. Nothing happens, and nothing is worth
+        // saying about it; only a genuinely absent character is.
+        const leading = board.leader?.card.name === characterName;
+        if (!leading) log.push(LOG.notInPlayToSwitch(characterName));
         return false;
       }
       const incoming = board.back[at];
@@ -483,31 +627,35 @@ function createContext(
       board.leader = { ...incoming, position: "leader" };
       if (outgoing) board.back[at] = { ...outgoing, position: "back" };
       else board.back.splice(at, 1);
-      log.push(`${board.playerId} switches Leader to ${characterName}`);
+      log.push(LOG.switchesLeader(board.playerId, characterName));
       return true;
     },
 
     trashToConcerto(count, filter, playerId) {
       const board = boardOf(playerId);
-      let taken = 0;
-      for (let i = board.trash.length - 1; i >= 0 && taken < count; i -= 1) {
-        if (filter && !matchesFilter(filterableFor(board.trash[i]), filter)) continue;
-        board.competitionArea.push(...board.trash.splice(i, 1));
-        taken += 1;
-      }
-      if (taken > 0) {
-        log.push(`${board.playerId} moves ${taken} from the trash to the Concerto area`);
+      const moved = lift(
+        board.trash,
+        pickFrom(board.trash, count, filter, board.playerId, PROMPT.trashToConcerto(count))
+      );
+      board.competitionArea.push(...moved);
+      if (moved.length > 0) {
+        log.push(LOG.trashToConcerto(board.playerId, moved.length));
       }
     },
     concertoToTrash(count, filter, playerId) {
       const board = boardOf(playerId);
-      let taken = 0;
-      for (let i = board.competitionArea.length - 1; i >= 0 && taken < count; i -= 1) {
-        if (filter && !matchesFilter(filterableFor(board.competitionArea[i]), filter)) continue;
-        board.trash.push(...board.competitionArea.splice(i, 1));
-        taken += 1;
-      }
-      if (taken > 0) log.push(`${board.playerId} bins ${taken} from the Concerto area`);
+      const moved = lift(
+        board.competitionArea,
+        pickFrom(
+          board.competitionArea,
+          count,
+          filter,
+          board.playerId,
+          PROMPT.concertoToTrash(count)
+        )
+      );
+      board.trash.push(...moved);
+      if (moved.length > 0) log.push(LOG.concertoToTrash(board.playerId, moved.length));
     },
     toDeckBottom(cards, playerId) {
       const board = boardOf(playerId);
@@ -523,33 +671,34 @@ function createContext(
           break;
         }
       }
-      if (moved > 0) log.push(`${moved} card(s) go under the deck of ${board.playerId}`);
+      if (moved > 0) log.push(LOG.toDeckBottom(board.playerId, moved));
     },
     spendCost(amount, playerId) {
       const board = boardOf(playerId);
       if (board.competitionArea.length < amount) return false;
       board.trash.push(...board.competitionArea.splice(0, amount));
-      log.push(`${board.playerId} spends ${amount} from the Concerto area`);
+      log.push(LOG.spendsConcerto(board.playerId, amount));
       return true;
     },
     searchDeck(filter, count, playerId) {
       const board = boardOf(playerId);
-      const found: ActionCard[] = [];
-      for (let i = 0; i < board.actionDeck.length && found.length < count; i += 1) {
-        if (!matchesFilter(filterableFor(board.actionDeck[i]), filter)) continue;
-        found.push(...board.actionDeck.splice(i, 1));
-        i -= 1;
-      }
+      // Searching means looking through the whole deck, so which copy comes
+      // out is the searcher's call, not the first one the scan happens to
+      // reach.
+      const found = lift(
+        board.actionDeck,
+        pickFrom(board.actionDeck, count, filter, board.playerId, PROMPT.searchDeck(count))
+      );
       board.hand.push(...found);
       // Searching exposes the deck order, so it is shuffled afterwards.
       board.actionDeck = shuffleWithState(state, board.actionDeck);
-      log.push(`${board.playerId} searches the deck and takes ${found.length}`);
+      log.push(LOG.searchesDeck(board.playerId, found.length));
       return found;
     },
     shuffleDeck(playerId) {
       const board = boardOf(playerId);
       board.actionDeck = shuffleWithState(state, board.actionDeck);
-      log.push(`${board.playerId} shuffles their deck`);
+      log.push(LOG.shuffles(board.playerId));
     },
     randomFromHand(playerId) {
       const board = boardOf(playerId);
@@ -559,7 +708,7 @@ function createContext(
     revealHand(playerId) {
       const target = playerId ?? controllerId;
       if (!state.revealedHands.includes(target)) state.revealedHands.push(target);
-      log.push(`${target} reveals their hand`);
+      log.push(LOG.revealsHand(target));
     },
 
     isTurnPlayer: (playerId) => state.turnPlayerId === (playerId ?? controllerId),
@@ -578,16 +727,16 @@ function createContext(
         board.trash.push(...board.hand.splice(at, 1));
         moved += 1;
       }
-      if (moved > 0) log.push(`${board.playerId} discards ${moved}`);
+      if (moved > 0) log.push(LOG.discards(board.playerId, moved));
     },
 
     restrictNextTurn(flag, playerId) {
       const target = playerId ?? controllerId;
       const list = (state.pendingFlags[target] ??= []);
       if (!list.includes(flag)) list.push(flag);
-      log.push(`${target} will be restricted next turn: ${flag}`);
+      log.push(LOG.restrictedNextTurn(target, flag));
     },
-    modifyDamageTaken(amount, playerId, duration: ModifierDuration = "turn") {
+    modifyDamageTaken(amount, playerId, duration: ModifierDuration = "turn", options = {}) {
       const target = playerId ?? controllerId;
       pushModifier({
         controllerId: target,
@@ -596,8 +745,9 @@ function createContext(
         amount,
         filter: {},
         duration,
+        ...(options.limit ? { limit: options.limit } : {}),
       });
-      log.push(`${target} damage taken ${amount >= 0 ? "+" : ""}${amount} (${duration})`);
+      log.push(LOG.damageTakenChange(target, amount, duration));
     },
     log: (message) => log.push(message),
 
@@ -621,13 +771,13 @@ function createContext(
         playerId: options.playerId ?? controllerId,
         cardId: card.id,
         prompt,
-        options: from.map((c) => ({ value: c.id, label: { en: c.name, th: c.name } })),
+        options: from.map(cardOption),
         min: options.optional ? 0 : 1,
         max: 1,
       });
       const picked = Array.isArray(answer) ? answer[0] : answer;
       if (typeof picked !== "string") return null;
-      return from.find((c) => c.id === picked) ?? null;
+      return from[optionIndex(picked)] ?? null;
     },
     chooseCards(prompt, from, options = {}) {
       if (from.length === 0) return [];
@@ -636,16 +786,20 @@ function createContext(
         playerId: options.playerId ?? controllerId,
         cardId: card.id,
         prompt,
-        options: from.map((c) => ({ value: c.id, label: { en: c.name, th: c.name } })),
+        options: from.map(cardOption),
         min: options.min ?? 1,
         max: options.max ?? options.min ?? 1,
       });
       const picked = Array.isArray(answer) ? answer : [answer].filter((v) => typeof v === "string");
-      const remaining = [...from];
+      // By position, so picking one of two identical cards takes that one and
+      // leaves the other — matching by id would take the same card twice.
+      const seen = new Set<number>();
       const chosen: ActionCard[] = [];
-      for (const id of picked as string[]) {
-        const at = remaining.findIndex((c) => c.id === id);
-        if (at >= 0) chosen.push(...remaining.splice(at, 1));
+      for (const value of picked as string[]) {
+        const at = optionIndex(value);
+        if (seen.has(at) || !from[at]) continue;
+        seen.add(at);
+        chosen.push(from[at]);
       }
       return chosen;
     },
@@ -665,6 +819,24 @@ function createContext(
 }
 
 /**
+ * One card as something to pick.
+ *
+ * The answer is the card's POSITION in the list offered, not its number: a
+ * trash pile holds four copies of the same card, and an answer of "BP01-044"
+ * would name all four at once — which is how picking one of them came to
+ * light up every copy on screen. `cardId` carries the number for the art.
+ */
+function cardOption(card: ActionCard, index: number): ChoiceOption {
+  return { value: `${index}:${card.id}`, cardId: card.id, label: { en: card.name, th: card.name } };
+}
+
+/** The position an option's value points at, or -1 if it names none. */
+function optionIndex(value: string): number {
+  const at = Number.parseInt(value, 10);
+  return Number.isNaN(at) ? -1 : at;
+}
+
+/**
  * Returns the answer already given for this question, or suspends the effect
  * so the engine can go and ask it. Questions are matched to answers purely by
  * the order they are asked in, which is why a resolve must ask the same
@@ -675,6 +847,55 @@ function ask(cursor: AnswerCursor, choice: PendingChoice): ChoiceAnswer {
     return cursor.answers[cursor.next++];
   }
   throw new NeedsChoice(choice);
+}
+
+/**
+ * Raises a trigger for one character, from inside an effect that is itself
+ * still running.
+ *
+ * The result is written back into the state the caller is holding rather
+ * than returned (see adoptState), and a question raised down there is
+ * rethrown so it rewinds the whole outer effect and replays once the answer
+ * is in — the same rewind every other question gets.
+ */
+function fireHere(
+  state: MatchState,
+  trigger: EffectTrigger,
+  card: { id: string },
+  controllerId: string,
+  zone: EffectZone,
+  cursor: AnswerCursor,
+  log: string[]
+): void {
+  const definition = getCard(card.id);
+  if (!definition) return;
+  const result = resolveTriggerWith(
+    state,
+    trigger,
+    [{ card: definition, controllerId, zone }],
+    cursor
+  );
+  adoptState(state, result.state);
+  for (const entry of result.resolved) log.push(...entry.log);
+  if (result.pending) throw new NeedsChoice(result.pending);
+}
+
+/**
+ * Overwrites one state with another, in place.
+ *
+ * Resolution normally hands a new board back and the caller takes it. An
+ * effect cannot: it is handed one state object to mutate and its caller is
+ * holding that same object, so a trigger raised from inside an effect —
+ * [Level up], via ctx.levelUpCharacter — has to write its result back into
+ * it rather than return one. Every ctx helper reads through `state` on each
+ * call, so replacing the contents is enough; nothing caches a board.
+ */
+function adoptState(target: MatchState, next: MatchState): void {
+  const holder = target as unknown as Record<string, unknown>;
+  // Emptied first, not just assigned over: a key the trigger deleted has to
+  // be gone here too, and Object.assign alone would leave the old one.
+  for (const key of Object.keys(holder)) delete holder[key];
+  Object.assign(holder, next);
 }
 
 // --- Conditions ------------------------------------------------------------
@@ -735,7 +956,7 @@ function runEffect(
   };
   const log: string[] = [];
   const before = structuredClone(state);
-  const ctx = createContext(state, source.card, source.controllerId, log, derived, cursor);
+  const ctx = createContext(state, source.card, source.controllerId, log, derived, cursor, effect);
 
   const blocked = conditionBlocking(effect.condition, ctx, source.zone);
   if (blocked) {
@@ -1095,8 +1316,15 @@ export function zoneBlocking(
 
 /** Extra damage a player takes from active [damageTaken] modifiers. */
 export function damageTakenModifier(state: MatchState, playerId: string): number {
+  const hits = state.turnLog.hitsTaken[playerId] ?? 0;
   return state.statModifiers
-    .filter((modifier) => modifier.stat === "damageTaken" && modifier.controllerId === playerId)
+    .filter((modifier) => {
+      if (modifier.stat !== "damageTaken" || modifier.controllerId !== playerId) return false;
+      // `limit` on a damage-taken modifier counts HITS, not cards: "each
+      // round, damage taken -1" softens one hit and is then spent, however
+      // many more land afterwards.
+      return modifier.limit === undefined || hits < modifier.limit;
+    })
     .reduce((sum, modifier) => sum + modifier.amount, 0);
 }
 

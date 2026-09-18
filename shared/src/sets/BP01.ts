@@ -52,7 +52,10 @@ export const BP01: CardDef[] = [
       {
         condition: ["leader"],
         text: { th: "[Leader] แต่ละรอบการเล่น ดาเมจที่ได้รับ -1" },
-        resolve: (ctx) => ctx.modifyDamageTaken(-1, ctx.controllerId, "whileActive"),
+        // "แต่ละรอบการเล่น" — once a round, so it softens the first hit and
+        // is spent. Without the limit an unlimited red chain would have every
+        // one of its hits cut, which is not what one line of text buys.
+        resolve: (ctx) => ctx.modifyDamageTaken(-1, ctx.controllerId, "whileActive", { limit: 1 }),
       },
     ],
   }),
@@ -1613,7 +1616,10 @@ export const BP01: CardDef[] = [
         condition: ["counter"],
         text: { th: "[Counter] นำการ์ด 「Encore」 Level 2 วางบนสุดของ 「Encore」 ของเจ้าของ (นับเป็นการ Level up)  สลับ Leader เป็น 「Encore」" },
         resolve: (ctx) => {
-            ctx.levelUpCharacter("Encore");
+            // "Level 2" is printed on the card, so nothing else is on offer —
+            // and this is the one way an 「Encore」 Level 2 reaches the field
+            // without climbing to it.
+            ctx.levelUpCharacter("Encore", { level: 2 });
             ctx.switchLeaderTo("Encore");
           },
       },

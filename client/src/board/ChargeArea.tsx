@@ -10,8 +10,13 @@ export function ChargeArea({ cards }: { cards: ActionCard[] }) {
         {cards.length === 0 ? (
           <span className="charge-area-empty" />
         ) : (
-          cards.map((card) => (
-            <div key={card.id} className="charge-card">
+          // Keyed by POSITION as well as id: the Concerto area is a pile of
+          // charged cards and the same printed card lands in it over and
+          // over, so the id alone is not unique. React quietly drops the
+          // duplicates, which is how the stack came to show fewer cards than
+          // the count beside it.
+          cards.map((card, index) => (
+            <div key={`${card.id}-${index}`} className="charge-card">
               <CardImage
                 card={{
                   cardId: card.id,

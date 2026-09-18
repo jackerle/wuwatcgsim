@@ -1,0 +1,12 @@
+// The test scripts are run by tsx, which strips types without checking
+// them — so on their own they would drift out of sync with src and nobody
+// would find out. This config type-checks them alongside the server.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["src", "scripts"]
+}

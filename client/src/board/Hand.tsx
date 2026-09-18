@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ActionCard } from "@wuwatcg/shared";
 import { CardImage } from "./CardImage";
+import { CardMenu, useDismiss, type CardMenuItem } from "./CardMenu";
 
 const COLOR_LABEL: Record<ActionCard["color"], string> = {
   red: "R",
@@ -12,12 +13,21 @@ export function Hand({
   cards,
   faceDown,
   selected,
+  selectionMeans = "pick",
   onCardClick,
+  menuFor,
   unplayable,
   dealKey,
 }: {
   cards: ActionCard[];
   faceDown?: boolean;
+  /**
+   * What being selected means here. Picking a card out to charge or pay with
+   * lifts it; picking one out for the mulligan is giving it up, so it sinks
+   * instead — the two must not look the same, since one keeps the card and
+   * the other throws it back.
+   */
+  selectionMeans?: "pick" | "return";
   /**
    * Why each card cannot be played right now, by hand position. Cost, an
    * Action Area cap, or a card that only an ability can put into play — the
@@ -32,6 +42,13 @@ export function Hand({
   selected?: number[];
   /** Given the card and its position — a hand can legitimately hold copies. */
   onCardClick?: (card: ActionCard, index: number) => void;
+  /**
+   * What this card can be told to do — charge it, lay it face-down, combo
+   * with it. Returning something turns the click into a menu; returning
+   * nothing leaves the click to onCardClick, which is what picks cards out
+   * while a Level Up is being paid for.
+   */
+  menuFor?: (card: ActionCard, index: number) => CardMenuItem[] | undefined;
   /**
    * Something that only changes when this is a brand new match (the match
    * id works well). A freshly dealt hand isn't a "draw" — it's the starting
@@ -54,9 +71,20 @@ export function Hand({
   }
   const drawnFrom = drawnFromRef.current;
 
+  // Which hand POSITION has its menu open, for the same reason `selected`
+  // holds positions: the same printed card can sit in a hand twice.
+  const [openAt, setOpenAt] = useState<number | null>(null);
+  const menuRef = useDismiss(openAt !== null, () => setOpenAt(null));
+
   useEffect(() => {
     drawnFromRef.current = cards.length;
   }, [cards.length]);
+
+  // A hand that just changed is a hand whose menu is about to be wrong: the
+  // card it was opened on may not even be there any more.
+  useEffect(() => {
+    setOpenAt(null);
+  }, [cards.length, faceDown]);
 
   return (
     <div className={`hand ${faceDown ? "face-down" : ""}`}>
@@ -66,43 +94,77 @@ export function Hand({
         const justDrawn = index >= drawnFrom;
         const style = justDrawn ? { animationDelay: `${(index - drawnFrom) * 70}ms` } : undefined;
 
-        return faceDown ? (
+        if (faceDown) {
           // A deck holds copies of the same printed card, so the id alone is
           // not unique within a hand — the position has to be part of the key.
-          <div
-            key={`${card.id}-${index}`}
-            className={`hand-card card-back ${justDrawn ? "just-drawn" : ""}`}
-            style={style}
-          />
-        ) : (
-          <div
-            key={`${card.id}-${index}`}
-            className={`hand-card ${selected?.includes(index) ? "selected" : ""} ${
-              onCardClick ? "clickable" : ""
-            } ${unplayable?.(card, index) ? "unplayable" : ""} ${justDrawn ? "just-drawn" : ""}`}
-            style={style}
-            title={unplayable?.(card, index) ?? undefined}
-            onClick={onCardClick ? () => onCardClick(card, index) : undefined}
-            role={onCardClick ? "button" : undefined}
-          >
-            <CardImage
-              card={{
-                cardId: card.id,
-                imageId: card.imageId,
-                name: card.name,
-                kind: "action",
-                cost: card.cost,
-                color: card.color,
-                damage: card.damage,
-                speed: card.speed,
-              }}
+          return (
+            <div
+              key={`${card.id}-${index}`}
+              className={`hand-card card-back ${justDrawn ? "just-drawn" : ""}`}
+              style={style}
             />
-            <span className={`stat-pill cost color-${card.color}`}>{card.cost}</span>
-            <span className="stat-pill color-badge">{COLOR_LABEL[card.color]}</span>
-            <span className="stat-row">
-              <span title="Damage">{card.damage}</span>
-              <span title="Speed">{card.speed}</span>
-            </span>
+          );
+        }
+
+        const items = menuFor?.(card, index);
+        const open = openAt === index && items && items.length > 0;
+        const click = items?.length
+          ? () => setOpenAt((current) => (current === index ? null : index))
+          : onCardClick
+            ? () => onCardClick(card, index)
+            : undefined;
+
+        return (
+          <div
+            key={`${card.id}-${index}`}
+            className="hand-card-wrap"
+            ref={open ? menuRef : undefined}
+          >
+            <div
+              className={`hand-card ${
+                selected?.includes(index) ? (selectionMeans === "return" ? "returning" : "selected") : ""
+              } ${
+                click ? "clickable" : ""
+              } ${unplayable?.(card, index) ? "unplayable" : ""} ${
+                justDrawn ? "just-drawn" : ""
+              } ${open ? "menu-open" : ""}`}
+              style={style}
+              title={unplayable?.(card, index) ?? undefined}
+              onClick={click}
+              role={click ? "button" : undefined}
+            >
+              <CardImage
+                card={{
+                  cardId: card.id,
+                  imageId: card.imageId,
+                  name: card.name,
+                  kind: "action",
+                  cost: card.cost,
+                  color: card.color,
+                  damage: card.damage,
+                  speed: card.speed,
+                }}
+              />
+              <span className={`stat-pill cost color-${card.color}`}>{card.cost}</span>
+              <span className="stat-pill color-badge">{COLOR_LABEL[card.color]}</span>
+              <span className="stat-row">
+                <span title="Damage">{card.damage}</span>
+                <span title="Speed">{card.speed}</span>
+              </span>
+            </div>
+
+            {open && (
+              <CardMenu
+                head={card.name}
+                items={items!.map((item) => ({
+                  ...item,
+                  onPick: () => {
+                    setOpenAt(null);
+                    item.onPick();
+                  },
+                }))}
+              />
+            )}
           </div>
         );
       })}

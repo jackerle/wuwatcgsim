@@ -96,6 +96,8 @@ export interface MatchUpdate {
   pending: PendingChoice | null;
   /** Who is being asked, so the other player sees "waiting" instead of nothing. */
   askingSeat: Seat | null;
+  /** Whose move is waiting on that answer — the only seat allowed to drop it. */
+  actorSeat: Seat | null;
   /** Effects with no code written — the players apply these themselves. */
   manual: ResolvedEffect[];
   log: string[];

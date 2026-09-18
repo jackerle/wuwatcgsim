@@ -144,20 +144,109 @@ export const KEYWORD_LABEL: Record<CardKeyword, { en: string; th: string }> = {
   levelUp: { en: "Level Up", th: "เลเวลอัป" },
   enter: { en: "Enter", th: "ลงสนาม" },
   judgement: { en: "Judgement", th: "ตัดสิน" },
-  battle: { en: "Battle", th: "แบทเทิล" },
+  // Raised by the engine when the Battle Step opens; no printed card carries
+  // it. Named apart from `counter` above so no two keywords ever show a
+  // player the same word.
+  battle: { en: "Battle Step", th: "ช่วงประลอง" },
   counterPhaseStart: {
-    en: "At start of own Counter phase",
-    th: "เมื่อเริ่มเคาน์เตอร์เฟสของตัวเอง",
+    en: "At start of own Battle phase",
+    th: "เมื่อเริ่มเฟสประลองของตัวเอง",
   },
-  counterPhaseEnd: { en: "At end of Counter phase", th: "เมื่อจบเคาน์เตอร์เฟส" },
+  counterPhaseEnd: { en: "At end of Battle phase", th: "เมื่อจบเฟสประลอง" },
   turnStart: { en: "At start of own turn", th: "เมื่อเริ่มเทิร์นของตัวเอง" },
-  counter: { en: "Counter", th: "เคาน์เตอร์" },
+  // The game's own word for this clash is Battle — ประลอง — so that is what
+  // a player sees, even though the engine and the cards' printed text both
+  // still say Counter. PRINTED_TAG_KEYWORD is what maps the printed word to
+  // this keyword; nothing reads these labels back.
+  counter: { en: "Battle", th: "ประลอง" },
   switch: { en: "Switch", th: "สลับตัว" },
   endTurn: { en: "End Turn", th: "จบเทิร์น" },
   follow: { en: "Follow", th: "ฟอลโลว์" },
   advantage: { en: "Advantage", th: "แอดวานเทจ" },
   combo: { en: "Combo", th: "คอมโบ" },
   passive: { en: "Passive", th: "ทำงานตลอดเวลา" },
+};
+
+/**
+ * Bracket tags as printed on the cards, mapped to our keyword union.
+ *
+ * The printed wording is not one-to-one with ours: the same trigger is
+ * written several ways across sets ("at end of turn", "at end of own turn",
+ * "at end of each turn"), and [Leader Skill] is a scope note rather than a
+ * trigger of its own. Keys are lowercased, so look up through
+ * keywordForTag() rather than indexing this directly.
+ *
+ * Two things read it: the importer, turning printed text into conditions,
+ * and the UI, deciding which run of text is a keyword worth colouring.
+ */
+export const PRINTED_TAG_KEYWORD: Record<string, CardKeyword> = {
+  leader: "leader",
+  "leader skill": "leader",
+  judgement: "judgement",
+  combo: "combo",
+  counter: "counter",
+  "level up": "levelUp",
+  enter: "enter",
+  advantage: "advantage",
+  switch: "switch",
+  battle: "battle",
+  "follow-up attack": "follow",
+  "at end of each turn": "endTurn",
+  "at end of own turn": "endTurn",
+  "at end of turn": "endTurn",
+  "at start of own turn": "turnStart",
+  "at start of own counter phase": "counterPhaseStart",
+  "at end of counter phase": "counterPhaseEnd",
+  "at end of each counter phase": "counterPhaseEnd",
+};
+
+/**
+ * The keyword a bracket tag names, whichever language it is written in and
+ * however it was capitalised, or null if it names nothing we know.
+ *
+ * Both spellings have to resolve: the printed text carries the English tags
+ * the cards are actually printed with, while formatEffect writes the same
+ * keywords out in the reader's own language.
+ */
+export function keywordForTag(raw: string): CardKeyword | null {
+  // "[Follow{8}]" — the count belongs to the effect, not to the name.
+  const text = raw.replace(/\{[^}]*\}/g, "").trim();
+  const key = text.toLowerCase();
+  const printed = PRINTED_TAG_KEYWORD[key];
+  if (printed) return printed;
+  for (const keyword of CARD_KEYWORDS) {
+    const label = KEYWORD_LABEL[keyword];
+    if (label.en.toLowerCase() === key || label.th === text) return keyword;
+  }
+  return null;
+}
+
+/**
+ * The colour each keyword is printed in on wuwatcgdb, the card database this
+ * app's card text is imported from — read off its `card_options` table so a
+ * player who learned the tags there reads the same three groups here:
+ * orange for when an effect fires, purple for when it applies at all, blue
+ * for the follow-up chain.
+ *
+ * `battle` and `passive` are ours rather than theirs — nothing is printed on
+ * a card for either — so they take the colour of the group they belong to.
+ */
+export const KEYWORD_COLOR: Record<CardKeyword, string> = {
+  levelUp: "#ff8648",
+  enter: "#ff8648",
+  judgement: "#ff8648",
+  battle: "#ff8648",
+  counterPhaseStart: "#ff8648",
+  counterPhaseEnd: "#ff8648",
+  turnStart: "#ff8648",
+  counter: "#ff8648",
+  switch: "#ff8648",
+  endTurn: "#ff8648",
+  combo: "#ff8648",
+  leader: "#864ffe",
+  advantage: "#864ffe",
+  passive: "#864ffe",
+  follow: "#3a87fe",
 };
 
 /** Keywords that carry a numeric value — currently only Follow{x}. */

@@ -30,6 +30,7 @@
 // partially-applied board for display only — never feed it back in.
 
 import { getCard } from "./cardDb";
+import { LOG } from "./log";
 import type { ChoiceAnswer, PendingChoice } from "./cardDef";
 import { effectiveStats, type EffectTrigger } from "./cards";
 import {
@@ -57,11 +58,13 @@ import {
   HAND_LIMIT,
   INITIAL_HAND_SIZE,
   resolveCombat,
+  shuffleWithState,
   STARTING_LIFE,
   type ActionCard,
   type CombatResult,
   type ActionKind,
   type CharacterCard,
+  type CombatReason,
   type CharacterInstance,
   type MatchState,
   type PlayerBoard,
@@ -75,8 +78,10 @@ import {
   drawCount,
   levelUpCost,
   recordCardPlayed,
+  recordCharacterPlayed,
   recordDamage,
   resetTurnLog,
+  takeFromDeck,
   validateDecks,
 } from "./rules";
 
@@ -94,6 +99,14 @@ export interface MatchSetup {
   matchId: string;
   players: [PlayerSetup, PlayerSetup];
   startingPlayerId: string;
+  /**
+   * Deal straight into turn 1 instead of opening on the mulligan.
+   *
+   * For fixtures that are about the turn itself and would otherwise have to
+   * play two opening moves before reaching the rule under test. A real match
+   * never sets it — see dealMatch().
+   */
+  skipMulligan?: boolean;
 }
 
 /** A stable seed from the match id, so the same match always plays the same. */
@@ -122,8 +135,9 @@ function emptyBoard(playerId: string): PlayerBoard {
 }
 
 /**
- * Builds the opening position: Leaders down, opening hands drawn, turn 1
- * belonging to `startingPlayerId` and waiting on its Draw Phase.
+ * Builds the opening position: Leaders down, opening hands drawn, and the
+ * board waiting on the mulligan — after which turn 1 belongs to
+ * `startingPlayerId`, on its Draw Phase.
  *
  * Decks are used in the order given, so shuffle before calling. Throws if
  * either deck is illegal — the caller should have run validateDecks first and
@@ -137,6 +151,7 @@ export function createMatch(setup: MatchSetup): MatchState {
     ),
     turnPlayerId: setup.startingPlayerId,
     startingPlayerId: setup.startingPlayerId,
+    phase: setup.skipMulligan ? "draw" : "mulligan",
     // Seeded from the match id so two matches do not deal the same randomness,
     // while one match stays perfectly replayable.
     rngSeed: hashSeed(setup.matchId),
@@ -181,6 +196,7 @@ export function createMatch(setup: MatchSetup): MatchState {
     state.boards[player.playerId] = board;
     state.facedown[player.playerId] = null;
     state.committed[player.playerId] = false;
+    state.mulliganDone[player.playerId] = Boolean(setup.skipMulligan);
     state.actionZone[player.playerId] = [];
   }
 
@@ -196,6 +212,12 @@ export function createMatch(setup: MatchSetup): MatchState {
  * question, or is rejected with a reason.
  */
 export type MatchIntent =
+  /**
+   * Opening mulligan: put any number of the five cards back, shuffle, and
+   * draw that many again. An empty list is the "keep this hand" answer, and
+   * still counts as having chosen.
+   */
+  | { kind: "mulligan"; cardIds: string[] }
   /** Begin the turn player's turn: reset, draw, raise [At start of turn]. */
   | { kind: "startTurn" }
   /** Action Phase: move cards from hand into the Concerto area. */
@@ -323,7 +345,9 @@ class Run {
     const result = resolveTriggerWith(this.state, trigger, sources, this.cursor);
     this.state = result.state;
     this.collectManual(result.manual);
-    for (const entry of result.resolved) this.log.push(...entry.log);
+    for (const entry of result.resolved) {
+      for (const line of entry.log) this.log.push(creditCard(line, entry.cardId));
+    }
     if (result.pending) throw new Suspended(result.pending, null);
   }
 
@@ -349,9 +373,23 @@ class Run {
     return board;
   }
 
-  note(message: string): void {
-    this.log.push(message);
+  /** A line the engine itself wrote, optionally crediting a card for it. */
+  note(message: string, cardId?: string): void {
+    this.log.push(cardId ? creditCard(message, cardId) : message);
   }
+}
+
+/**
+ * Names the card a log line came from, as "[BP01-076]" at the end.
+ *
+ * The convention was already there — every damage line says which card dealt
+ * it — this just makes it hold for every line an effect produces, so the
+ * battle log can show the card beside what it did instead of a wall of
+ * sentences that all look alike. Lines that already name a card are left
+ * alone rather than credited twice.
+ */
+function creditCard(line: string, cardId: string): string {
+  return /\[[A-Z]{2}\d{2}-\d{3}[^\]]*\]/.test(line) ? line : `${line} [${cardId}]`;
 }
 
 /**
@@ -525,7 +563,7 @@ export function step(
   const winner = checkWinner(run.state);
   if (winner && !run.state.winnerId) {
     run.state.winnerId = winner;
-    run.note(winner === "draw" ? "The match is a draw" : `${winner} wins`);
+    run.note(winner === "draw" ? LOG.matchDraw() : LOG.wins(winner));
   }
 
   return {
@@ -542,6 +580,8 @@ function apply(run: Run, playerId: string, intent: MatchIntent): void {
   if (run.state.winnerId) run.reject("The match is already over");
 
   switch (intent.kind) {
+    case "mulligan":
+      return mulligan(run, playerId, intent.cardIds);
     case "startTurn":
       return startTurn(run);
     case "charge":
@@ -567,6 +607,51 @@ function apply(run: Run, playerId: string, intent: MatchIntent): void {
   }
 }
 
+// --- Mulligan --------------------------------------------------------------
+
+/**
+ * One player's opening mulligan: the named cards go back into the deck, the
+ * deck is shuffled, and they draw the same number again.
+ *
+ * Both players do this at once and in either order, so the phase does not end
+ * on this call — it ends on whichever call is the last one in. An empty
+ * `cardIds` is a real answer ("keep this hand"), not a no-op: it is how a
+ * player who likes their five says so and lets the game start.
+ */
+function mulligan(run: Run, playerId: string, cardIds: string[]): void {
+  if (run.state.phase !== "mulligan") run.reject("The mulligan is over");
+  if (run.state.mulliganDone[playerId]) run.reject("You have already chosen your opening hand");
+
+  const board = run.board(playerId);
+  // Taken out by POSITION, one id at a time: a hand can hold two copies of
+  // one printed card, and matching on id alone would put the same one back
+  // twice and lose the other.
+  const keeping = [...board.hand];
+  const putBack: ActionCard[] = [];
+  for (const cardId of cardIds) {
+    const index = keeping.findIndex((card) => card.id === cardId);
+    if (index < 0) run.reject(`${cardId} is not in hand`);
+    putBack.push(...keeping.splice(index, 1));
+  }
+
+  if (putBack.length > 0) {
+    board.hand = keeping;
+    // Back in, then shuffled — the cards must not be sitting where whoever
+    // put them there could count them off the top.
+    board.actionDeck = shuffleWithState(run.state, [...board.actionDeck, ...putBack]);
+    board.hand.push(...takeFromDeck(run.state, board, putBack.length, run.log));
+    run.note(LOG.mulligans(playerId, putBack.length));
+  } else {
+    run.note(LOG.keepsHand(playerId));
+  }
+
+  run.state.mulliganDone[playerId] = true;
+  if (Object.keys(run.state.boards).every((id) => run.state.mulliganDone[id])) {
+    run.state.phase = "draw";
+    run.note(LOG.mulliganOver());
+  }
+}
+
 // --- Draw Phase ------------------------------------------------------------
 
 function startTurn(run: Run): void {
@@ -580,15 +665,11 @@ function startTurn(run: Run): void {
 
   const count = drawCount(run.state.turnNumber, turnPlayer === run.state.startingPlayerId);
   const board = run.board(turnPlayer);
-  const drawn = board.actionDeck.splice(0, count);
+  // Running the deck out is not a loss: takeFromDeck shuffles the trash back
+  // in and carries on, and writes its own line saying so.
+  const drawn = takeFromDeck(run.state, board, count, run.log);
   board.hand.push(...drawn);
-  run.note(`${turnPlayer} draws ${drawn.length}`);
-
-  if (drawn.length < count) {
-    // Running the deck out is not an instant loss in these rules, but it is
-    // the kind of thing a player must not miss.
-    run.note(`${turnPlayer}'s Action Deck is empty`);
-  }
+  run.note(LOG.draws(turnPlayer, drawn.length));
 
   run.fire("turnStart");
   run.settle();
@@ -617,7 +698,7 @@ function charge(run: Run, playerId: string, cardIds: string[]): void {
   const index = board.hand.findIndex((card) => card.id === cardIds[0]);
   if (index < 0) run.reject(`${cardIds[0]} is not in hand`);
   board.competitionArea.push(board.hand.splice(index, 1)[0]);
-  run.note(`${playerId} charges a card (${board.competitionArea.length} in the Concerto area)`);
+  run.note(LOG.charges(playerId, board.competitionArea.length));
   run.settle();
 }
 
@@ -654,16 +735,27 @@ function levelUp(run: Run, playerId: string, characterId: string, discardIds: st
   // the card it was played over stays underneath it, so the slot reads as the
   // pile it is on the table.
   board.characterPool.splice(poolIndex, 1);
+  const covered = target.card;
   target.under.push(target.card);
   target.card = incoming;
   const zone = target.position === "leader" ? "leader" : "back";
-  run.note(`${playerId} levels ${incoming.name} up to ${incoming.level}`);
+  run.state = recordCharacterPlayed(run.state, playerId, incoming.id);
+  run.note(LOG.levelsUp(playerId, incoming.name, incoming.level), incoming.id);
 
   run.settle();
-  // Levelling up is how a Level 1 or 2 card enters play, which is why so many
-  // of them read "[Enter] / [Level up]" — one trigger covers both, so raising
-  // only levelUp here fires such an effect exactly once.
-  run.fireOn("levelUp", sourceForCharacter(incoming, playerId, zone));
+  // Two different cards react, and they are not the same card.
+  //
+  // [Enter] belongs to the card arriving: levelling up is how a Level 1 or 2
+  // card gets onto the field, which is why so many of them read
+  // "[Enter] / [Level up]".
+  //
+  // [Level up] belongs to the card being covered — "when THIS character is
+  // levelled up" is something that happens TO the card already in play, not
+  // to the one being played. Firing it on the arriving card instead made
+  // BP01-001 ("return this card to the Character Deck") bounce itself
+  // straight back off the field the moment it was played.
+  run.fireOn("enter", sourceForCharacter(incoming, playerId, zone));
+  run.fireOn("levelUp", sourceForCharacter(covered, playerId, zone));
   run.settle();
 }
 
@@ -684,7 +776,7 @@ function switchLeader(run: Run, playerId: string, toCardId: string): void {
   board.leader = { ...incoming, position: "leader" };
   if (outgoing) board.back[index] = { ...outgoing, position: "back" };
   else board.back.splice(index, 1);
-  run.note(`${playerId} switches Leader to ${incoming.card.name}`);
+  run.note(LOG.switchesLeader(playerId, incoming.card.name), incoming.card.id);
 
   run.fire("switch");
   run.settle();
@@ -716,8 +808,10 @@ function commit(run: Run, playerId: string, cardId: string): void {
   board.hand.splice(index, 1);
   run.state.facedown[playerId] = card;
   run.state.committed[playerId] = true;
+  const opening = run.state.phase !== "counter";
   run.state.phase = "counter";
-  run.note(`${playerId} commits a card face-down`);
+  run.note(LOG.commits(playerId));
+  if (opening) run.fire("counterPhaseStart");
   noteWhenBothReady(run);
 }
 
@@ -737,14 +831,16 @@ function passCounter(run: Run, playerId: string): void {
 
   run.state.facedown[playerId] = null;
   run.state.committed[playerId] = true;
+  const opening = run.state.phase !== "counter";
   run.state.phase = "counter";
-  run.note(`${playerId} plays no card this clash`);
+  run.note(LOG.playsNothing(playerId));
+  if (opening) run.fire("counterPhaseStart");
   noteWhenBothReady(run);
 }
 
 function noteWhenBothReady(run: Run): void {
   if (Object.keys(run.state.boards).every((id) => run.state.committed[id])) {
-    run.note("Both players have chosen — ready to reveal");
+    run.note(LOG.bothReady());
   }
 }
 
@@ -752,7 +848,7 @@ function noteWhenBothReady(run: Run): void {
 function concede(run: Run, playerId: string): void {
   const other = opponentOf(run.state, playerId);
   run.state.winnerId = other ?? "draw";
-  run.note(`${playerId} concedes — ${other ?? "nobody"} wins`);
+  run.note(LOG.concedes(playerId, other));
 }
 
 /**
@@ -772,8 +868,6 @@ function resolveCounter(run: Run): void {
   const mine = run.state.facedown[turnPlayer];
   const theirs = run.state.facedown[opponent];
 
-  run.fire("counterPhaseStart");
-
   // Reveal: whatever was laid down moves into the Action Zones.
   run.state.facedown[turnPlayer] = null;
   run.state.facedown[opponent] = null;
@@ -786,10 +880,10 @@ function resolveCounter(run: Run): void {
   // Turning a card up is what plays it, so this is where it gets paid for.
   if (mine) payOnReveal(run, mine, turnPlayer);
   if (theirs) payOnReveal(run, theirs, opponent);
-  run.note(
-    `${turnPlayer} reveals ${mine ? mine.name : "nothing"};` +
-      ` ${opponent} reveals ${theirs ? theirs.name : "nothing"}`
-  );
+  // One line per side rather than one for both: each gets to carry its own
+  // card, which is what puts the art beside it in the log.
+  run.note(LOG.reveals(turnPlayer, mine?.name ?? null), mine?.id);
+  run.note(LOG.reveals(opponent, theirs?.name ?? null), theirs?.id);
 
   const revealed = [
     ...(mine ? sourceForCard(run.state, mine, turnPlayer) : []),
@@ -826,7 +920,7 @@ function resolveCounter(run: Run): void {
       : null;
 
   if (result.winnerId && result.loserId) {
-    run.note(`${result.winnerId} wins the clash`);
+    run.note(LOG.winsClash(result.winnerId, whyClause(result.why)));
     run.state.combo = result.combo
       ? {
           playerId: result.winnerId,
@@ -835,7 +929,7 @@ function resolveCounter(run: Run): void {
         }
       : null;
   } else {
-    run.note("The clash is a draw");
+    run.note(LOG.clashDraw());
     run.state.combo = null;
   }
 
@@ -857,9 +951,10 @@ function resolveCounter(run: Run): void {
     // Name the card that did it: with abilities, the clash and follow-ups all
     // taking Life in the same phase, "takes 1" on its own leaves a player no
     // way to tell which of them it was.
-    const source = winner ? ` from ${winner.name} [${winner.id}]` : "";
+    const source = winner ? `${winner.name} [${winner.id}]` : "การปะทะ";
     run.note(
-      `${result.loserId} takes ${total}${source} (life ${run.board(result.loserId).life})`
+      LOG.takesFrom(result.loserId, total, source, run.board(result.loserId).life),
+      winner?.id
     );
   }
   run.state = expireModifiers(run.state, "battle");
@@ -884,7 +979,11 @@ function playCombo(run: Run, playerId: string, cardId: string): void {
   }
 
   const zone = run.state.actionZone[playerId] ?? [];
-  if (zone.length >= ACTION_ZONE_MAX_CARDS) {
+  // A limited chain is limited by its own count, not by the table: a red win
+  // grants an unlimited chain, and stopping it at five cards turned
+  // "unlimited" into "five". Caps a CARD imposes are still enforced, in
+  // playBlocking below.
+  if (!window.unlimited && zone.length >= ACTION_ZONE_MAX_CARDS) {
     run.reject(`The Action Area holds at most ${ACTION_ZONE_MAX_CARDS} cards`);
   }
 
@@ -911,7 +1010,7 @@ function playCombo(run: Run, playerId: string, cardId: string): void {
   // points at a discarded object and writing to it would go nowhere.
   const spent = run.state.combo;
   if (spent && !spent.unlimited) spent.remaining -= 1;
-  run.note(`${playerId} combos into ${card.name}`);
+  run.note(LOG.combosInto(playerId, card.name), card.id);
 
   run.settle();
   run.fireOn("enter", sourceForCard(run.state, card, playerId));
@@ -929,7 +1028,7 @@ function playCombo(run: Run, playerId: string, cardId: string): void {
       run.board(opponent).life -= damage;
       run.state = recordDamage(run.state, opponent, damage);
       run.note(
-        `${opponent} takes ${damage} from ${card.name} [${card.id}] (life ${run.board(opponent).life})`
+        LOG.takesFrom(opponent, damage, `${card.name} [${card.id}]`, run.board(opponent).life)
       );
     }
   }
@@ -953,8 +1052,9 @@ function payOnReveal(run: Run, card: ActionCard, playerId: string): void {
   payCost(board, Math.min(cost, available));
   run.note(
     available >= cost
-      ? `${playerId} pays ${cost} for ${card.name}`
-      : `${playerId} owes ${cost} for ${card.name} but only had ${available}`
+      ? LOG.pays(playerId, cost, card.name)
+      : LOG.owes(playerId, cost, card.name, available),
+    card.id
   );
 }
 
@@ -988,7 +1088,7 @@ function unopposedOrClash(
     );
   }
   const solo = mine ? { playerId: turnPlayer, card: mine } : theirs ? { playerId: opponent, card: theirs } : null;
-  if (!solo) return { winnerId: null, loserId: null, damage: 0, combo: null };
+  if (!solo) return { winnerId: null, loserId: null, damage: 0, combo: null, why: null };
 
   const loser = solo.playerId === turnPlayer ? opponent : turnPlayer;
   return {
@@ -996,7 +1096,30 @@ function unopposedOrClash(
     loserId: loser,
     damage: comboDamage(run.state, solo.card, solo.playerId),
     combo: comboLookupFromDb()(solo.card),
+    why: { kind: "unopposed" },
   };
+}
+
+/**
+ * How the clash was decided, for the log.
+ *
+ * A win is not always visible on the board: a 0-attack Dodge beats a red
+ * card on colour alone, so the loser takes nothing and the only sign
+ * anything happened is a [Judgement] skill firing. Saying why leaves nobody
+ * wondering whether the engine got it wrong.
+ */
+function whyClause(why: CombatReason | null): string {
+  if (!why) return "";
+  switch (why.kind) {
+    case "color":
+      return LOG.byColor(why.winner, why.loser);
+    case "speed":
+      return LOG.bySpeed(why.winner, why.loser);
+    case "tie":
+      return LOG.byTie();
+    case "unopposed":
+      return LOG.unopposed();
+  }
 }
 
 /** A follow-up card's attack after modifiers — what it actually hits for. */
@@ -1015,7 +1138,7 @@ function passCombo(run: Run, playerId: string): void {
   }
   run.state.combo = null;
   run.state.phase = "end";
-  run.note(`${playerId} ends the Combo Step`);
+  run.note(LOG.endsCombo(playerId));
 }
 
 // --- End Phase -------------------------------------------------------------
@@ -1033,7 +1156,7 @@ function endTurn(run: Run, playerId: string): void {
     const before = run.board(id).hand.length;
     run.state = applyEndPhase(run.state, id);
     const after = run.board(id).hand.length;
-    if (after < before) run.note(`${id} discards down to ${HAND_LIMIT}`);
+    if (after < before) run.note(LOG.discardsToLimit(id, HAND_LIMIT));
   }
 
   run.state = expireModifiers(run.state, "turn");
@@ -1043,7 +1166,7 @@ function endTurn(run: Run, playerId: string): void {
   if (opponent) run.state.turnPlayerId = opponent;
   run.state.turnNumber += 1;
   run.state.phase = "draw";
-  run.note(`Turn ${run.state.turnNumber}: ${run.state.turnPlayerId}`);
+  run.note(LOG.turnStarts(run.state.turnNumber, run.state.turnPlayerId));
 
   run.settle();
 }
@@ -1096,10 +1219,18 @@ export function publicCounts(state: MatchState, playerId: string): {
 
 /** Which back character may be levelled up or switched to right now. */
 export function legalIntents(state: MatchState, playerId: string): MatchIntent["kind"][] {
-  if (state.winnerId || playerId !== state.turnPlayerId) return [];
+  if (state.winnerId) return [];
   const board = state.boards[playerId];
   if (!board) return [];
 
+  // The mulligan is not part of anybody's turn: both players answer it, in
+  // whatever order they get to it, so it is checked before the turn gate.
+  if (state.phase === "mulligan") {
+    return state.mulliganDone[playerId] ? [] : ["mulligan"];
+  }
+  if (playerId !== state.turnPlayerId) return [];
+
+  // "mulligan" is already gone by here, handled above.
   switch (state.phase) {
     case "draw":
       return ["startTurn"];
@@ -1127,6 +1258,34 @@ export function legalIntents(state: MatchState, playerId: string): MatchIntent["
 }
 
 /**
+ * Whether this player still owes an opening-hand decision.
+ *
+ * Like canCommit(), and for the same reason: it is a move both players make,
+ * so legalIntents() — which is written around the turn player — is not where
+ * the UI should ask.
+ */
+export function canMulligan(state: MatchState, playerId: string): boolean {
+  if (state.winnerId || state.phase !== "mulligan") return false;
+  return Boolean(state.boards[playerId]) && !state.mulliganDone[playerId];
+}
+
+/**
+ * Whether this player may still put a card face-down for the clash.
+ *
+ * Not something legalIntents() can answer: it reports the TURN player's
+ * moves, and committing is the one thing both players do — the other side
+ * lays a card out on your turn too. The guards are commit()'s own, so a card
+ * this says yes to is one the engine will take (whether that particular card
+ * can be paid for is whyUnplayable's question, per card).
+ */
+export function canCommit(state: MatchState, playerId: string): boolean {
+  if (state.winnerId) return false;
+  if (state.phase !== "action" && state.phase !== "counter") return false;
+  if (state.facedown[playerId]) return false;
+  return Boolean(state.boards[playerId]);
+}
+
+/**
  * Whether this player has any card they could actually put down: one in hand
  * they can pay for. False means their only move is to decline.
  */
@@ -1134,6 +1293,43 @@ export function canCommitAnything(state: MatchState, playerId: string): boolean 
   const board = state.boards[playerId];
   if (!board) return false;
   return board.hand.some((card) => playBlocking(state, card, playerId) === null);
+}
+
+/**
+ * The Character Deck cards that may legally be played onto one character in
+ * play, right now.
+ *
+ * Here rather than in the UI because it is the rule, not a presentation
+ * choice: the ladder, the cost the hand has to cover, the cards only an
+ * ability may put into play, and whether a Level Up is left this turn at
+ * all. An empty list means the move is not on offer, and the engine checks
+ * every one of these again when the intent actually arrives.
+ */
+export function levelUpOptions(
+  state: MatchState,
+  playerId: string,
+  characterCardId: string
+): CharacterCard[] {
+  const board = state.boards[playerId];
+  if (!board) return [];
+  if (!legalIntents(state, playerId).includes("levelUp")) return [];
+  const slot = [board.leader, ...board.back].find((entry) => entry?.card.id === characterCardId);
+  if (!slot) return [];
+  return board.characterPool.filter(
+    (card) => !isAbilityOnly(card.id) && canLevelUpOnto(slot.card, card, board).ok
+  );
+}
+
+/**
+ * Whether the Leader may be switched right now — there is someone in the
+ * back to switch with, the turn's one action is still free, and no card has
+ * shut switching off for the turn.
+ */
+export function canSwitchLeader(state: MatchState, playerId: string): boolean {
+  const board = state.boards[playerId];
+  if (!board || board.back.length === 0) return false;
+  if (!legalIntents(state, playerId).includes("switch")) return false;
+  return !(state.phase === "action" && isRestricted(state, playerId, "noLeaderSwitch"));
 }
 
 /** Why a card in hand cannot be played, for the UI to show on the card. */

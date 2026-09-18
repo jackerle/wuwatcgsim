@@ -9,16 +9,19 @@ import { requireCard } from "../src/cardDb";
 import type { ChoiceAnswer } from "../src/cardDef";
 import { recomputeContinuous, resolveTrigger, sourcesInPlay } from "../src/effects";
 import {
+  canCommit,
   canCommitAnything,
+  canSwitchLeader,
   createMatch,
   legalIntents,
+  levelUpOptions,
   step,
   viewFor,
   type MatchIntent,
   type StepResult,
 } from "../src/match";
 import type { ActionCard, CharacterCard, MatchState } from "../src/game";
-import { CHARGE_PER_TURN, HAND_LIMIT, HIDDEN_CARD_ID } from "../src/game";
+import { CHARGE_PER_TURN, HAND_LIMIT, HIDDEN_CARD_ID, INITIAL_HAND_SIZE } from "../src/game";
 import { ACTION_DECK_SIZE } from "../src/rules";
 
 let pass = 0;
@@ -79,6 +82,10 @@ function newMatch(): MatchState {
   return createMatch({
     matchId: "test",
     startingPlayerId: "p1",
+    // These cases are about the turn, not the opening: dealing into the
+    // mulligan would make every one of them play two moves before reaching
+    // the rule it is actually checking. The mulligan has its own block below.
+    skipMulligan: true,
     players: [
       { playerId: "p1", characterDeck: CAMELLYA.map(character), actionDeck: deck(P1_DECK) },
       { playerId: "p2", characterDeck: ENCORE.map(character), actionDeck: deck(P2_DECK) },
@@ -153,6 +160,168 @@ function drive(
     threw = error instanceof Error ? error.message : String(error);
   }
   check("เด็คตัวละครน้อยเกินไป -> ไม่ยอมเริ่มเกม", threw.includes("Character Deck"), threw);
+}
+
+// --- Running the deck out --------------------------------------------------
+//
+// Not a loss in these rules: the trash is shuffled and becomes the deck
+// again. Every path that takes cards off the top goes through takeFromDeck,
+// so this is checked where it is most visible — the Draw Phase.
+
+{
+  let s = newMatch();
+  // Deck empty, trash full.
+  s.boards.p1.trash = s.boards.p1.actionDeck.splice(0, 10);
+  s.boards.p1.actionDeck = [];
+  const inTrash = s.boards.p1.trash.length;
+  const inHand = s.boards.p1.hand.length;
+
+  const out = step(s, "p1", { kind: "startTurn" });
+  s = out.state;
+  check(
+    "เด็คหมด -> นำกองทิ้งมาสับเป็นเด็คใหม่",
+    s.boards.p1.actionDeck.length === inTrash - 1,
+    `${s.boards.p1.actionDeck.length} (กองทิ้งเดิม ${inTrash})`
+  );
+  check("กองทิ้งว่างลงหลังสับกลับ", s.boards.p1.trash.length === 0, `${s.boards.p1.trash.length}`);
+  check("จั่วได้ตามปกติ", s.boards.p1.hand.length === inHand + 1, `${s.boards.p1.hand.length}`);
+  check(
+    "log บอกว่าสับกองทิ้งกลับเป็นเด็ค",
+    out.log.some((line) => line.includes("สับเป็นเด็คใหม่")),
+    out.log.join(" | ")
+  );
+}
+
+{
+  // The refill has to happen PART-WAY through a draw too: one card left and
+  // two to draw takes that card, recycles, and takes the second off the new
+  // deck. Turn 2 so the draw is the normal two.
+  let s = newMatch();
+  s.turnNumber = 2;
+  // Everything but the top card into the trash, so nothing is thrown away
+  // and the 40 can still be counted at the end.
+  const deckNow = s.boards.p1.actionDeck;
+  s.boards.p1.trash = deckNow.slice(1);
+  s.boards.p1.actionDeck = deckNow.slice(0, 1);
+  const inHand = s.boards.p1.hand.length;
+  const recycled = s.boards.p1.trash.length;
+
+  s = step(s, "p1", { kind: "startTurn" }).state;
+  check("จั่ว 2 โดยเหลือเด็ค 1 -> ได้ครบ 2 ใบ", s.boards.p1.hand.length === inHand + 2, `${s.boards.p1.hand.length}`);
+  check(
+    "ใบที่สองมาจากเด็คที่สับใหม่",
+    s.boards.p1.actionDeck.length === recycled - 1 && s.boards.p1.trash.length === 0,
+    `deck=${s.boards.p1.actionDeck.length} trash=${s.boards.p1.trash.length}`
+  );
+  check(
+    "ไม่มีการ์ดหายไปไหน",
+    s.boards.p1.hand.length + s.boards.p1.actionDeck.length + s.boards.p1.trash.length +
+      s.boards.p1.competitionArea.length === ACTION_DECK_SIZE
+  );
+}
+
+{
+  // Both piles empty: nothing to recycle, nothing to draw, and it must not
+  // spin or throw. The match carries on — running out is still not a loss.
+  let s = newMatch();
+  s.boards.p1.actionDeck = [];
+  s.boards.p1.trash = [];
+  const inHand = s.boards.p1.hand.length;
+  const out = step(s, "p1", { kind: "startTurn" });
+  s = out.state;
+  check("เด็คและกองทิ้งว่างทั้งคู่ -> ไม่พัง", out.error === null, out.error ?? "");
+  check("และไม่ได้การ์ดเพิ่ม", s.boards.p1.hand.length === inHand);
+  check("แต่ยังเดินเกมต่อได้", s.phase === "action", s.phase);
+  check(
+    "log บอกว่าเด็คหมด",
+    out.log.some((line) => line.includes("หมดแล้ว")),
+    out.log.join(" | ")
+  );
+}
+
+// --- The opening mulligan --------------------------------------------------
+//
+// Five cards, put back as many as you like, shuffle, draw the same number
+// again. Both players answer it before turn 1 starts, in either order.
+
+function mulliganMatch(): MatchState {
+  return createMatch({
+    matchId: "mulligan",
+    startingPlayerId: "p1",
+    players: [
+      { playerId: "p1", characterDeck: CAMELLYA.map(character), actionDeck: deck(P1_DECK) },
+      { playerId: "p2", characterDeck: ENCORE.map(character), actionDeck: deck(P2_DECK) },
+    ],
+  });
+}
+
+{
+  const s = mulliganMatch();
+  check("แจกการ์ดแล้วเริ่มที่เฟสเปลี่ยนการ์ด", s.phase === "mulligan", s.phase);
+  check("ยังไม่มีใครเลือก", !s.mulliganDone.p1 && !s.mulliganDone.p2);
+  check(
+    "ระหว่างเปลี่ยนการ์ด ยังเริ่มเทิร์นไม่ได้",
+    step(s, "p1", { kind: "startTurn" }).error !== null
+  );
+  check(
+    "ระหว่างเปลี่ยนการ์ด ยังลงการ์ดคว่ำไม่ได้",
+    step(s, "p1", { kind: "commit", cardId: s.boards.p1.hand[0].id }).error !== null
+  );
+  check(
+    "ทั้งสองฝ่ายมีสิทธิ์เปลี่ยนการ์ด ไม่ใช่แค่เจ้าของเทิร์น",
+    legalIntents(s, "p1").includes("mulligan") && legalIntents(s, "p2").includes("mulligan")
+  );
+}
+
+{
+  // Keeping the hand: a real answer, and it must not move a single card.
+  let s = mulliganMatch();
+  const before = s.boards.p1.hand.map((card) => card.id).join(",");
+  const deckBefore = s.boards.p1.actionDeck.length;
+  s = step(s, "p1", { kind: "mulligan", cardIds: [] }).state;
+  check("ไม่เปลี่ยนเลย -> มือเดิมทุกใบ", s.boards.p1.hand.map((c) => c.id).join(",") === before);
+  check("ไม่เปลี่ยนเลย -> เด็คเท่าเดิม", s.boards.p1.actionDeck.length === deckBefore);
+  check("ไม่เปลี่ยนเลย -> ถือว่าเลือกแล้ว", s.mulliganDone.p1 === true);
+  check("อีกฝ่ายยังไม่เลือก -> ยังไม่เริ่มเกม", s.phase === "mulligan", s.phase);
+  check("เลือกซ้ำไม่ได้", step(s, "p1", { kind: "mulligan", cardIds: [] }).error !== null);
+
+  s = step(s, "p2", { kind: "mulligan", cardIds: [] }).state;
+  check("ทั้งคู่เลือกแล้ว -> เข้าเฟสจั่ว เทิร์น 1", s.phase === "draw" && s.turnNumber === 1);
+  check("เริ่มเทิร์นได้แล้ว", step(s, "p1", { kind: "startTurn" }).error === null);
+}
+
+{
+  // Putting cards back: the hand stays five, the deck stays forty minus five.
+  let s = mulliganMatch();
+  const handBefore = s.boards.p1.hand.length;
+  const deckBefore = s.boards.p1.actionDeck.length;
+  const putBack = s.boards.p1.hand.slice(0, 3).map((card) => card.id);
+  s = step(s, "p1", { kind: "mulligan", cardIds: putBack }).state;
+  check("คืน 3 จั่ว 3 -> มือเท่าเดิม", s.boards.p1.hand.length === handBefore, `${s.boards.p1.hand.length}`);
+  check(
+    "คืน 3 จั่ว 3 -> เด็คเท่าเดิม",
+    s.boards.p1.actionDeck.length === deckBefore,
+    `${s.boards.p1.actionDeck.length}`
+  );
+  check(
+    "ไม่มีการ์ดหายไปไหน",
+    s.boards.p1.hand.length + s.boards.p1.actionDeck.length + s.boards.p1.trash.length ===
+      ACTION_DECK_SIZE
+  );
+  check("อีกฝ่ายไม่ถูกแตะ", s.boards.p2.hand.length === INITIAL_HAND_SIZE);
+
+  // Whole hand back is legal — that is the worst opening the rules allow for.
+  let all = mulliganMatch();
+  all = step(all, "p2", {
+    kind: "mulligan",
+    cardIds: all.boards.p2.hand.map((card) => card.id),
+  }).state;
+  check("คืนทั้งมือได้", all.boards.p2.hand.length === INITIAL_HAND_SIZE && all.mulliganDone.p2);
+
+  check(
+    "คืนการ์ดที่ไม่ได้อยู่ในมือไม่ได้",
+    step(mulliganMatch(), "p1", { kind: "mulligan", cardIds: ["BP01-999"] }).error !== null
+  );
 }
 
 // --- Draw Phase ------------------------------------------------------------
@@ -241,8 +410,8 @@ let game = newMatch();
   );
   check(
     "บันทึกการจ่ายลงล็อก",
-    result.log.some((line) => line.includes("pays 2")),
-    result.log.filter((l) => l.includes("pay")).join(" | ")
+    result.log.some((line) => line.includes("จ่าย 2")),
+    result.log.filter((l) => l.includes("จ่าย")).join(" | ")
   );
 
   // Paying is exact: a cost 1 card takes one of the two and leaves one.
@@ -724,8 +893,8 @@ let game = newMatch();
   const { result } = drive(c2.state, "p1", { kind: "resolveCounter" });
 
   const lines = result.log;
-  const judgementAt = lines.findIndex((line) => line.includes("wins the clash"));
-  const damageAt = lines.findIndex((line) => line.includes("takes "));
+  const judgementAt = lines.findIndex((line) => line.includes("ชนะการปะทะ"));
+  const damageAt = lines.findIndex((line) => line.includes("เสีย "));
   check(
     "ตัดสินผลแพ้ชนะก่อน แล้วค่อยลงดาเมจ",
     judgementAt >= 0 && damageAt > judgementAt,
@@ -898,7 +1067,7 @@ let game = newMatch();
   // The fix must not have silenced these abilities instead — they still have
   // to fire once, through their own trigger. Two separate hits land here: the
   // [Counter] ability, then the clash itself.
-  const hits = result.log.filter((line) => line.includes("p2 takes"));
+  const hits = result.log.filter((line) => line.includes("p2 เสีย"));
   check(
     "เอฟเฟค [Counter] ยังทำงานตอนเทรกเกอร์จริง ไม่ได้ถูกปิดไปด้วย",
     hits.length === 2,
@@ -962,8 +1131,8 @@ let game = newMatch();
   s = first.state;
   check(
     "counter ด้วยแดงเอง -> เอฟเฟคทำงาน",
-    first.log.some((line) => line.includes("p2 takes 1 from Jinshi")),
-    first.log.filter((line) => line.includes("takes")).join(" | ")
+    first.log.some((line) => line.includes("p2 เสีย 1 จาก Jinshi")),
+    first.log.filter((line) => line.includes("เสีย")).join(" | ")
   );
 
   // Round two: p1 lays nothing down, p2 counters with red. p1's Jinshi must
@@ -980,7 +1149,7 @@ let game = newMatch();
   check(
     "ไม่ได้ลงการ์ด แต่อีกฝ่ายลงแดง -> Jinshi ของเราต้องไม่ทำงาน",
     !second.log.some((line) => line.includes("from Jinshi")),
-    second.log.filter((line) => line.includes("takes")).join(" | ")
+    second.log.filter((line) => line.includes("เสีย")).join(" | ")
   );
   check(
     "และอีกฝ่ายต้องไม่เสียเลือดจากเอฟเฟคของเรา",
@@ -1008,22 +1177,430 @@ let game = newMatch();
   s = step(s, "p2", { kind: "commit", cardId: "BP01-052" }).state;
   const out = drive(s, "p1", { kind: "resolveCounter" }).result;
 
-  const hits = out.log.filter((line) => line.includes(" takes "));
+  const hits = out.log.filter((line) => line.includes(" เสีย "));
   check("มีบรรทัดดาเมจอย่างน้อย 2 บรรทัด", hits.length >= 2, hits.join(" | "));
   check(
     "ทุกบรรทัดบอกว่ามาจากการ์ดใบไหน",
-    hits.every((line) => / from .+ \[[A-Z]{2}\d{2}-\d{3}\] /.test(line)),
+    hits.every((line) => / จาก .+ \[[A-Z]{2}\d{2}-\d{3}\] /.test(line)),
     hits.join(" | ")
   );
   check(
     "ดาเมจจากเอฟเฟคบอกชื่อตัวละคร",
-    hits.some((line) => line.includes("from Jinshi [BP01-030]")),
+    hits.some((line) => line.includes("จาก Jinshi [BP01-030]")),
     hits.join(" | ")
   );
   check(
     "ดาเมจจากการปะทะบอกชื่อการ์ดที่ชนะ",
-    hits.some((line) => /from .+ \[BP01-0(44|52)\]/.test(line)),
+    hits.some((line) => /จาก .+ \[BP01-0(44|52)\]/.test(line)),
     hits.join(" | ")
+  );
+}
+
+// --- What the character menu is allowed to offer ---------------------------
+//
+// The menu on the board asks these two rather than working the rules out for
+// itself, so anything they say yes to has to be a move the engine will
+// actually accept — and anything it would refuse must never be offered.
+
+{
+  const s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  const leader = s.boards.p1.leader!;
+
+  const onLeader = levelUpOptions(s, "p1", leader.card.id);
+  check(
+    "Lv.0 -> เสนอเฉพาะการ์ด Lv.1 ของตัวเอง",
+    onLeader.map((c) => c.id).join() === "BP01-003",
+    onLeader.map((c) => `${c.id}:${c.level}`).join()
+  );
+  check(
+    "ไม่เสนอการ์ดข้ามขั้น และไม่เสนอของตัวละครอื่น",
+    !onLeader.some((c) => c.level > leader.card.level + 1 || c.name !== leader.card.name)
+  );
+  check(
+    "ทุกใบที่เสนอ เอนจินรับจริง",
+    onLeader.every((card) => {
+      const ids = s.boards.p1.hand.slice(0, card.level).map((c) => c.id);
+      return (
+        drive(s, "p1", { kind: "levelUp", characterId: card.id, discardIds: ids }).result.error ===
+        null
+      );
+    })
+  );
+  check("มีตัวหลังอยู่ -> สลับ Leader ได้", canSwitchLeader(s, "p1"));
+  check(
+    "ฝ่ายที่ไม่ใช่เจ้าของเทิร์น -> ไม่มีอะไรให้เลือก",
+    !canSwitchLeader(s, "p2") &&
+      levelUpOptions(s, "p2", s.boards.p2.leader!.card.id).length === 0
+  );
+
+  // Mid-clash there is no Action Phase move to be had at all.
+  const counter = structuredClone(s);
+  counter.phase = "counter";
+  check(
+    "นอกเฟสแอ็กชัน -> ไม่เสนอทั้งเลเวลอัปและสลับ",
+    levelUpOptions(counter, "p1", leader.card.id).length === 0 && !canSwitchLeader(counter, "p1")
+  );
+
+  // One action per turn: using it closes both moves for the rest of the turn.
+  const used = structuredClone(s);
+  used.boards.p1.actionsTakenThisTurn.push("levelUp", "switch");
+  check(
+    "ใช้แอ็กชันของเทิร์นไปแล้ว -> ไม่เสนออีก",
+    levelUpOptions(used, "p1", leader.card.id).length === 0 && !canSwitchLeader(used, "p1")
+  );
+
+  // The cost is paid out of hand, so an empty hand cannot afford anything.
+  const broke = structuredClone(s);
+  broke.boards.p1.hand = [];
+  check(
+    "ไม่มีการ์ดในมือให้ทิ้ง -> ไม่เสนอเลเวลอัป",
+    levelUpOptions(broke, "p1", leader.card.id).length === 0
+  );
+
+  // Nobody in the back means nobody to swap with.
+  const alone = structuredClone(s);
+  alone.boards.p1.back = [];
+  check("ไม่มีตัวหลัง -> สลับไม่ได้", !canSwitchLeader(alone, "p1"));
+
+  // A card that shut switching off for the turn is respected here too.
+  const stopped = structuredClone(s);
+  stopped.turnLog.flags.p1 = ["noLeaderSwitch"];
+  check("โดนห้ามสลับในเทิร์นนี้ -> ไม่เสนอ", !canSwitchLeader(stopped, "p1"));
+
+  // Committing is the one move the player whose turn it is NOT also makes,
+  // so the menu on their hand cannot ask legalIntents about it.
+  check("ลงคว่ำได้ทั้งสองฝ่าย ไม่ใช่แค่เจ้าของเทิร์น", canCommit(s, "p1") && canCommit(s, "p2"));
+  check(
+    "ฝ่ายที่ไม่ใช่เจ้าของเทิร์นไม่มีสิทธิ์อื่นเลย",
+    legalIntents(s, "p2").length === 0,
+    legalIntents(s, "p2").join()
+  );
+  const laid = drive(s, "p1", { kind: "commit", cardId: s.boards.p1.hand[0].id }).result.state;
+  check("ลงคว่ำแล้ว -> เข้าเฟสประลองทันที", laid.phase === "counter", laid.phase);
+  check("ลงคว่ำไปแล้ว -> ลงซ้ำไม่ได้", !canCommit(laid, "p1"));
+  check("อีกฝ่ายยังลงได้อยู่", canCommit(laid, "p2"));
+  check(
+    "และเอนจินปฏิเสธจริงถ้าฝืนลงซ้ำ",
+    drive(laid, "p1", { kind: "commit", cardId: laid.boards.p1.hand[0].id }).result.error !== null
+  );
+  const won = structuredClone(s);
+  won.winnerId = "p1";
+  check("จบเกมแล้ว -> ลงคว่ำไม่ได้", !canCommit(won, "p1") && !canCommit(won, "p2"));
+  check(
+    "และเอนจินก็ปฏิเสธจริงถ้าฝืนสั่ง",
+    drive(stopped, "p1", { kind: "switch", toCardId: stopped.boards.p1.back[0].card.id }).result
+      .error !== null
+  );
+}
+
+// --- The log says WHY the clash went the way it did ------------------------
+//
+// A win is not always visible: a 0-attack Dodge beats a red card on colour
+// alone, so the loser takes nothing and the only sign anything happened is a
+// [Judgement] skill firing off the win. "p1 wins the clash" on its own reads
+// like the engine got it wrong.
+
+{
+  const clash = (p1Card: string, p2Card: string) => {
+    let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+    s.boards.p1.hand = [action(p1Card)];
+    s.boards.p2.hand = [action(p2Card)];
+    s.boards.p1.competitionArea = [action("BP01-044"), action("BP01-044")];
+    s.boards.p2.competitionArea = [action("BP01-044"), action("BP01-044")];
+    s = drive(s, "p1", { kind: "commit", cardId: p1Card }).result.state;
+    s = drive(s, "p2", { kind: "commit", cardId: p2Card }).result.state;
+    return drive(s, "p1", { kind: "resolveCounter" }).result;
+  };
+  const clashLine = (log: string[]) =>
+    log.find((line) => line.includes("การปะทะ")) ?? "(no clash line)";
+
+  // BP01-045 is blue, BP01-044 red: blue beats red, whatever the attack says.
+  const byColor = clashLine(clash("BP01-045", "BP01-044").log);
+  check(
+    "ชนะด้วยสี -> บอกในบันทึกว่าสีไหนชนะสีไหน",
+    byColor.includes("p1 ชนะการปะทะ") && byColor.includes("น้ำเงินชนะแดง"),
+    byColor
+  );
+
+  // Same colour: Speed decides, and the log says the numbers.
+  const bySpeed = clashLine(clash("BP01-049", "BP01-044").log);
+  check(
+    "สีเดียวกัน -> ตัดสินด้วย Speed และบอกตัวเลข",
+    bySpeed.includes("Speed") && /Speed \d+ ต่อ \d+/.test(bySpeed),
+    bySpeed
+  );
+
+  // Blue against blue is a draw no matter what.
+  const drawn = clashLine(clash("BP01-045", "BP01-045").log);
+  check("น้ำเงินชนกัน -> เสมอ", drawn.includes("เสมอ"), drawn);
+
+  // Nobody laid a card out against it.
+  let solo = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  solo.boards.p1.hand = [action("BP01-044")];
+  solo.boards.p1.competitionArea = [action("BP01-044")];
+  solo = drive(solo, "p1", { kind: "commit", cardId: "BP01-044" }).result.state;
+  solo = drive(solo, "p2", { kind: "pass" }).result.state;
+  const unopposed = clashLine(drive(solo, "p1", { kind: "resolveCounter" }).result.log);
+  check(
+    "อีกฝ่ายไม่ลงการ์ด -> บอกว่าชนะเพราะไม่มีคู่ต่อสู้",
+    unopposed.includes("อีกฝ่ายไม่ได้ลงการ์ด"),
+    unopposed
+  );
+}
+
+// --- Every log line names the card behind it, for the battle log's art ----
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  s.boards.p1.hand = [action("BP01-049")];
+  s.boards.p2.hand = [action("BP01-044")];
+  s.boards.p1.competitionArea = [action("BP01-044"), action("BP01-044")];
+  s = drive(s, "p1", { kind: "commit", cardId: "BP01-049" }).result.state;
+  s = drive(s, "p2", { kind: "commit", cardId: "BP01-044" }).result.state;
+  const out = drive(s, "p1", { kind: "resolveCounter" }).result;
+
+  const credited = out.log.filter((line) => /\[[A-Z]{2}\d{2}-\d{3}/.test(line));
+  check(
+    "บรรทัดที่มีการ์ดเป็นต้นเหตุ ระบุเลขการ์ดไว้ให้รูปขึ้นได้",
+    credited.some((line) => line.includes("จ่าย")) &&
+      credited.some((line) => line.includes("เปิด")),
+    credited.join(" | ")
+  );
+  check(
+    "ไม่มีบรรทัดไหนถูกระบุการ์ดซ้ำสองครั้ง",
+    credited.every((line) => (line.match(/\[[A-Z]{2}\d{2}-\d{3}/g) ?? []).length === 1),
+    credited.join(" | ")
+  );
+  check(
+    "เปิดการ์ดแยกบรรทัดต่อฝั่ง จะได้ติดรูปของตัวเองได้",
+    out.log.filter((line) => line.includes("เปิด ")).length === 2,
+    out.log.filter((line) => line.includes("เปิด ")).join(" | ")
+  );
+}
+
+// --- What [Level up] means -------------------------------------------------
+//
+// It happens TO the card already on the field, not to the one being played:
+// "when this character is levelled up" is the card underneath being covered.
+// The card arriving gets [Enter] instead, which is why so many of them are
+// printed "[Enter] / [Level up]" — both moments, one line.
+
+{
+  const shorekeeper = () => {
+    let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+    s.boards.p1.leader = {
+      position: "leader",
+      card: character("BP01-010"), // Shorekeeper Lv.0
+      under: [],
+    };
+    s.boards.p1.characterPool = [character("BP01-009"), character("BP01-007")];
+    return s;
+  };
+
+  // BP01-009 is "[Enter] / [Level up] you MAY take an {Intro Skill} from the
+  // trash": arriving is [Enter].
+  const arriving = shorekeeper();
+  arriving.boards.p1.trash = [action("BP01-063")];
+  const onArrival = drive(arriving, "p1", {
+    kind: "levelUp",
+    characterId: "BP01-009",
+    discardIds: [arriving.boards.p1.hand[0].id],
+  });
+  check(
+    "การ์ดที่ลงมาใหม่ -> [Enter] ทำงาน",
+    onArrival.asked.includes("BP01-009"),
+    onArrival.asked.join()
+  );
+
+  // Then BP01-007 goes on top of it, and BP01-009 is the one being levelled
+  // up — so this time it is [Level up] that fires, on the card underneath.
+  let stacked = onArrival.result.state;
+  stacked.boards.p1.actionsTakenThisTurn = [];
+  stacked.boards.p1.trash = [action("BP01-063")];
+  const onCovered = drive(stacked, "p1", {
+    kind: "levelUp",
+    characterId: "BP01-007",
+    discardIds: stacked.boards.p1.hand.slice(0, 2).map((c) => c.id),
+  });
+  check(
+    "การ์ดที่ถูกทับ -> [Level up] ทำงาน ไม่ใช่ใบที่เพิ่งลง",
+    onCovered.asked.includes("BP01-009"),
+    onCovered.asked.join() || "(ไม่มีอะไรถาม)"
+  );
+  check(
+    "กองยังอยู่ครบ ใบล่างไม่ได้หายไปไหน",
+    onCovered.result.state.boards.p1.leader?.card.id === "BP01-007" &&
+      onCovered.result.state.boards.p1.leader?.under.map((c) => c.id).join() ===
+        "BP01-010,BP01-009",
+    onCovered.result.state.boards.p1.leader?.under.map((c) => c.id).join()
+  );
+
+  // BP01-001 is "[Level up] return this card to the Character Deck". Fired on
+  // the card arriving, it bounced itself off the field the moment it landed.
+  let camellya = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  camellya.boards.p1.leader = { position: "leader", card: character("BP01-003"), under: [] };
+  camellya.boards.p1.characterPool = [character("BP01-001")];
+  const played = drive(camellya, "p1", {
+    kind: "levelUp",
+    characterId: "BP01-001",
+    discardIds: camellya.boards.p1.hand.slice(0, 2).map((c) => c.id),
+  });
+  check(
+    "BP01-001 ลงแล้วอยู่ในสนาม ไม่เด้งกลับ Character Deck เอง",
+    played.result.state.boards.p1.leader?.card.id === "BP01-001" &&
+      played.result.state.boards.p1.characterPool.length === 0,
+    `leader=${played.result.state.boards.p1.leader?.card.id} pool=${played.result.state.boards.p1.characterPool.map((c) => c.id).join()}`
+  );
+}
+
+// --- "At start of own Battle phase" means the start ------------------------
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  // BP01-007: "[Leader] [At start of own Battle phase] if your hand is 4 or
+  // fewer, draw up to 5."
+  s.boards.p1.leader = {
+    position: "leader",
+    card: character("BP01-007"),
+    under: [character("BP01-010")],
+  };
+  s.boards.p1.hand = [action("BP01-044"), action("BP01-044")];
+  s.boards.p1.competitionArea = [action("BP01-044")];
+
+  const committed = drive(s, "p1", { kind: "commit", cardId: "BP01-044" }).result.state;
+  check("เข้าเฟสประลอง", committed.phase === "counter", committed.phase);
+  check(
+    "จั่วให้ครบ 5 ตั้งแต่เฟสประลองเริ่ม ไม่ใช่ตอนเปิดการ์ด",
+    committed.boards.p1.hand.length === 5,
+    `${committed.boards.p1.hand.length}`
+  );
+
+  // And exactly once — the second player committing does not open the phase
+  // again.
+  const both = drive(committed, "p2", { kind: "pass" }).result.state;
+  check(
+    "อีกฝ่ายลงตาม -> ไม่ได้จั่วซ้ำ",
+    both.boards.p1.hand.length === 5,
+    `${both.boards.p1.hand.length}`
+  );
+}
+
+// --- Red's follow-up chain really is unlimited -----------------------------
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  s.boards.p1.hand = Array.from({ length: 9 }, () => action("BP01-044"));
+  s.boards.p1.competitionArea = Array.from({ length: 12 }, () => action("BP01-044"));
+  s = drive(s, "p1", { kind: "commit", cardId: "BP01-044" }).result.state;
+  s = drive(s, "p2", { kind: "pass" }).result.state;
+  s = drive(s, "p1", { kind: "resolveCounter" }).result.state;
+  check("ชนะด้วยแดง -> คอมโบไม่จำกัด", s.combo?.unlimited === true, JSON.stringify(s.combo));
+
+  let played = 0;
+  for (let i = 0; i < 8; i += 1) {
+    const out = drive(s, "p1", { kind: "combo", cardId: "BP01-044" });
+    if (out.result.error) break;
+    s = out.result.state;
+    played += 1;
+  }
+  check(
+    "ต่อเนื่องได้เกิน 5 ใบ ไม่โดน Action Area จำกัด",
+    played === 8,
+    `ต่อได้ ${played} ใบ, Action Area ${(s.actionZone.p1 ?? []).length} ใบ`
+  );
+}
+
+// --- A card only an ability may put into play ------------------------------
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  // Encore Lv.1 leading, with both Level 2 cards in the deck: BP01-011 is
+  // tagged abilityOnly, BP01-012 is not.
+  s.boards.p1.leader = {
+    position: "leader",
+    card: character("BP01-013"),
+    under: [character("BP01-015")],
+  };
+  s.boards.p1.characterPool = [character("BP01-011"), character("BP01-012")];
+
+  check(
+    "เมนูไม่เสนอใบที่ลงได้เฉพาะจากความสามารถ",
+    levelUpOptions(s, "p1", "BP01-013").map((c) => c.id).join() === "BP01-012",
+    levelUpOptions(s, "p1", "BP01-013").map((c) => c.id).join()
+  );
+  check(
+    "ฝืนสั่งเลเวลอัปใบนั้นตรงๆ -> เอนจินปฏิเสธ",
+    drive(s, "p1", {
+      kind: "levelUp",
+      characterId: "BP01-011",
+      discardIds: s.boards.p1.hand.slice(0, 2).map((c) => c.id),
+    }).result.error !== null
+  );
+}
+
+// --- "if this card was not played this round" ------------------------------
+//
+// BP01-011 goes home at the end of a turn it did not arrive in. It reaches
+// the field by being levelled up, which never touched the turn log, so the
+// answer used to be "not played" even on the turn it landed — and it left
+// again immediately.
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  s.boards.p1.leader = {
+    position: "leader",
+    card: character("BP01-013"),
+    under: [character("BP01-015")],
+  };
+  s.boards.p1.characterPool = [character("BP01-012")];
+  const landed = drive(s, "p1", {
+    kind: "levelUp",
+    characterId: "BP01-012",
+    discardIds: s.boards.p1.hand.slice(0, 2).map((c) => c.id),
+  }).result.state;
+  check(
+    "ตัวละครที่เพิ่งลง ถูกบันทึกว่าลงในเทิร์นนี้",
+    (landed.turnLog.charactersPlayed.p1 ?? []).includes("BP01-012"),
+    JSON.stringify(landed.turnLog.charactersPlayed)
+  );
+
+  // And the record is cleared with the rest of the turn log — which means
+  // playing the turn out to its end, not just asking for one.
+  let nextTurn = drive(landed, "p1", { kind: "pass" }).result.state;
+  nextTurn = drive(nextTurn, "p2", { kind: "pass" }).result.state;
+  nextTurn = drive(nextTurn, "p1", { kind: "resolveCounter" }).result.state;
+  nextTurn = drive(nextTurn, "p1", { kind: "endTurn" }).result.state;
+  nextTurn = drive(nextTurn, "p2", { kind: "startTurn" }).result.state;
+  check("เทิร์นเดินต่อไปถึงตา p2 จริง", nextTurn.turnPlayerId === "p2", nextTurn.turnPlayerId);
+  check(
+    "ขึ้นเทิร์นใหม่ -> บันทึกถูกล้าง",
+    (nextTurn.turnLog.charactersPlayed.p1 ?? []).length === 0,
+    JSON.stringify(nextTurn.turnLog.charactersPlayed)
+  );
+}
+
+// --- "each round, damage taken -1" is once a round -------------------------
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  s.boards.p2.leader = { position: "leader", card: character("BP01-002"), under: [] };
+  s.boards.p1.hand = Array.from({ length: 6 }, () => action("BP01-044")); // red, 1 damage
+  s.boards.p1.competitionArea = Array.from({ length: 10 }, () => action("BP01-044"));
+
+  s = drive(s, "p1", { kind: "commit", cardId: "BP01-044" }).result.state;
+  s = drive(s, "p2", { kind: "pass" }).result.state;
+  s = drive(s, "p1", { kind: "resolveCounter" }).result.state;
+  check("ครั้งแรกโดนลด -> ไม่เสียเลือด", s.boards.p2.life === 20, `${s.boards.p2.life}`);
+
+  for (let i = 0; i < 4; i += 1) {
+    const out = drive(s, "p1", { kind: "combo", cardId: "BP01-044" });
+    if (out.result.error) break;
+    s = out.result.state;
+  }
+  check(
+    "ครั้งต่อๆ ไปไม่ลดแล้ว",
+    s.boards.p2.life === 16,
+    `เหลือ ${s.boards.p2.life}, โดน ${s.turnLog.hitsTaken.p2} ครั้ง`
   );
 }
 

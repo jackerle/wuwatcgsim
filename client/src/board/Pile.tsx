@@ -23,10 +23,14 @@ export function Pile({
 }) {
   const { setOpenPile } = usePileModal();
   const clickable = cards !== undefined;
+  // No top card means nothing is showing: it is a face-down pile, so the
+  // layers that stand in for its bulk get the printed card back rather than
+  // the neutral texture a face-up pile uses under its top card.
+  const faceDown = !topCard;
 
   return (
     <div
-      className={`pile ${clickable ? "pile-clickable" : ""}`}
+      className={`pile ${clickable ? "pile-clickable" : ""} ${faceDown ? "pile-facedown" : ""}`}
       onClick={clickable ? () => setOpenPile({ label, cards: cards! }) : undefined}
       role={clickable ? "button" : undefined}
     >
