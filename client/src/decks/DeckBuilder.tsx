@@ -24,15 +24,11 @@ import { CardArt } from "../board/CardImage";
 import { HoverPreviewProvider, useHoverPreview } from "../board/HoverPreviewContext";
 import { HoverPreviewPanel } from "../board/HoverPreviewPanel";
 import { DetailPanel } from "../board/DetailPanel";
+import { ImagePreloadPill } from "../board/ImagePreloadPill";
+import { portraitOf } from "./portraits";
 import "./DeckBuilder.css";
 
 const CHARACTERS = playableCharacters();
-
-/** The Lv.0 card, which is the one with the portrait people recognise. */
-function portraitOf(character: string): { id: string; imageId: string } | null {
-  const base = cardsFor(character).characters.find((card) => card.level === 0);
-  return base ? { id: base.id, imageId: base.imageId } : null;
-}
 
 export function DeckBuilder({
   deck: initial,
@@ -111,6 +107,7 @@ function Builder({
           <span className={`deck-count ${issues.length === 0 ? "ok" : ""}`}>
             {size}/40
           </span>
+          <ImagePreloadPill />
           <span className="deck-bar-spacer" />
           <button type="button" onClick={() => setTransfer("import")}>
             Import
@@ -162,9 +159,12 @@ function Builder({
             </div>
 
             {deck.characters.length > 0 && (
-              <p className="deck-note">
-                การ์ดตัวละคร {chosenCharacterCards.length} ใบ (ทุกเลเวลของทั้งสามตัว) ถูกใส่ให้อัตโนมัติ
-              </p>
+              <>
+                <p className="deck-note">
+                  การ์ดตัวละคร {chosenCharacterCards.length} ใบ (ทุกเลเวลของทั้งสามตัว) ถูกใส่ให้อัตโนมัติ
+                </p>
+                <LeaderLevels characters={deck.characters} onHover={setHovered} />
+              </>
             )}
 
             <h3 className="deck-heading">
@@ -224,6 +224,60 @@ function Builder({
         />
       )}
     </main>
+  );
+}
+
+/**
+ * Every printed level of each chosen character, laid out so the player can
+ * see the whole ladder — not just the Lv.0 they picked from — before they
+ * commit to the character. Every level goes into the deck automatically
+ * (deckToSetup levels them up as the match calls for it), so this is purely
+ * informational: nothing here is clickable to add or remove.
+ */
+function LeaderLevels({
+  characters,
+  onHover,
+}: {
+  characters: readonly string[];
+  onHover: ReturnType<typeof useHoverPreview>["setHovered"];
+}) {
+  if (characters.length === 0) return null;
+
+  return (
+    <div className="leader-levels">
+      <h3 className="deck-heading">เลเวลของตัวละคร</h3>
+      <div className="leader-levels-rows">
+        {characters.map((name) => {
+          const levels = [...cardsFor(name).characters].sort((a, b) => a.level - b.level);
+          return (
+            <div className="leader-levels-row" key={name}>
+              <span className="leader-levels-name">{name}</span>
+              <div className="leader-levels-cards">
+                {levels.map((card) => (
+                  <div
+                    key={card.id}
+                    className={`leader-level-card level-${card.level}`}
+                    onMouseEnter={() =>
+                      onHover({
+                        cardId: card.id,
+                        imageId: card.imageId,
+                        name,
+                        kind: "character",
+                        level: card.level,
+                      })
+                    }
+                    onMouseLeave={() => onHover(null)}
+                  >
+                    <CardArt card={{ cardId: card.id, imageId: card.imageId, name, kind: "character" }} />
+                    <span className="leader-level-badge">Lv.{card.level}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

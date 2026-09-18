@@ -6,7 +6,10 @@
 
 import { useState } from "react";
 import { deckIssues, deckSize, isDeckPlayable, type DeckList } from "@wuwatcg/shared";
+import { CardArt } from "../board/CardImage";
+import { ImagePreloadPill } from "../board/ImagePreloadPill";
 import { createDeck, deleteDeck, loadDecks, saveDeck } from "./storage";
+import { portraitOf } from "./portraits";
 import { DeckBuilder } from "./DeckBuilder";
 import "./DeckBuilder.css";
 
@@ -43,6 +46,7 @@ export function DeckManager({
       <div className="deck-list">
         <div className="deck-list-head">
           <h1>{title}</h1>
+          <ImagePreloadPill />
           <span className="deck-bar-spacer" />
           <div className="deck-row-actions">
             <button type="button" onClick={() => setEditing(createDeck())}>
@@ -105,6 +109,21 @@ function DeckRow({
       onClick={onPick && playable ? () => onPick(deck) : undefined}
       role={onPick && playable ? "button" : undefined}
     >
+      <div className="deck-row-portraits">
+        {Array.from({ length: 3 }, (_, i) => deck.characters[i]).map((name, i) => {
+          const art = name ? portraitOf(name) : null;
+          return (
+            <span className="deck-row-portrait" key={i} title={name}>
+              {art ? (
+                <CardArt card={{ cardId: art.id, imageId: art.imageId, name: name!, kind: "character" }} />
+              ) : (
+                <span className="deck-row-portrait-empty" />
+              )}
+            </span>
+          );
+        })}
+      </div>
+
       <div className="deck-row-main">
         <div className="deck-row-name">{deck.name}</div>
         <div className="deck-row-sub">

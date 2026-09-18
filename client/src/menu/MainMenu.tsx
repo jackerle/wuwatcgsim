@@ -40,15 +40,21 @@ export function MainMenu({
           disabled={!playerName.trim()}
           title={playerName.trim() ? undefined : "ใส่ชื่อก่อน"}
         >
-          <span className="menu-button-label">Play</span>
-          <span className="menu-button-sub">หาห้อง หรือสร้างห้องใหม่</span>
+          <span className="menu-button-text">
+            <span className="menu-button-label">Play</span>
+            <span className="menu-button-sub">หาห้อง หรือสร้างห้องใหม่</span>
+          </span>
+          <img className="menu-button-art" src="/cards/rover_f.webp" alt="" aria-hidden="true" />
         </button>
 
         <button type="button" className="menu-button" onClick={onDecks}>
-          <span className="menu-button-label">Deck</span>
-          <span className="menu-button-sub">
-            {deckCount > 0 ? `จัดเด็ค — มีอยู่ ${deckCount} เด็ค` : "จัดเด็ค — ยังไม่มีเด็ค"}
+          <span className="menu-button-text">
+            <span className="menu-button-label">Deck</span>
+            <span className="menu-button-sub">
+              {deckCount > 0 ? `จัดเด็ค — มีอยู่ ${deckCount} เด็ค` : "จัดเด็ค — ยังไม่มีเด็ค"}
+            </span>
           </span>
+          <img className="menu-button-art" src="/cards/rover_m.webp" alt="" aria-hidden="true" />
         </button>
 
         <button type="button" className="menu-link" onClick={onHotseat}>

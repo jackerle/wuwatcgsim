@@ -1,5 +1,7 @@
 /* Main menu and the room browser — the screens before a board exists. */
 
+@import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Cinzel:wght@600;700&display=swap");
+
 .menu-page,
 .play-page {
   min-height: 100vh;
@@ -8,6 +10,7 @@
   justify-content: center;
   background: radial-gradient(circle at 50% 0%, #1a2340 0%, #0d1017 60%);
   color: #e6e8ef;
+  font-family: "Rajdhani", var(--sans, system-ui), sans-serif;
 }
 
 .menu {
@@ -25,14 +28,22 @@
 .menu-title {
   margin: 0;
   text-align: center;
-  font-size: 2rem;
-  letter-spacing: 0.04em;
+  font-family: "Cinzel", serif;
+  font-size: 2.1rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  background: linear-gradient(180deg, #fefefe 0%, #b9c4e8 70%, #7a8fce 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 18px rgba(77, 121, 239, 0.35);
 }
 
 .menu-sub {
   margin: 0 0 8px;
   text-align: center;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
   opacity: 0.55;
 }
 
@@ -54,46 +65,109 @@
 }
 
 .menu-button {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 14px 16px;
+  align-items: center;
+  min-height: 78px;
+  padding: 14px 96px 14px 16px;
   border-radius: 10px;
-  border: 1px solid #3a3f4d;
-  background: #222735;
-  color: #e6e8ef;
+  border: 1px solid #c7ccdc;
+  background: linear-gradient(135deg, #f5f6fa 0%, #e2e5ee 100%);
+  color: #1a1e2b;
   text-align: left;
   cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
 .menu-button:hover:not(:disabled) {
-  background: #2c3243;
+  background: linear-gradient(135deg, #ffffff 0%, #eaeefa 100%);
   border-color: #4d79ef;
+  transform: translateY(-1px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 6px 16px rgba(20, 30, 60, 0.18);
+}
+
+.menu-button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .menu-button:disabled {
-  opacity: 0.45;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .menu-button.primary {
-  background: #2f4fa8;
-  border-color: #4d79ef;
+  background: linear-gradient(135deg, #f2f5ff 0%, #cbd8ff 100%);
+  border-color: #8fa3ea;
 }
 
 .menu-button.primary:hover:not(:disabled) {
-  background: #3a5fc4;
+  background: linear-gradient(135deg, #ffffff 0%, #d7e0ff 100%);
+  border-color: #4d79ef;
+}
+
+.menu-button-text {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* The art sits behind this text and can crowd it at narrow widths — a
+     translucent scrim (below) keeps the label readable without hiding the
+     character entirely. */
+  max-width: 100%;
 }
 
 .menu-button-label {
-  font-size: 1.15rem;
+  font-family: "Cinzel", serif;
+  font-size: 1.2rem;
   font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #1c2340;
+}
+
+.menu-button.primary .menu-button-label {
+  color: #1f3487;
 }
 
 .menu-button-sub {
-  font-size: 0.75rem;
-  opacity: 0.7;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: #4a4f63;
+  opacity: 0.85;
+}
+
+/* Rover, peeking in from the button's right edge. Sized taller than the
+   button and anchored to its bottom so the art reads as a character
+   standing behind the panel rather than a thumbnail sitting inside it;
+   `overflow: hidden` on the button itself is the mask. The button is now
+   pale to match the art's own light background, so the character sits in
+   the panel rather than inside a visible box. */
+.menu-button-art {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  z-index: 0;
+  height: 150%;
+  width: auto;
+  max-width: 46%;
+  object-fit: contain;
+  object-position: bottom right;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to left, black 55%, transparent 100%);
+  mask-image: linear-gradient(to left, black 55%, transparent 100%);
+  filter: drop-shadow(0 4px 8px rgba(30, 40, 70, 0.25));
+  opacity: 0.95;
+  transform: translateY(4%) scale(1);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+}
+
+.menu-button:hover:not(:disabled) .menu-button-art {
+  transform: translateY(0%) scale(1.1);
+  opacity: 1;
 }
 
 .menu-link {

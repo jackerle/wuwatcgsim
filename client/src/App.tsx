@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Room, RoomVisibility, Seat } from "@wuwatcg/shared";
+// Imported before any component below so the base `.page` rule it defines
+// loses the cascade to each screen's own CSS (MainMenu.css, DeckBuilder.css,
+// ...) when they redeclare the same properties on `.page`'s sibling class —
+// e.g. `.deck-page` overriding `.page`'s centered flex layout with a plain
+// block one. Both selectors carry equal specificity, so whichever rule's
+// stylesheet loads later wins; imported here first, App.css always loads
+// first regardless of the order the screens below happen to be imported in.
+import "./App.css";
 import { socket } from "./socket";
 import { playerId, rememberName, rememberRoom, rememberedName, rememberedRoom } from "./identity";
 import { clearMatch } from "./game/matchStore";
@@ -10,7 +18,7 @@ import { PlayMenu } from "./menu/PlayMenu";
 import { DeckManager } from "./decks/DeckManager";
 import { loadDecks } from "./decks/storage";
 import { Lobby } from "./menu/Lobby";
-import "./App.css";
+import { warmCardImages } from "./board/imagePreload";
 
 const ME = playerId();
 
@@ -26,6 +34,14 @@ export default function App() {
   const [hotseat, setHotseat] = useState(false);
   /** Stops the refresh-rejoin from firing again on every reconnect. */
   const rejoined = useRef(false);
+
+  // Starts loading every card image once, in the background, as soon as the
+  // app opens — by the time a screen actually needs one (deck building, a
+  // match preview) it's usually already sitting in the browser's cache
+  // instead of stalling that screen's first hover on the network.
+  useEffect(() => {
+    warmCardImages();
+  }, []);
 
   useEffect(() => {
     const onRoomUpdate = (updated: Room) => {
