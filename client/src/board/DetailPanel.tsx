@@ -1,4 +1,5 @@
-import { formatEffect, getCard, subtypeLabel } from "@wuwatcg/shared";
+import { getCard, subtypeLabel } from "@wuwatcg/shared";
+import { EffectText } from "./EffectText";
 import { useHoverPreview } from "./HoverPreviewContext";
 
 const COLOR_TH: Record<string, string> = { red: "แดง", green: "เขียว", blue: "น้ำเงิน" };
@@ -74,7 +75,7 @@ export function DetailPanel() {
           <ul className="detail-effects">
             {definition.effects.map((effect, index) => (
               <li key={index} className={effect.resolve ? "" : "manual"}>
-                {formatEffect(effect, "th")}
+                <EffectText effect={effect} />
                 {!effect.resolve && <span className="manual-tag">ผู้เล่นทำเอง</span>}
               </li>
             ))}

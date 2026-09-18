@@ -36,6 +36,15 @@ for (let g = 0; g < 25; g += 1) {
 
     if (s.question) { s.answer(s.question.choice.playerId as Seat, s.question.choice.options[0]?.value ?? false); }
     else switch (s.state.phase) {
+      // Both seats answer the opening mulligan, putting back a different
+      // number each game so the shuffle-and-redraw path is actually walked.
+      case "mulligan":
+        for (const seat of ["p1", "p2"] as Seat[]) {
+          if (s.state.mulliganDone[seat]) continue;
+          const back = s.state.boards[seat].hand.slice(0, g % 6).map((c) => c.id);
+          s.apply(seat, { kind: "mulligan", cardIds: back });
+        }
+        break;
       case "draw": s.apply(turn, { kind: "startTurn" }); break;
       case "action":
       case "counter":
@@ -57,15 +66,20 @@ for (let g = 0; g < 25; g += 1) {
     for (const seat of ["p1", "p2"] as Seat[]) {
       const delta = life[seat] - now[seat];
       if (delta === 0) continue;
-      const mentions = fresh.filter((l) => l.startsWith(`${seat} takes`) || l.startsWith(`${seat} heals`));
+      // Matched against the catalogue's own wording — see LOG.takesFrom /
+      // LOG.healsFrom in shared/src/log.ts. A line the log stops writing that
+      // way must be caught here, not silently stop counting.
+      const mentions = fresh.filter(
+        (l) => l.startsWith(`${seat} เสีย `) || l.startsWith(`${seat} ฟื้นฟู `)
+      );
       if (mentions.length === 0) {
         silent += 1;
         console.log(`game ${g} step ${i}: ${seat} lost ${delta} with nothing in the log`);
         console.log("   recent:", JSON.stringify(s.log.slice(-4)));
       } else {
         const logged = mentions.reduce((sum, l) => {
-          const m = /(takes|heals) (\d+)/.exec(l);
-          return sum + (m ? (m[1] === "takes" ? 1 : -1) * Number(m[2]) : 0);
+          const m = /(เสีย|ฟื้นฟู) (\d+)/.exec(l);
+          return sum + (m ? (m[1] === "เสีย" ? 1 : -1) * Number(m[2]) : 0);
         }, 0);
         if (logged !== delta) {
           mismatched += 1;

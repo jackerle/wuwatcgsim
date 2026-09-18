@@ -24,7 +24,36 @@ const CHAT_LIMIT = 100;
  * not destroy a match in progress — a room only dies once nobody has come
  * back for a while.
  */
-const EMPTY_ROOM_GRACE_MS = 5 * 60_000;
+const EMPTY_ROOM_GRACE_MS_DEFAULT = 5 * 60_000;
+
+/**
+ * How long a match waits for a disconnected player before the one still
+ * there is declared the winner by default.
+ *
+ * Long enough to survive a refresh or a phone dropping signal for a moment;
+ * short enough that the remaining player is not left staring at a frozen
+ * board indefinitely because the other side simply walked away.
+ */
+const DEFAULT_MATCH_FORFEIT_GRACE_MS = 90_000;
+let matchForfeitGraceMs = DEFAULT_MATCH_FORFEIT_GRACE_MS;
+let emptyRoomGraceMs = EMPTY_ROOM_GRACE_MS_DEFAULT;
+
+/** Test-only: real timers at 90s and 5min are too slow to actually wait out. */
+export function _setGraceMsForTests(forfeit: number, emptyRoom: number): void {
+  matchForfeitGraceMs = forfeit;
+  emptyRoomGraceMs = emptyRoom;
+}
+
+/** Test-only: drops every room and listener, for a clean slate between cases. */
+export function _resetRoomsForTests(): void {
+  for (const record of rooms.values()) {
+    clearForfeitTimer(record);
+    keepAlive(record);
+  }
+  rooms.clear();
+  playerRoom.clear();
+  onForfeit = null;
+}
 
 /** A room plus everything the server keeps for it that players never see raw. */
 export interface RoomRecord {
@@ -37,9 +66,31 @@ export interface RoomRecord {
    */
   decks: Partial<Record<Seat, DeckList>>;
   chat: ChatMessage[];
+  /**
+   * Every seat's most recently known name, kept even after that seat's
+   * player has left. A departed opponent is still named in an old chat line
+   * or a "so-and-so left the match" log entry — losing the name the moment
+   * they leave would turn every mention of them into a bare "p2".
+   */
+  lastNames: Partial<Record<Seat, string>>;
   /** Bumped on every restart so a fresh deal is actually a fresh deal. */
   seed: number;
   reapTimer: NodeJS.Timeout | null;
+  /** Counting down a disconnected opponent to an automatic forfeit. */
+  forfeitTimer: NodeJS.Timeout | null;
+}
+
+/**
+ * Told about a match ending on its own, mid-timer — a forfeit nobody was
+ * watching for actually landing. Set once by the server on startup so this
+ * module can raise it without importing the socket server itself (which
+ * imports this module, in the other direction).
+ */
+type ForfeitListener = (record: RoomRecord) => void;
+let onForfeit: ForfeitListener | null = null;
+
+export function onMatchForfeited(listener: ForfeitListener): void {
+  onForfeit = listener;
 }
 
 const rooms = new Map<string, RoomRecord>();
@@ -63,8 +114,10 @@ function newRecord(room: Room): RoomRecord {
     session: null,
     decks: {},
     chat: [],
+    lastNames: {},
     seed: Math.floor(Math.random() * 1e9),
     reapTimer: null,
+    forfeitTimer: null,
   };
 }
 
@@ -90,6 +143,7 @@ export function createRoom(
     picks: {},
     inMatch: false,
   });
+  record.lastNames[host.seat] = host.name;
   rooms.set(code, record);
   playerRoom.set(playerId, code);
   return record;
@@ -111,8 +165,10 @@ export function joinRoom(
   if (existing) {
     existing.connected = true;
     existing.name = playerName || existing.name;
+    record.lastNames[existing.seat] = existing.name;
     playerRoom.set(playerId, room.code);
     keepAlive(record);
+    clearForfeitTimer(record); // back in time — the other side stops waiting
     return record;
   }
 
@@ -124,6 +180,7 @@ export function joinRoom(
   if (!seat) return { error: "ห้องเต็มแล้ว" };
 
   room.players.push({ id: playerId, name: playerName, seat, isHost: false, connected: true });
+  record.lastNames[seat] = playerName;
   playerRoom.set(playerId, room.code);
   keepAlive(record);
 
@@ -150,7 +207,7 @@ export function seatOf(record: RoomRecord, playerId: string): Seat | null {
 }
 
 export function nameOf(record: RoomRecord, seat: Seat): string {
-  return record.room.players.find((p) => p.seat === seat)?.name ?? seat;
+  return record.room.players.find((p) => p.seat === seat)?.name ?? record.lastNames[seat] ?? seat;
 }
 
 /** Names and connection state by seat, for labelling the two sides. */
@@ -162,7 +219,7 @@ export function seatInfo(record: RoomRecord): {
   const connected: Record<string, boolean> = {};
   for (const seat of SEATS) {
     const player = record.room.players.find((p) => p.seat === seat);
-    names[seat] = player?.name ?? seat;
+    names[seat] = player?.name ?? record.lastNames[seat] ?? seat;
     connected[seat] = player?.connected ?? false;
   }
   return { names, connected };
@@ -208,6 +265,7 @@ export function startMatch(record: RoomRecord): string | null {
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
   }
+  clearForfeitTimer(record); // a fresh deal, so any stray countdown is stale
   room.inMatch = true;
   room.status = "playing";
   return null;
@@ -236,6 +294,7 @@ export function publicRooms(): RoomSummary[] {
 }
 
 export function endMatch(record: RoomRecord): void {
+  clearForfeitTimer(record);
   record.session = null;
   record.room.inMatch = false;
   record.room.status = record.room.players.length >= MAX_PLAYERS ? "playing" : "waiting";
@@ -268,9 +327,41 @@ function reapLater(record: RoomRecord): void {
       for (const player of record.room.players) playerRoom.delete(player.id);
       rooms.delete(record.room.code);
     }
-  }, EMPTY_ROOM_GRACE_MS);
+  }, emptyRoomGraceMs);
   // Don't hold the process open just to throw a room away.
   record.reapTimer.unref?.();
+}
+
+function clearForfeitTimer(record: RoomRecord): void {
+  if (record.forfeitTimer) {
+    clearTimeout(record.forfeitTimer);
+    record.forfeitTimer = null;
+  }
+}
+
+/**
+ * Starts (or restarts) the countdown to declaring `seat` gone for good.
+ *
+ * Only makes sense while a match is actually running and undecided — no
+ * point timing out a lobby, or a match that already has a winner.
+ */
+function scheduleForfeit(record: RoomRecord, seat: Seat): void {
+  clearForfeitTimer(record);
+  if (!record.room.inMatch || !record.session || record.session.winnerId) return;
+
+  record.forfeitTimer = setTimeout(() => {
+    record.forfeitTimer = null;
+    // Re-check everything on the way out: they may have reconnected, the
+    // match may already be over, or the room may have been torn down —
+    // any of that makes this a no-op rather than a stale forfeit.
+    const player = record.room.players.find((p) => p.seat === seat);
+    if (player?.connected) return;
+    if (!record.room.inMatch || !record.session || record.session.winnerId) return;
+
+    record.session.forfeit(seat);
+    onForfeit?.(record);
+  }, matchForfeitGraceMs);
+  record.forfeitTimer.unref?.();
 }
 
 /**
@@ -283,14 +374,39 @@ export function markPlayerDisconnected(playerId: string): RoomRecord | undefined
   const player = record.room.players.find((p) => p.id === playerId);
   if (player) player.connected = false;
 
-  if (record.room.players.every((p) => !p.connected)) reapLater(record);
+  if (record.room.players.every((p) => !p.connected)) {
+    // Nobody is here to notice a forfeit — cancel one if the first of the
+    // two had already started a countdown, or it would still fire later
+    // and hand a "win" to a room with nobody left to see it. The empty-room
+    // reap below is what cleans this up instead.
+    clearForfeitTimer(record);
+    reapLater(record);
+  } else if (player) {
+    // Someone is still around, waiting on a match that just went quiet on
+    // one side. Give the other seat a chance to reconnect before it ends
+    // the match on their behalf.
+    scheduleForfeit(record, player.seat);
+  }
   return record;
 }
 
-/** A deliberate exit, which does give the seat up. */
+/**
+ * A deliberate exit, which does give the seat up.
+ *
+ * Unlike a dropped connection, this needs no grace period — the player
+ * chose to leave, so if a match was running it ends right there, in the
+ * other seat's favour.
+ */
 export function leaveRoom(playerId: string): RoomRecord | undefined {
   const record = getRoomForPlayer(playerId);
   if (!record) return undefined;
+  const seat = seatOf(record, playerId);
+
+  if (record.room.inMatch && record.session && seat && !record.session.winnerId) {
+    record.session.forfeit(seat);
+  }
+  clearForfeitTimer(record);
+
   record.room.players = record.room.players.filter((p) => p.id !== playerId);
   playerRoom.delete(playerId);
 
@@ -299,8 +415,10 @@ export function leaveRoom(playerId: string): RoomRecord | undefined {
     rooms.delete(record.room.code);
     return record;
   }
-  // Somebody walking out mid-match ends it; there is no one to play on with.
-  if (record.room.inMatch) endMatch(record);
+  // Leaves `room.inMatch` as it is: a forfeited match should still show its
+  // final board and winner to whoever is left, exactly like a match that
+  // ended by someone's Life hitting zero already does. "เกมใหม่" (which
+  // needs two seated players again) is the way back to a fresh game.
   record.room.status = "waiting";
   if (!record.room.players.some((p) => p.isHost)) record.room.players[0].isHost = true;
   return record;

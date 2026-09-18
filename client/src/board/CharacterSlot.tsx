@@ -1,25 +1,61 @@
-import { characterStack, type CharacterInstance } from "@wuwatcg/shared";
+import { useState } from "react";
+import { characterStack, type CharacterCard, type CharacterInstance } from "@wuwatcg/shared";
 import { CardImage } from "./CardImage";
+import { CardMenu, useDismiss, type CardMenuItem } from "./CardMenu";
 import { usePileModal } from "./PileModalContext";
+
+/** What this character can be told to do, worked out by the engine. */
+export interface SlotActions {
+  /** Cards that may legally be played on top of them. Empty: not on offer. */
+  levelOptions: CharacterCard[];
+  onLevelUp: (card: CharacterCard) => void;
+  /**
+   * Who could take the Leader slot by switching with this character. On the
+   * Leader that is everyone in the back; on a back character it is only
+   * themselves, so the menu can act without asking again. Empty: not on
+   * offer.
+   */
+  switchOptions: CharacterInstance[];
+  onSwitch: (toCardId: string) => void;
+}
+
+const previewOf = (card: CharacterCard) => ({
+  cardId: card.id,
+  imageId: card.imageId,
+  name: card.name,
+  kind: "character" as const,
+  level: card.level,
+});
 
 /**
  * One character in play, drawn as the pile they actually are on the table.
  *
  * Levelling up does not swap the card out, it plays a new one on top, so the
- * lower levels stay underneath. Only a strip of each one shows, so clicking
- * opens the same expanded view the Pool and Trash piles use — that is where
- * you read the abilities of the levels a character was built through, which
- * still matter for what the character is.
+ * lower levels stay underneath. Only a strip of each one shows, so the menu's
+ * "ดู" opens the same expanded view the Pool and Trash piles use — that is
+ * where you read the abilities of the levels a character was built through,
+ * which still matter for what the character is.
+ *
+ * Level Up and Switch are here rather than in the control bar because that
+ * is where they read: the move is about THIS character, and the bar has an
+ * exact one-row budget to fit every other move into. What the menu offers is
+ * decided by levelUpOptions()/canSwitchLeader() in the engine, never by this
+ * component — and the engine checks again when the move arrives.
  */
 export function CharacterSlot({
   slot,
   label,
+  actions,
 }: {
   slot: CharacterInstance | null;
   /** Shown in an empty slot, and as the expanded panel's title. */
   label?: string;
+  /** Omitted for a character nobody at this screen may move right now. */
+  actions?: SlotActions;
 }) {
   const { setOpenPile } = usePileModal();
+  const [menu, setMenu] = useState<"root" | "level" | "switch" | null>(null);
+  const rootRef = useDismiss(menu !== null, () => setMenu(null));
 
   if (!slot) {
     return (
@@ -32,46 +68,107 @@ export function CharacterSlot({
   // Highest level first in the expanded view — the top of the pile is the
   // level the character is actually at, so it should read first.
   const pile = characterStack(slot);
-  const open = () =>
+  const view = () => {
+    setMenu(null);
     setOpenPile({
       label: `${slot.card.name} — ${label ?? slot.position}`,
-      cards: [...pile].reverse().map((card) => ({
-        cardId: card.id,
-        imageId: card.imageId,
-        name: card.name,
-        kind: "character" as const,
-        level: card.level,
-      })),
+      cards: [...pile].reverse().map(previewOf),
     });
+  };
+
+  const levelOptions = actions?.levelOptions ?? [];
+  const switchOptions = actions?.switchOptions ?? [];
+  // With nothing to decide, a click is the old one-step "show me the pile".
+  const open = levelOptions.length || switchOptions.length ? () => setMenu("root") : view;
+
+  const levelUp = (card: CharacterCard) => {
+    setMenu(null);
+    actions?.onLevelUp(card);
+  };
+  const doSwitch = (toCardId: string) => {
+    setMenu(null);
+    actions?.onSwitch(toCardId);
+  };
+
+  const root: CardMenuItem[] = [
+    { key: "view", label: "ดู", hint: `กองการ์ดทั้งหมด (${pile.length} ใบ)`, onPick: view },
+  ];
+  if (levelOptions.length > 0) {
+    root.push({
+      key: "level",
+      label: "เลเวลอัป",
+      hint: `${levelOptions.length} ใบที่ลงได้`,
+      // One legal card is not a choice — go straight to paying for it.
+      onPick: () => (levelOptions.length === 1 ? levelUp(levelOptions[0]) : setMenu("level")),
+    });
+  }
+  if (switchOptions.length > 0) {
+    root.push({
+      key: "switch",
+      label: "สลับ",
+      hint:
+        slot.position === "leader" ? "เอาตัวหลังขึ้นมาเป็น Leader" : "ขึ้นมาเป็น Leader",
+      onPick: () =>
+        switchOptions.length === 1
+          ? doSwitch(switchOptions[0].card.id)
+          : setMenu("switch"),
+    });
+  }
 
   return (
-    <div
-      className={`character-slot clickable ${slot.position}`}
-      onClick={open}
-      role="button"
-      title={`ดูการ์ดทั้งกองของ ${slot.card.name} (${pile.length} ใบ)`}
-    >
-      {pile.map((card, index) => (
-        <div
-          key={`${card.id}-${index}`}
-          className={`character-layer ${index === pile.length - 1 ? "top" : ""}`}
-          // Each level peeks out above the one played on top of it.
-          style={{ top: (pile.length - 1 - index) * 10, zIndex: index }}
-        >
-          <CardImage
-            card={{
-              cardId: card.id,
-              imageId: card.imageId,
-              name: card.name,
-              kind: "character",
-              level: card.level,
-            }}
-          />
-        </div>
-      ))}
-      <span className="character-level">Lv.{slot.card.level}</span>
-      {slot.position === "leader" && <span className="character-tag">Leader</span>}
-      {pile.length > 1 && <span className="character-count">{pile.length}</span>}
+    <div className="character-slot-wrap" ref={rootRef}>
+      <div
+        className={`character-slot clickable ${slot.position} ${menu ? "menu-open" : ""}`}
+        onClick={open}
+        role="button"
+        title={
+          root.length > 1
+            ? `${slot.card.name} — ดู / เลเวลอัป / สลับ`
+            : `ดูการ์ดทั้งกองของ ${slot.card.name} (${pile.length} ใบ)`
+        }
+      >
+        {pile.map((card, index) => (
+          <div
+            key={`${card.id}-${index}`}
+            className={`character-layer ${index === pile.length - 1 ? "top" : ""}`}
+            // Each level peeks out above the one played on top of it.
+            style={{ top: (pile.length - 1 - index) * 10, zIndex: index }}
+          >
+            <CardImage card={previewOf(card)} />
+          </div>
+        ))}
+        <span className="character-level">Lv.{slot.card.level}</span>
+        {slot.position === "leader" && <span className="character-tag">Leader</span>}
+        {pile.length > 1 && <span className="character-count">{pile.length}</span>}
+      </div>
+
+      {menu === "root" && <CardMenu items={root} />}
+
+      {menu === "level" && (
+        <CardMenu
+          head="เลเวลอัปด้วยใบไหน"
+          items={levelOptions.map((card) => ({
+            key: card.id,
+            label: `${card.name} Lv.${card.level}`,
+            hint: `(${card.id}) — ทิ้ง ${card.level} ใบ`,
+            card: previewOf(card),
+            onPick: () => levelUp(card),
+          }))}
+        />
+      )}
+
+      {menu === "switch" && (
+        <CardMenu
+          head="สลับเป็นใคร"
+          items={switchOptions.map((option) => ({
+            key: option.card.id,
+            label: option.card.name,
+            hint: `Lv.${option.card.level}`,
+            card: previewOf(option.card),
+            onPick: () => doSwitch(option.card.id),
+          }))}
+        />
+      )}
     </div>
   );
 }

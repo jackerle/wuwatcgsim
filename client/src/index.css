@@ -11,11 +11,30 @@
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
+  /* Every face-down card draws this: both decks, the opponent's hand, a card
+     committed for the Counter Phase. One token, so there is one place to
+     change the back — and it lives up here rather than on the board, so a
+     card back rendered anywhere else still has one. */
+  --card-back: url("/cards/backcard.png");
+  /* The printed back is a bright holographic thing. Face-down cards are the
+     board's background noise — decks, the opponent's hand, a card waiting
+     to be turned up — so the colour comes down to sit behind the cards that
+     are actually being read, rather than competing with them. */
+  --card-back-mute: saturate(0.4) brightness(0.72) contrast(0.92);
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
+  /* The one knob for text size across the whole app: everything outside the
+     board is sized in rem off this, so bumping it here is how text gets
+     bigger. The board keeps its own scale — see --board-text in Board.css.
+
+     Unitless line height, not 145%: a percentage inherits as the pixel value
+     it computed to HERE, so small text further down the tree would keep this
+     line box whatever its own size. That put a 29px line under every 10px
+     label on the board. */
+  font: 20px/1.45 var(--sans);
   letter-spacing: 0.18px;
   color-scheme: light dark;
   color: var(--text);
@@ -26,7 +45,7 @@
   -moz-osx-font-smoothing: grayscale;
 
   @media (max-width: 1024px) {
-    font-size: 16px;
+    font-size: 18px;
   }
 }
 

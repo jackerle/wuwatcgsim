@@ -38,7 +38,7 @@
   border: 1px solid #3a3f4d;
   background: #262a34;
   color: #e6e8ef;
-  font-size: 13px;
+  font-size: 0.72rem;
   cursor: pointer;
 }
 
@@ -62,7 +62,7 @@
   border: 1px solid #3a3f4d;
   background: #262a34;
   color: #e6e8ef;
-  font-size: 14px;
+  font-size: 0.78rem;
 }
 
 .deck-count {
@@ -71,7 +71,7 @@
   border: 1px solid #5a3a3a;
   background: rgba(214, 69, 69, 0.15);
   color: #ff9d9d;
-  font-size: 13px;
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -137,7 +137,7 @@
   border-radius: 10px;
   background: #171b25;
   color: #e6e8ef;
-  font-size: 12px;
+  font-size: 0.67rem;
   cursor: pointer;
   transition: border-color 0.12s ease, transform 0.12s ease;
 }
@@ -171,7 +171,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  font-size: 8px;
+  font-size: 0.44rem;
 }
 
 .character-chip-name {
@@ -213,7 +213,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  font-size: 9px;
+  font-size: 0.5rem;
 }
 
 .pool-card.in-deck .pool-card-art {
@@ -238,7 +238,7 @@
   padding: 0 4px;
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.72);
-  font-size: 11px;
+  font-size: 0.61rem;
   text-align: center;
 }
 
@@ -251,7 +251,7 @@
   border-radius: 999px;
   background: #f0b23f;
   color: #17130a;
-  font-size: 12px;
+  font-size: 0.67rem;
   font-weight: 700;
   text-align: center;
 }
@@ -270,7 +270,7 @@
   border: 1px solid #3a3f4d;
   background: #262a34;
   color: #e6e8ef;
-  font-size: 14px;
+  font-size: 0.78rem;
   line-height: 1;
   cursor: pointer;
 }
@@ -290,7 +290,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: 0.56rem;
   opacity: 0.7;
   text-align: center;
 }
@@ -396,7 +396,7 @@
   background: #0d1017;
   color: #e6e8ef;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
+  font-size: 0.67rem;
   line-height: 1.5;
   resize: vertical;
 }
@@ -422,7 +422,7 @@
   border: 1px solid #3a3f4d;
   background: #262a34;
   color: #e6e8ef;
-  font-size: 13px;
+  font-size: 0.72rem;
   cursor: pointer;
 }
 
@@ -524,7 +524,7 @@
   border: 1px solid #3a3f4d;
   background: #262a34;
   color: #e6e8ef;
-  font-size: 12px;
+  font-size: 0.67rem;
   cursor: pointer;
 }
 

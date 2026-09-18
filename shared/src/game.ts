@@ -87,8 +87,27 @@ export interface BattleRecord {
 export interface TurnLog {
   /** Cards each player has played this turn, oldest first. */
   cardsPlayed: Record<string, ActionCard[]>;
+  /**
+   * Character cards each player put into play this turn, by card number.
+   *
+   * Separate from cardsPlayed because a character is not an action card and
+   * the filters that read cardsPlayed — colour, cost, subtype — have nothing
+   * to say about one. Kept because "if this card was not played this round"
+   * is printed on characters too (BP01-011), and without this the answer was
+   * always no: a character reaches the field by being levelled up, which
+   * never touched cardsPlayed.
+   */
+  charactersPlayed: Record<string, string[]>;
   /** Life each player has lost this turn. */
   damageTaken: Record<string, number>;
+  /**
+   * How many separate times damage has landed on each player this turn.
+   *
+   * Not the same question as how much: "each round, damage taken -1"
+   * (BP01-002) reduces one hit, and with an unlimited red chain the
+   * difference between one hit and eight is the whole card.
+   */
+  hitsTaken: Record<string, number>;
   /** Life each player has recovered this turn. */
   healed: Record<string, number>;
   /**
@@ -125,7 +144,13 @@ export function characterStack(slot: CharacterInstance): CharacterCard[] {
   return [...slot.under, slot.card];
 }
 
-export type TurnPhase = "draw" | "action" | "counter" | "combo" | "end";
+/**
+ * `mulligan` is the opening step, before turn 1: both players may put any
+ * number of their five cards back, shuffle and draw that many again. It is
+ * not part of the turn cycle — see TURN_PHASE_ORDER — and a match never
+ * returns to it.
+ */
+export type TurnPhase = "mulligan" | "draw" | "action" | "counter" | "combo" | "end";
 
 /** The one non-draw action a player may take per turn (at most once each). */
 export type ActionKind = "charge" | "levelUp" | "switch";
@@ -175,6 +200,12 @@ export interface MatchState {
    * which counts as choosing and leaves their `facedown` null.
    */
   committed: Record<string, boolean>;
+  /**
+   * Who has finished their opening mulligan. Both players decide at once, so
+   * this is the same shape as `committed` — the phase ends when everyone is
+   * in, whatever order they answered in.
+   */
+  mulliganDone: Record<string, boolean>;
   /**
    * Each player's Action Zone: starts with the one card revealed in the
    * Counter Phase, then grows as combo cards are added during the Combo
@@ -313,6 +344,7 @@ export function emptyMatchState(matchId: string, playerIds: string[]): MatchStat
     boards: {},
     facedown: byPlayer(() => null),
     committed: byPlayer(() => false),
+    mulliganDone: byPlayer(() => false),
     actionZone: byPlayer<ActionCard[]>(() => []),
     combo: null,
     lastBattleWinnerId: null,
@@ -330,7 +362,15 @@ export function emptyMatchState(matchId: string, playerIds: string[]): MatchStat
 
 /** An empty turn log, for starting a match or a new turn. */
 export function emptyTurnLog(): TurnLog {
-  return { cardsPlayed: {}, damageTaken: {}, healed: {}, uses: {}, flags: {} };
+  return {
+    cardsPlayed: {},
+    charactersPlayed: {},
+    damageTaken: {},
+    hitsTaken: {},
+    healed: {},
+    uses: {},
+    flags: {},
+  };
 }
 
 // --- Rules constants (confirmed) ------------------------------------------
@@ -374,7 +414,25 @@ export interface CombatResult {
   damage: number;
   /** The combo the winner gets to extend with; null on a draw. */
   combo: ComboGrant | null;
+  /**
+   * How it was decided, for the battle log.
+   *
+   * Worth recording because the outcome is often invisible otherwise: a
+   * Dodge card wins on colour with 0 attack, so the loser takes nothing and
+   * the clash reads as if nothing happened — right up until a [Judgement]
+   * skill fires off the win.
+   */
+  why: CombatReason | null;
 }
+
+/** Why one card beat the other. */
+export type CombatReason =
+  | { kind: "color"; winner: CardColor; loser: CardColor }
+  | { kind: "speed"; winner: number; loser: number }
+  /** Same colour, same Speed: the turn player takes it. */
+  | { kind: "tie" }
+  /** The other player laid nothing out, so this card simply lands. */
+  | { kind: "unopposed" };
 
 /**
  * A runtime card knows its colour but not its character or subtype, and
@@ -446,7 +504,7 @@ export function resolveCombat(
   const b = statsOf(nonTurnPlayer, modifiers, filterable);
 
   // Damage comes from the winner's MODIFIED attack, not the printed value.
-  const outcome = (turnPlayerWins: boolean): CombatResult => {
+  const outcome = (turnPlayerWins: boolean, why: CombatReason): CombatResult => {
     const winner = turnPlayerWins ? turnPlayer : nonTurnPlayer;
     const loser = turnPlayerWins ? nonTurnPlayer : turnPlayer;
     return {
@@ -454,17 +512,31 @@ export function resolveCombat(
       loserId: loser.playerId,
       damage: (turnPlayerWins ? a : b).attack,
       combo: comboLookup(winner.card),
+      why,
     };
   };
 
   if (a.color !== b.color) {
-    return outcome(BEATS[a.color] === b.color);
+    const turnPlayerWins = BEATS[a.color] === b.color;
+    return outcome(turnPlayerWins, {
+      kind: "color",
+      winner: turnPlayerWins ? a.color : b.color,
+      loser: turnPlayerWins ? b.color : a.color,
+    });
   }
 
   if (a.color === "blue") {
     // Blue vs. Blue is always a draw, regardless of Speed.
-    return { winnerId: null, loserId: null, damage: 0, combo: null };
+    return { winnerId: null, loserId: null, damage: 0, combo: null, why: null };
   }
 
-  return outcome(a.speed !== b.speed ? a.speed > b.speed : true);
+  if (a.speed !== b.speed) {
+    const turnPlayerWins = a.speed > b.speed;
+    return outcome(turnPlayerWins, {
+      kind: "speed",
+      winner: turnPlayerWins ? a.speed : b.speed,
+      loser: turnPlayerWins ? b.speed : a.speed,
+    });
+  }
+  return outcome(true, { kind: "tie" });
 }

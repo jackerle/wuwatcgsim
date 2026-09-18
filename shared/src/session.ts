@@ -15,7 +15,8 @@ import { deckToSetup, type DeckList } from "./deckList";
 import { shuffle, starterFor } from "./decks";
 import type { ResolvedEffect } from "./effects";
 import type { MatchState } from "./game";
-import { createMatch, step, viewFor, type MatchIntent } from "./match";
+import { LOG } from "./log";
+import { createMatch, step, viewFor, type MatchIntent, type StepResult } from "./match";
 import type { Seat } from "./types";
 import { SEATS } from "./types";
 
@@ -55,24 +56,69 @@ export interface SeatUpdate {
   view: MatchState;
   pending: PendingChoice | null;
   askingSeat: Seat | null;
+  /**
+   * Whose move is waiting on that answer. Only they may abandon it, and
+   * without knowing who they are the client cannot offer the way out — which
+   * is how a question nobody could answer became a board nobody could use.
+   */
+  actorSeat: Seat | null;
   manual: ResolvedEffect[];
   log: string[];
   error: string | null;
+}
+
+/** How a deal may be steered away from its defaults. */
+export interface DealOptions {
+  /**
+   * Who takes turn 1. Drawn from the seed when left out, which is what a
+   * real match does — nobody gets the first turn for sitting down first.
+   */
+  startingPlayerId?: Seat;
+  /** Deal straight into turn 1, skipping the opening mulligan. For tests. */
+  skipMulligan?: boolean;
+}
+
+/**
+ * Which seat opens, decided by the deal's own seed.
+ *
+ * Not Math.random: the seed is what makes a deal reproducible, and the coin
+ * toss has to travel with it or replaying a match from its seed would deal
+ * the same cards to the other player's turn.
+ */
+export function firstSeatFor(matchId: string, seed: number): Seat {
+  let hash = (seed ^ 0x811c9dc5) >>> 0;
+  for (let i = 0; i < matchId.length; i += 1) {
+    hash ^= matchId.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  // The low bit of an FNV hash is the weakest part of it, so mix the high
+  // bits down before taking a coin toss off the bottom. Back to unsigned
+  // after the xor: `^=` yields a SIGNED 32-bit int, and a negative remainder
+  // indexes off the front of SEATS.
+  hash = (hash ^ (hash >>> 16)) >>> 0;
+  return SEATS[hash % SEATS.length];
 }
 
 /**
  * Deals a fresh match from the two players' deck lists.
  *
  * The seat ids are the engine's player ids, so nothing has to be translated
- * on the way to the client.
+ * on the way to the client. Who goes first is a coin toss off the seed, and
+ * both players open on the mulligan — see MatchIntent's "mulligan".
  */
-export function dealMatch(matchId: string, decks: Record<Seat, DeckList>, seed: number): MatchState {
+export function dealMatch(
+  matchId: string,
+  decks: Record<Seat, DeckList>,
+  seed: number,
+  options: DealOptions = {}
+): MatchState {
   const [first, second] = SEATS;
   const mine = deckToSetup(decks[first]);
   const theirs = deckToSetup(decks[second]);
   return createMatch({
     matchId,
-    startingPlayerId: first,
+    startingPlayerId: options.startingPlayerId ?? firstSeatFor(matchId, seed),
+    skipMulligan: options.skipMulligan,
     players: [
       { playerId: first, characterDeck: mine.characterDeck, actionDeck: shuffle(mine.actionDeck, seed) },
       {
@@ -113,8 +159,17 @@ export class MatchSession {
     this.state = state;
   }
 
-  static deal(matchId: string, decks: Record<Seat, DeckList>, seed: number): MatchSession {
-    return new MatchSession(dealMatch(matchId, decks, seed));
+  static deal(
+    matchId: string,
+    decks: Record<Seat, DeckList>,
+    seed: number,
+    options: DealOptions = {}
+  ): MatchSession {
+    const session = new MatchSession(dealMatch(matchId, decks, seed, options));
+    // The coin toss is the first thing that happened in this match, and the
+    // board alone does not say it — turn 1 simply belongs to somebody.
+    session.log = [LOG.goesFirst(session.state.startingPlayerId)];
+    return session;
   }
 
   get winnerId(): string | null {
@@ -172,8 +227,40 @@ export class MatchSession {
     return true;
   }
 
+  /**
+   * Ends the match right now in the other seat's favour — a player leaving
+   * the room, or gone long enough to be given up on.
+   *
+   * A voluntary concession goes through apply(), which refuses every move,
+   * concede included, while a question is open — right for a player who is
+   * still there to answer it first. This is for when that assumption no
+   * longer holds: there may be nobody left to ever answer, so it clears the
+   * question rather than waiting on it.
+   */
+  forfeit(seat: Seat): void {
+    if (this.state.winnerId) return;
+    const other = SEATS.find((s) => s !== seat) ?? null;
+    this.question = null;
+    this.state.winnerId = other ?? "draw";
+    this.log = [...this.log, `${seat} left the match — ${other ?? "nobody"} wins`].slice(-LOG_LIMIT);
+  }
+
   private run(actor: Seat, intent: MatchIntent, answers: ChoiceAnswer[]): boolean {
-    const result = step(this.state, actor, intent, answers);
+    let result: StepResult;
+    try {
+      result = step(this.state, actor, intent, answers);
+    } catch (error) {
+      // A card effect that throws is a bug, but it must not be a bug that
+      // ends the match: unhandled, it takes the socket handler with it, the
+      // server never sends an update, and both players are left staring at a
+      // dialog whose buttons do nothing. Treat it like any other refusal —
+      // the board is untouched, the question is dropped, and whoever was
+      // moving can try something else.
+      this.question = null;
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`step failed (${intent.kind} by ${actor}):`, error);
+      return this.refuse(actor, `เกิดข้อผิดพลาดภายในเกม: ${message}`);
+    }
 
     if (result.error) {
       // Illegal move: say so to whoever made it and leave the board alone.
@@ -220,6 +307,7 @@ export class MatchSession {
       view: viewFor(board, seat),
       pending: asked === seat ? open!.choice : null,
       askingSeat: asked,
+      actorSeat: open?.actor ?? null,
       manual: this.manual,
       log: this.log,
       error: this.errors[seat] ?? null,

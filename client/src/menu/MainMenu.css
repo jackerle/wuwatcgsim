@@ -50,7 +50,7 @@
   border: 1px solid #3a3f4d;
   background: #262a34;
   color: #e6e8ef;
-  font-size: 15px;
+  font-size: 0.83rem;
 }
 
 .menu-button {
@@ -169,7 +169,7 @@
   border: 1px solid #3a3f4d;
   background: #262a34;
   color: #e6e8ef;
-  font-size: 14px;
+  font-size: 0.78rem;
 }
 
 .play-panel button {
@@ -178,7 +178,7 @@
   border: 1px solid #3a3f4d;
   background: #262a34;
   color: #e6e8ef;
-  font-size: 13px;
+  font-size: 0.72rem;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -214,7 +214,7 @@
   border: none;
   border-radius: 0;
   background: #1c2029;
-  font-size: 12px;
+  font-size: 0.67rem;
   padding: 8px 14px;
 }
 

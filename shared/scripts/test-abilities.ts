@@ -5,7 +5,7 @@
 // test-cards.ts covers the simpler resolves; this one covers the machinery
 // those could not reach.
 // Run with: npm run test:abilities
-import { getCard } from "../src/cardDb";
+import { ALL_CARDS, getCard } from "../src/cardDb";
 import {
   effectiveCost,
   filterableFor,
@@ -16,10 +16,11 @@ import {
   zoneBlocking,
   type EffectSource,
 } from "../src/effects";
-import { resetTurnLog } from "../src/rules";
-import { viewFor } from "../src/match";
+import { ACTION_DECK_SIZE, resetTurnLog } from "../src/rules";
+import { createMatch, step, viewFor } from "../src/match";
 import { effectiveStats } from "../src/cards";
 import { emptyMatchState, type ActionCard, type MatchState, type PlayerBoard } from "../src/game";
+import { comboGrantFor, type ChoiceAnswer } from "../src/cardDef";
 
 const card = (id: string): ActionCard => {
   const def = getCard(id);
@@ -77,22 +78,46 @@ const check = (name: string, ok: boolean, detail = "") => {
 
 {
   // SD02-010 "[Judgement] if you win, draw 3 and gain +8 follow-up attack".
+  //
+  // The draw is this effect's to do. The +8 is NOT: it is the card's printed
+  // Follow{8}, which combat applies when the card wins the clash, and the
+  // resolve saying it a second time is the same ability written twice. See
+  // grantFollowUp in effects.ts, and the end-to-end count further down.
   const won = state();
   won.lastBattleWinnerId = "p1";
   const out = resolveTrigger(won, "judgement", [src("SD02-010", "actionZone")]);
-  check("SD02-010 ชนะ -> จั่ว 3 และได้ follow-up 8", out.state.boards.p1.hand.length === 3 && out.state.combo?.remaining === 8, `hand=${out.state.boards.p1.hand.length} combo=${out.state.combo?.remaining}`);
+  check("SD02-010 ชนะ -> จั่ว 3 ใบ", out.state.boards.p1.hand.length === 3, `hand=${out.state.boards.p1.hand.length}`);
+  check(
+    "Follow{8} ของการ์ดแอ็กชันมาจากการปะทะ ไม่ใช่จาก resolve (ไม่นับซ้ำ)",
+    out.state.combo === null,
+    `${out.state.combo?.remaining}`
+  );
 
   const lost = state();
   lost.lastBattleWinnerId = "p2";
   const none = resolveTrigger(lost, "judgement", [src("SD02-010", "actionZone")]);
   check("SD02-010 แพ้ -> ไม่ได้อะไร", none.state.combo === null && none.state.boards.p1.hand.length === 0);
 
-  // Stacking onto a window that is already open.
+  // Stacking onto a window that is already open. A CHARACTER card's Follow is
+  // a real bonus on top of whatever the played card granted — combat only
+  // ever reads the winning action card, so a character's followCount is
+  // never applied anywhere else and its resolve is the only way it lands.
+  // BP01-019: "[Leader] [Judgement] if you won with a green card, +3".
   const open = state();
   open.lastBattleWinnerId = "p1";
+  open.lastBattle = {
+    winnerId: "p1",
+    loserId: "p2",
+    colorByPlayer: { p1: "green", p2: "red" },
+    cardIdByPlayer: { p1: "BP01-058", p2: "BP01-044" },
+  };
   open.combo = { playerId: "p1", unlimited: false, remaining: 2 };
-  const more = resolveTrigger(open, "judgement", [src("SD01-013", "actionZone")]);
-  check("บวกเพิ่มเข้ากับสิทธิ์คอมโบที่มีอยู่", more.state.combo?.remaining === 4, `${more.state.combo?.remaining}`);
+  const more = resolveTrigger(open, "judgement", [src("BP01-019", "leader")]);
+  check(
+    "Leader Skill ของการ์ดตัวละคร บวกเพิ่มเข้ากับสิทธิ์คอมโบที่มีอยู่",
+    more.state.combo?.remaining === 5,
+    `${more.state.combo?.remaining}`
+  );
 }
 
 // --- granted abilities ------------------------------------------------------
@@ -218,6 +243,95 @@ const check = (name: string, ok: boolean, detail = "") => {
   check("ไม่มีการ์ดให้เลเวลอัป -> ไม่พัง", nothing.state.boards.p1.leader?.card.id === "BP01-005");
 }
 
+// --- an effect's level up is the player's choice, and it triggers -----------
+//
+// Both halves of "Level up your Sanhua" that the engine used to skip: which
+// card goes on top when more than one is legal, and the [Level up] the card
+// that lands is printed with. BP01-076 is Sanhua's Dodge — "[Judgement] if
+// you win with Sanhua as your Leader, level your Sanhua up".
+
+{
+  const pool = (...ids: string[]) =>
+    ids.map((id) => {
+      const def = getCard(id)!;
+      if (def.type !== "leader") throw new Error(`${id} is not a character`);
+      return { id: def.id, name: def.name, level: def.level, imageId: def.imageId };
+    });
+
+  const sanhua = () => {
+    const s = state();
+    s.lastBattleWinnerId = "p1";
+    s.boards.p1.leader = chara("BP01-033"); // Sanhua Lv.0
+    return s;
+  };
+
+  // Two Level 1 Sanhua cards in the deck are two different abilities, so the
+  // engine must not pick one.
+  const asked = sanhua();
+  asked.boards.p1.characterPool = pool("BP01-032", "SD02-004");
+  const question = resolveTrigger(asked, "judgement", [src("BP01-076", "actionZone")]);
+  check(
+    "มีการ์ดเลเวลอัปหลายใบ -> ถามว่าจะใช้ใบไหน",
+    question.pending?.kind === "pickCard" &&
+      question.pending.options.map((o) => o.value).sort().join() === "BP01-032,SD02-004",
+    question.pending ? question.pending.options.map((o) => o.value).join() : "ไม่ได้ถาม"
+  );
+  check(
+    "ระหว่างถาม ยังไม่มีอะไรขยับ",
+    question.state.boards.p1.leader?.card.id === "BP01-033" &&
+      question.state.boards.p1.characterPool.length === 2
+  );
+
+  /** Answers every question a trigger raises, taking the first option. */
+  const settle = (state: MatchState, first?: string) => {
+    const answers: ChoiceAnswer[] = first ? [first] : [];
+    for (let guard = 0; guard < 10; guard += 1) {
+      const out = resolveTrigger(state, "judgement", [src("BP01-076", "actionZone")], answers);
+      if (!out.pending) return out;
+      answers.push(out.pending.kind === "confirm" ? true : out.pending.options[0]?.value ?? "");
+    }
+    throw new Error("a trigger kept asking");
+  };
+
+  // BP01-032 is "[Enter] / [Level up] put a card from your trash into the
+  // Concerto area", and levelling it on is what makes it Enter.
+  const chosen = sanhua();
+  chosen.boards.p1.characterPool = pool("BP01-032", "SD02-004");
+  chosen.boards.p1.trash = [card("BP01-044")];
+  const done = settle(chosen, "BP01-032");
+  check(
+    "เลือกใบไหน ก็ได้ใบนั้น",
+    done.state.boards.p1.leader?.card.id === "BP01-032",
+    done.state.boards.p1.leader?.card.id ?? "-"
+  );
+  check("ใบที่ไม่ได้เลือกยังอยู่ใน Character Deck", done.state.boards.p1.characterPool.map((c) => c.id).join() === "SD02-004");
+  check(
+    "การ์ดที่เพิ่งลงมา ความสามารถ [Enter] ทำงาน",
+    done.state.boards.p1.competitionArea.map((c) => c.id).join() === "BP01-044",
+    `concerto=${done.state.boards.p1.competitionArea.map((c) => c.id).join()} trash=${done.state.boards.p1.trash.length}`
+  );
+
+  // Only one legal card: nothing to ask, but the trigger still fires.
+  const forced = sanhua();
+  forced.boards.p1.characterPool = pool("BP01-032");
+  forced.boards.p1.trash = [card("BP01-044")];
+  const straight = settle(forced);
+  check("มีใบเดียว -> ไม่ต้องถามว่าใช้ใบไหน", straight.state.boards.p1.leader?.card.id === "BP01-032");
+  check(
+    "และยังได้ [Enter] เหมือนกัน",
+    straight.state.boards.p1.competitionArea.map((c) => c.id).join() === "BP01-044"
+  );
+
+  // The ladder still holds: Lv.0 cannot reach a Level 2 card.
+  const tooHigh = sanhua();
+  tooHigh.boards.p1.characterPool = pool("BP01-031"); // Sanhua Lv.2
+  const refused = resolveTrigger(tooHigh, "judgement", [src("BP01-076", "actionZone")]);
+  check(
+    "Lv.0 ข้ามไป Lv.2 ไม่ได้ ตามกฎ",
+    refused.state.boards.p1.leader?.card.id === "BP01-033" && refused.pending === null
+  );
+}
+
 // --- next-turn restrictions -------------------------------------------------
 
 {
@@ -282,6 +396,186 @@ const check = (name: string, ok: boolean, detail = "") => {
     encoreL2.effects.some((e) => e.tags?.includes("abilityOnly"))
   );
 }
+// --- Taking a card off a pile is the player's call -------------------------
+//
+// "Take a red 「Encore」 card from your trash" is a decision when the trash
+// holds five of them. The engine used to take the most recently binned one
+// and say nothing — see pickFrom in effects.ts.
 
-console.log(`\n${pass} passed, ${fail} failed`);
+{
+  const redEncore = ALL_CARDS.filter(
+    (def) => def.type === "action" && def.color === "red" && def.character === "Encore"
+  ).map((def) => def.id);
+
+  const withTrash = (ids: string[]) => {
+    const s = state();
+    s.boards.p1.trash = ids.map(card);
+    return s;
+  };
+
+  // BP01-013: "[Enter] / [Level up] take a red 「Encore」 card from the trash".
+  const many = withTrash(redEncore);
+  const asked = resolveTrigger(many, "enter", [src("BP01-013")]);
+  check(
+    "มีหลายใบให้เลือก -> ถามว่าเอาใบไหน",
+    asked.pending?.kind === "pickCard" && asked.pending.options.length === redEncore.length,
+    `${asked.pending?.kind} ${asked.pending?.options.length} ตัวเลือก`
+  );
+  check("ระหว่างถาม ยังไม่มีอะไรขยับ", asked.state.boards.p1.hand.length === 0);
+
+  // The last option is the one the old silent behaviour would never reach.
+  const last = asked.pending!.options[asked.pending!.options.length - 1];
+  const took = resolveTrigger(many, "enter", [src("BP01-013")], [last.value]);
+  check(
+    "เลือกใบไหน ก็ได้ใบนั้น ไม่ใช่ใบที่ทิ้งล่าสุด",
+    took.state.boards.p1.hand.map((c) => c.id).join() === last.cardId,
+    `ได้ ${took.state.boards.p1.hand.map((c) => c.id).join()} ขอ ${last.cardId}`
+  );
+  check(
+    "ใบที่ไม่ได้เลือกยังอยู่ในกองทิ้ง",
+    took.state.boards.p1.trash.length === redEncore.length - 1
+  );
+
+  // Nothing to decide: one match, or none at all.
+  const single = withTrash([redEncore[0]]);
+  const forced = resolveTrigger(single, "enter", [src("BP01-013")]);
+  check(
+    "เหลือใบเดียว -> ไม่ต้องถาม",
+    forced.pending === null && forced.state.boards.p1.hand.map((c) => c.id).join() === redEncore[0]
+  );
+
+  const none = withTrash(["BP01-044"]); // not an Encore card
+  const empty = resolveTrigger(none, "enter", [src("BP01-013")]);
+  check(
+    "ไม่มีใบที่เข้าเงื่อนไข -> ไม่ถาม ไม่หยิบ",
+    empty.pending === null && empty.state.boards.p1.hand.length === 0
+  );
+
+  // Copies of one printed card are not a choice.
+  const copies = withTrash([redEncore[0], redEncore[0], redEncore[0]]);
+  const dupes = resolveTrigger(copies, "enter", [src("BP01-013")]);
+  check(
+    "ใบซ้ำรหัสเดียวกัน -> ไม่ต้องถาม เพราะเลือกไปก็เหมือนกัน",
+    dupes.pending === null && dupes.state.boards.p1.hand.length === 1,
+    dupes.pending ? "ถาม (ไม่ควร)" : "ไม่ถาม"
+  );
+}
+
+// --- A card that names the level it puts into play -------------------------
+
+{
+  // BP01-062: "[Counter] put an 「Encore」 Level 2 card on top of your
+  // 「Encore」 (counts as a Level up)". Only Level 2, and it gets there
+  // without climbing.
+  const encore = (id: string) => {
+    const def = getCard(id)!;
+    if (def.type !== "leader") throw new Error(id);
+    return { id: def.id, name: def.name, level: def.level, imageId: def.imageId };
+  };
+
+  const s = state();
+  s.boards.p1.leader = chara("BP01-015"); // Encore Lv.0
+  s.boards.p1.characterPool = [encore("BP01-013"), encore("BP01-011"), encore("BP01-012")];
+  const out = resolveTrigger(s, "counter", [src("BP01-062", "actionZone")]);
+  check(
+    "BP01-062 เสนอเฉพาะ Level 2 ไม่เสนอ Level 1",
+    out.pending?.options.map((o) => o.value).sort().join() === "BP01-011,BP01-012",
+    out.pending ? out.pending.options.map((o) => o.value).join() : "ไม่ได้ถาม"
+  );
+
+  const done = resolveTrigger(s, "counter", [src("BP01-062", "actionZone")], ["BP01-011"]);
+  check(
+    "Lv.0 ขึ้น Lv.2 ได้เลยด้วยการ์ดใบนี้",
+    done.state.boards.p1.leader?.card.id === "BP01-011",
+    done.state.boards.p1.leader?.card.id ?? "-"
+  );
+
+  // Every other card still climbs one step at a time.
+  const ladder = state();
+  ladder.boards.p1.leader = chara("BP01-005"); // Camellya Lv.0
+  ladder.boards.p1.characterPool = [encore("BP01-001")]; // Camellya Lv.2
+  const refused = resolveTrigger(ladder, "counter", [src("BP01-048", "actionZone")]);
+  check(
+    "การ์ดอื่นยังข้ามขั้นไม่ได้",
+    refused.state.boards.p1.leader?.card.id === "BP01-005" && refused.pending === null
+  );
+}
+
+
+
+// --- Follow{x} is granted once, not twice ----------------------------------
+//
+// A card's Follow{x} is applied by combat — comboGrantFor() reads it straight
+// off the printed card and that is what opens the Combo window. Every one of
+// these cards ALSO writes ctx.grantFollowUp(x) in its resolve, because that
+// is what the printed text says. Both firing gave the player double:
+// SD02-013's Follow{2} allowed four follow-ups, SD02-010's Follow{8} sixteen.
+// See grantFollowUp in effects.ts for which of the two wins.
+
+{
+  for (const [cardId, expected] of [
+    ["SD02-013", 2],
+    ["SD01-013", 2],
+    ["BP01-069", 1],
+    ["SD02-010", 8],
+  ] as Array<[string, number]>) {
+    const def = getCard(cardId);
+    if (!def || def.type !== "action") {
+      check(`${cardId} เป็นการ์ดแอ็กชัน`, false, def?.type ?? "missing");
+      continue;
+    }
+    const grant = comboGrantFor(def);
+    check(
+      `${cardId}: Follow{${expected}} -> คอมโบได้ ${expected} ครั้ง`,
+      grant.unlimited || grant.count === expected,
+      `unlimited=${grant.unlimited} count=${grant.count}`
+    );
+  }
+}
+
+// The same thing end to end: win a clash with SD02-013 and count the window
+// the winner actually gets. This is the number the player sees on screen.
+{
+  const characters = (ids: string[]) =>
+    ids.map((id) => {
+      const def = getCard(id);
+      if (!def || def.type !== "leader") throw new Error(`${id} is not a character card`);
+      return { id: def.id, name: def.name, level: def.level, imageId: def.imageId };
+    });
+  const fortyOf = (id: string) => Array.from({ length: ACTION_DECK_SIZE }, () => card(id));
+
+  const state = createMatch({
+    matchId: "follow-once",
+    startingPlayerId: "p1",
+    skipMulligan: true,
+    players: [
+      {
+        playerId: "p1",
+        characterDeck: characters(["BP01-005", "BP01-024", "BP01-027"]),
+        actionDeck: fortyOf("SD02-013"),
+      },
+      {
+        playerId: "p2",
+        characterDeck: characters(["BP01-015", "BP01-030", "BP01-033"]),
+        actionDeck: fortyOf("BP01-044"),
+      },
+    ],
+  });
+  state.phase = "counter";
+  state.boards.p1.hand = [card("SD02-013")]; // blue Dodge
+  state.boards.p2.hand = [card("BP01-044")]; // red — blue beats red
+
+  let s = step(state, "p1", { kind: "commit", cardId: "SD02-013" }).state;
+  s = step(s, "p2", { kind: "commit", cardId: "BP01-044" }).state;
+  const out = step(s, "p1", { kind: "resolveCounter" });
+  check("ชนะด้วย SD02-013 -> เปิดหน้าต่างคอมโบให้ p1", out.state.combo?.playerId === "p1", out.error ?? "");
+  check(
+    "Follow{2} ให้คอมโบ 2 ครั้ง ไม่ใช่ 4",
+    out.state.combo?.remaining === 2,
+    `${out.state.combo?.remaining}`
+  );
+}
+
+console.log(`
+${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

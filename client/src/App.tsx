@@ -66,6 +66,25 @@ export default function App() {
     join(code, rememberedName() || "Player", true);
   }, [join]);
 
+  // And again on every reconnect, not just the first load.
+  //
+  // A backgrounded tab gets its socket dropped, and Socket.IO comes back on a
+  // NEW socket. The server tracks the room per SOCKET, so that fresh one is
+  // sitting in no room at all: the board still shows, every click is sent,
+  // and the server has nowhere to put it. Rejoining is what re-attaches it —
+  // joinRoom already knows a returning player id and hands the seat straight
+  // back, match in progress and all.
+  useEffect(() => {
+    const onConnect = () => {
+      const code = rememberedRoom();
+      if (code) join(code, rememberedName() || "Player", true);
+    };
+    socket.on("connect", onConnect);
+    return () => {
+      socket.off("connect", onConnect);
+    };
+  }, [join]);
+
   const createRoom = useCallback(
     (visibility: RoomVisibility) => {
       setError(null);

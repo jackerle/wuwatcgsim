@@ -19,6 +19,12 @@
   --card-w: calc(var(--card-h) * 0.727);
   --hand-card-h: calc(var(--card-h) * 0.72);
   --hand-card-w: calc(var(--hand-card-h) * 0.72);
+  /* Text on the board is part of the diagram rather than something to read
+     at length, and it shares that exact vertical budget — so it is sized off
+     the viewport like the cards are, not off the app's font size. That is
+     what lets the reading text in the panels grow without pushing the hand
+     off the bottom of the board. */
+  --board-text: clamp(9px, 1.15vh, 14px);
 
   position: relative;
   display: flex;
@@ -53,8 +59,10 @@
   grid-template-columns: 1fr auto 1fr;
 }
 
+/* The battle log carries the card art now, so it is the half that needs the
+   room — chat is a line of text at a time. */
 .right-panel-row.bottom-panel {
-  grid-template-columns: 65fr auto 35fr;
+  grid-template-columns: 38fr auto 62fr;
 }
 
 .panel-divider {
@@ -175,7 +183,7 @@
 
 .phase-bar {
   text-align: center;
-  font-size: 0.8rem;
+  font-size: calc(var(--board-text) * 1.4);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   opacity: 0.75;
@@ -221,7 +229,7 @@
 }
 
 .charge-area-label {
-  font-size: 0.6rem;
+  font-size: var(--board-text);
   opacity: 0.7;
   letter-spacing: 0.05em;
 }
@@ -268,7 +276,7 @@
 }
 
 .charge-area-count {
-  font-size: 0.75rem;
+  font-size: calc(var(--board-text) * 1.3);
   font-weight: 600;
 }
 
@@ -307,7 +315,7 @@
 }
 
 .action-slot-label {
-  font-size: 0.6rem;
+  font-size: var(--board-text);
   opacity: 0.6;
   letter-spacing: 0.05em;
 }
@@ -323,11 +331,11 @@
 
 .player-name {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: calc(var(--board-text) * 1.55);
 }
 
 .stat {
-  font-size: 0.85rem;
+  font-size: calc(var(--board-text) * 1.5);
   opacity: 0.9;
   white-space: nowrap;
 }
@@ -424,7 +432,7 @@
   position: absolute;
   bottom: 2px;
   right: 2px;
-  font-size: 0.65rem;
+  font-size: calc(var(--board-text) * 1.15);
   background: rgba(0, 0, 0, 0.6);
   padding: 0 4px;
   border-radius: 4px;
@@ -457,6 +465,14 @@
   background: repeating-linear-gradient(45deg, #24365f, #24365f 5px, #1a2847 5px, #1a2847 10px);
 }
 
+/* A deck: every layer is a real card seen from the back. A face-up pile
+   keeps the texture above, because what is under its top card is face up
+   too and a card back there would be a lie. */
+.pile-facedown .pile-layer {
+  background: #12182c var(--card-back) center / cover no-repeat;
+  filter: var(--card-back-mute);
+}
+
 .pile-layer-2 {
   transform: translate(5px, 5px);
   opacity: 0.5;
@@ -481,7 +497,7 @@
 }
 
 .pile-label {
-  font-size: 0.65rem;
+  font-size: calc(var(--board-text) * 1.15);
   opacity: 0.75;
 }
 
@@ -659,16 +675,22 @@
 
 /* Texture only — sizing comes from whatever class it's combined with
    (.hand-card, .action-slot-card, ...) so it doesn't fight column-flex
-   parents that would otherwise stretch a bare width:100%/height:100%. */
+   parents that would otherwise stretch a bare width:100%/height:100%.
+
+   The printed back, on a dark fill: `cover` crops rather than letterboxes,
+   and the slots it lands in are not all the card's own 5:7 (a face-down
+   hand is drawn smaller and squarer), so the fill is what shows through
+   while the image loads and at the edges of the ones that do not match. */
 .card-back {
-  background: repeating-linear-gradient(45deg, #24365f, #24365f 6px, #1a2847 6px, #1a2847 12px);
+  background: #12182c var(--card-back) center / cover no-repeat;
   border-radius: 6px;
+  filter: var(--card-back-mute);
 }
 
 .stat-pill {
   position: absolute;
   top: 2px;
-  font-size: 0.6rem;
+  font-size: var(--board-text);
   padding: 0 3px;
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.65);
@@ -701,7 +723,7 @@
   right: 2px;
   display: flex;
   justify-content: space-between;
-  font-size: 0.6rem;
+  font-size: var(--board-text);
   background: rgba(0, 0, 0, 0.55);
   border-radius: 4px;
   padding: 0 3px;
@@ -875,6 +897,35 @@
 .choice-no {
   background: rgba(255, 255, 255, 0.06);
   color: #cbd5f5;
+}
+
+/* The way out of a question, pushed away from the two answers so it is never
+   the button someone means to hit. */
+.choice-cancel {
+  margin-right: auto;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font: inherit;
+}
+
+.choice-cancel:hover {
+  color: #cbd5f5;
+  border-color: rgba(255, 255, 255, 0.26);
+}
+
+/* --- Mulligan ----------------------------------------------------------- */
+
+/* A card picked out to go back into the deck, shown sinking rather than
+   lifting: the rest of the UI lifts a selected card, and these are the ones
+   being given up. */
+.hand-card.returning {
+  transform: translateY(14px);
+  opacity: 0.55;
+  filter: grayscale(0.5);
 }
 
 .choice-demo-button {

@@ -12,15 +12,18 @@ import {
   CARD_KEYWORDS,
   CONDITION_KEYWORDS,
   CONTINUOUS_KEYWORDS,
+  KEYWORD_COLOR,
   KEYWORD_LABEL,
   MODIFIER_KEYWORDS,
   TRIGGER_KEYWORDS,
   effectiveStats,
+  keywordForTag,
   localize,
 } from "../src/cards";
 import {
   comboGrantFor,
   defineCard,
+  effectSegments,
   followCountOf,
   formatEffect,
   isManual,
@@ -549,6 +552,85 @@ function check(name: string, pass: boolean, detail = "") {
     "ขอ en แต่การ์ดมีแค่ไทย -> fallback ไม่หาย",
     formatEffect(thaiOnly.effects[0], "en") === "[Enter] มีแค่ไทย",
     formatEffect(thaiOnly.effects[0], "en")
+  );
+
+  // The imported text opens with its own printed tags, and the engine writes
+  // the same keywords out from the conditions — showing both reads
+  // "[ลงสนาม][เลเวลอัป] [Enter] / [Level up] ...".
+  const printed = action("T-014c", [
+    {
+      condition: ["enter", "levelUp"],
+      text: { th: "[Enter] / [Level up] นำการ์ดจากกองทิ้ง 1 ใบวางที่ Concerto area" },
+    },
+  ]);
+  check(
+    "ป้ายที่พิมพ์มาซ้ำกับป้ายของระบบ -> เหลือชุดเดียว",
+    formatEffect(printed.effects[0], "th") ===
+      "[ลงสนาม][เลเวลอัป] นำการ์ดจากกองทิ้ง 1 ใบวางที่ Concerto area",
+    formatEffect(printed.effects[0], "th")
+  );
+
+  // Only the opening run goes. A tag mid-sentence is part of the wording,
+  // and one inside a quoted ability belongs to that ability.
+  const inline = action("T-014d", [
+    {
+      condition: ["judgement"],
+      text: { th: "[Judgement] หากชนะ ได้รับ +8[follow-up attack]" },
+    },
+  ]);
+  check(
+    "ป้ายกลางประโยคไม่โดนตัดทิ้ง",
+    formatEffect(inline.effects[0], "th") === "[ตัดสิน] หากชนะ ได้รับ +8[follow-up attack]",
+    formatEffect(inline.effects[0], "th")
+  );
+
+  const unknown = action("T-014e", [
+    { condition: ["counter"], text: { th: "[Something New] ยังไม่รู้จัก" } },
+  ]);
+  check(
+    "ป้ายที่ยังไม่รู้จัก -> ไม่ตัด จะได้เห็นว่ามีอะไรตกหล่น",
+    formatEffect(unknown.effects[0], "th") === "[ประลอง] [Something New] ยังไม่รู้จัก",
+    formatEffect(unknown.effects[0], "th")
+  );
+
+  // --- colours, for the Detail panel ---------------------------------------
+  const segments = effectSegments(inline.effects[0], "th");
+  check(
+    "effectSegments ต่อกลับเป็นข้อความเดิมได้",
+    segments.map((seg) => seg.text).join("") === formatEffect(inline.effects[0], "th"),
+    segments.map((seg) => seg.text).join("")
+  );
+  check(
+    "ป้าย keyword ได้สีตามต้นทาง ทั้งหน้าประโยคและกลางประโยค",
+    segments.filter((seg) => seg.color).map((seg) => `${seg.text}${seg.color}`).join() ===
+      "[ตัดสิน]#ff8648,[follow-up attack]#3a87fe",
+    segments.filter((seg) => seg.color).map((seg) => `${seg.text}${seg.color}`).join()
+  );
+  check(
+    "คำธรรมดาไม่ได้สี",
+    segments.filter((seg) => !seg.color).every((seg) => !/^\[/.test(seg.text))
+  );
+  check(
+    "ป้ายที่ยังไม่รู้จัก -> ไม่ได้สี แต่ยังอยู่ในข้อความ",
+    effectSegments(unknown.effects[0], "th").some(
+      (seg) => !seg.color && seg.text.includes("[Something New]")
+    )
+  );
+
+  check(
+    "keywordForTag อ่านได้ทั้งชื่อที่พิมพ์บนการ์ดและชื่อที่ระบบเขียน",
+    keywordForTag("Level up") === "levelUp" &&
+      keywordForTag("เลเวลอัป") === "levelUp" &&
+      keywordForTag("Leader Skill") === "leader" &&
+      keywordForTag("ฟอลโลว์{8}") === "follow" &&
+      keywordForTag("ไม่มีคำนี้") === null
+  );
+
+  // Every keyword the engine can print has a colour to print it in.
+  check(
+    "ทุก keyword มีสีกำกับครบ",
+    CARD_KEYWORDS.every((keyword) => /^#[0-9a-f]{6}$/.test(KEYWORD_COLOR[keyword])),
+    CARD_KEYWORDS.filter((keyword) => !KEYWORD_COLOR[keyword]).join()
   );
 }
 

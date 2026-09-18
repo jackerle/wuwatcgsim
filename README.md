@@ -26,18 +26,33 @@ own. Once both players are in and have chosen a deck, the host presses start.
 `?play` on the same URL opens a hotseat game instead: both sides on one screen,
 no server involved, no deck needed. Handy for trying a card out alone.
 
-### Playing with someone on the same network
+### Playing with someone on the same network, or in the cloud
 
-The server only accepts browsers from origins it is told about, so point it at
-the address your friend will actually type:
+The client works out where the server is on its own: same host as the page,
+port 3001. That covers local dev (`localhost:5173` client, `localhost:3001`
+server) and the simplest cloud deployment (one host, two exposed ports)
+without any configuration. For the same-network case:
 
 ```bash
-CLIENT_ORIGIN=http://192.168.1.20:5173 npm run dev:server
 npm run dev:client -- --host
 ```
 
-The client reads the server URL from `client/.env` (`VITE_SERVER_URL`, defaults
-to `http://localhost:3001`).
+The server's CORS defaults to allowing any origin, since there is no
+per-origin trust to protect (a player's identity is a random id it hands
+over itself, not a cookie) — it only widens who can connect, never what they
+can do once they have. Set `CLIENT_ORIGIN` to lock it down to known hosts:
+
+```bash
+CLIENT_ORIGIN=http://192.168.1.20:5173 npm run dev:server
+```
+
+If client and server end up on genuinely different domains (a split cloud
+deployment), the auto-detected guess is wrong and needs an explicit override
+— see `client/.env.example` for `VITE_SERVER_URL` (full address) and
+`VITE_SERVER_PORT` (just the port). **This is a build-time value**: Vite
+bakes it into the static bundle when you run `npm run build`, so setting it
+as a runtime environment variable on an already-built deployment does
+nothing — rebuild after changing it.
 
 ## Decks
 
@@ -83,6 +98,112 @@ Hidden information is removed on the server, before anything is sent — each
 client is given card *backs* where the other hand is, so the counts stay right
 and there is nothing to dig out of a devtools console.
 
+### Levelling up
+
+Playing a card onto a character raises two triggers, for two different cards:
+
+- **[Enter]** on the card arriving — levelling up is how a Level 1 or 2 card
+  gets onto the field, which is why so many are printed "[Enter] / [Level up]".
+- **[Level up]** on the card it was played over. "When this character is
+  levelled up" happens TO the card already in play, not to the one being
+  played: that is what makes BP01-009 fetch from the trash as you level past
+  it, and what stops BP01-001 ("return this card to the Character Deck") from
+  bouncing itself off the field the moment it lands.
+
+### Taking a card off a pile
+
+"Take a red 「Encore」 card from your trash" is a decision when the trash
+holds five of them, so `pickFrom` in shared/src/effects.ts asks — for every
+helper that moves cards out of a pile the player can see: the trash, the
+Concerto area, a hand, a deck search. It is the engine that asks, not each
+card, so no card can forget to.
+
+It only asks when there is something to decide: fewer matches than the
+ability wants, or several copies of one printed card, leaves nothing to
+choose between and nothing is asked.
+
+### The battle log
+
+The log is written in Thai, and every line it can carry lives in
+shared/src/log.ts rather than being built inline where it happens. That is
+the one file a language switch would open; seats stay as `p1`/`p2` for the
+client to swap names into, and card names stay as printed.
+
+Each line names the card behind it — `creditCard` in shared/src/match.ts
+appends `[BP01-076]` to anything an effect produced, extending a convention
+the damage lines already followed — and the log shows that card's art beside
+the words instead of the number.
+
+The clash line says how it was decided: `p1 wins the clash (blue beats red)`,
+`(Speed 13 vs 8)`, `(unopposed)`. Without it a win is often invisible — a
+0-attack Dodge beats a red card on colour alone, so the loser takes nothing
+and the only sign anything happened is a `[Judgement]` skill firing off the
+win, which reads like the engine got it wrong.
+
+### Asking a card what it can do
+
+Every move about one particular card is asked at that card, not from the
+control bar — the bar has a single row to fit a whole turn into, and no way
+to say which card a button meant. Click one of your own and a menu offers
+whatever is legal right now:
+
+- **a character** — **ดู** (the whole pile, levels and all), **เลเวลอัป**
+  and **สลับ**. Level Up then takes the screen over: pick its cost out of
+  your hand and confirm.
+- **a card in hand** — **ชาร์จ** and **ลงคว่ำ**. Laying one face-down opens
+  the Battle Phase, as it always did.
+
+What the menu offers is not the UI's opinion. `levelUpOptions()`,
+`canSwitchLeader()`, `canCommit()` and `whyUnplayable()` in
+shared/src/match.ts run the same checks the intents themselves do — the
+level ladder, the cost your hand has to cover, the one action a turn, a card
+that shut switching off, whether this card can be paid for — so a move that
+would be refused is never on a menu, and the engine checks again when it
+arrives anyway.
+
+A word on wording: the engine calls the clash the *counter* phase and the
+cards are printed `[Counter]`, because that is what the imported text says.
+The game's own word for it is **Battle** — *ประลอง* — so that is what the
+player reads, in `KEYWORD_LABEL` and `PHASE_LABEL`. The printed spelling is
+mapped to the keyword by `PRINTED_TAG_KEYWORD`, so the display name is free
+to differ from it.
+
+### Reading a card
+
+The Detail panel shows a card's printed ability with its keyword tags drawn
+as tags, in the colours wuwatcgdb prints them in — the card database this
+app's text is imported from — so orange, purple and blue mean the same three
+things here as there. `KEYWORD_COLOR` in shared/src/cards.ts holds them.
+
+The printed text carries its own "[Enter] / [Level up]" prefix and the engine
+writes the same keywords out from the effect's conditions, so `formatEffect`
+drops the printed one: only the opening run, because a tag further in is part
+of the sentence rather than a repeat of the heading. A tag naming a keyword
+we don't know is left exactly as printed — unrecognised is not the same as
+absent, and dropping it would hide a card we haven't finished importing.
+
+### Leaving, disconnecting, and forfeits
+
+A room survives a refresh: `joinRoom` recognises a returning player id and
+hands their seat straight back, match in progress and all — nothing about
+leaving is triggered by a socket merely dropping.
+
+- **Clicking "ออกจากห้อง" (leave)** is a deliberate exit. If a match was
+  running, it ends immediately in the other seat's favour — no reason to make
+  someone wait on a player who chose to go. The finished board stays up (same
+  as any match that ends by Life hitting zero) so the remaining player sees a
+  clear "จบเกม — ... ชนะ" rather than being dropped back to an empty lobby.
+- **A dropped connection** (closed tab, lost signal) gets a 90-second grace
+  period before the same forfeit kicks in — long enough to survive a refresh,
+  short enough that the other player isn't stuck indefinitely. Reconnecting
+  within that window cancels it. If *both* players are gone, nobody is around
+  to see a forfeit either way, so the room is just reaped after 5 minutes of
+  silence instead.
+
+Both timers live in `server/src/roomManager.ts` and are overridable for tests
+(`_setGraceMsForTests`) — real 90-second and 5-minute timers would make the
+test suite that slow.
+
 ## Project layout
 
 ```
@@ -95,12 +216,18 @@ shared/   Rules engine, card data, deck lists, and the socket contracts
 
 ```bash
 npm test -w @wuwatcg/shared
+npm test -w @wuwatcg/server
 ```
 
-Type-checks the library and its scripts, then runs the suites: effects, rules,
-card data, abilities, a full match, the session layer, deck lists, a fuzz pass
-that plays whole games checking Life only ever moves when the log says so, and
-a validator that every printed card has its effect filled in.
+The shared suite type-checks the library and its scripts, then runs: effects,
+rules, card data, abilities, a full match, the session layer, deck lists, a
+fuzz pass that plays whole games checking Life only ever moves when the log
+says so, and a validator that every printed card has its effect filled in.
+
+The server suite covers room lifecycle — leaving, disconnecting, reconnecting,
+and the forfeit timers above — against the actual bug shapes rather than the
+happy path (a race where two near-simultaneous disconnects left a stray
+forfeit timer to fire into an empty room is caught here).
 
 ## Status
 
@@ -109,6 +236,6 @@ a validator that every printed card has its effect filled in.
 - [x] Card data — 123 cards, every printed effect implemented
 - [x] Game rules / turn structure
 - [x] In-match UI (board, hand, actions, battle log)
-- [x] Two-player networked matches, with reconnect and table chat
+- [x] Two-player networked matches, with reconnect, forfeit-on-leave, and table chat
 - [x] Deck building, with text import/export
 - [x] Main menu, public room browser and private rooms

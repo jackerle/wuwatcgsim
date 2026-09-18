@@ -44,7 +44,16 @@ export interface MatchController {
 
   send: (playerId: string, intent: MatchIntent) => void;
   answer: (choice: ChoiceAnswer) => void;
+  /**
+   * Abandons the open question, putting the board back where it was.
+   *
+   * Only the player whose move raised it may do this, which is what
+   * `canCancel` reports. It is the way out of a question that cannot be
+   * answered — the card it belongs to has a bug, or the player it was put to
+   * has walked away — and without it the modal is a dead end.
+   */
   cancel: () => void;
+  canCancel: boolean;
   restart: () => void;
   /** Whether this client may deal a new game (the host, over the network). */
   canRestart: boolean;

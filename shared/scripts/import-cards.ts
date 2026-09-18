@@ -13,6 +13,7 @@
 import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PRINTED_TAG_KEYWORD } from "../src/cards";
 import type { CardKeyword } from "../src/cards";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -44,32 +45,13 @@ interface SourceCard {
 
 // --- mapping ---------------------------------------------------------------
 
-/** Bracket tags as printed on the cards, mapped to our keyword union. */
-const TAG_TO_KEYWORD: Record<string, CardKeyword> = {
-  leader: "leader",
-  judgement: "judgement",
-  combo: "combo",
-  counter: "counter",
-  "level up": "levelUp",
-  enter: "enter",
-  advantage: "advantage",
-  switch: "switch",
-  battle: "battle",
-  "follow-up attack": "follow",
-  "at end of each turn": "endTurn",
-  "at end of own turn": "endTurn",
-  "at end of turn": "endTurn",
-  "at start of own turn": "turnStart",
-  "at start of own counter phase": "counterPhaseStart",
-  "at end of counter phase": "counterPhaseEnd",
-  "at end of each counter phase": "counterPhaseEnd",
-};
-
 /**
  * "[Leader Skill]" is printed on its own line, but it is not a separate
  * ability: it says the card's abilities only work while its character is the
  * active leader. So it becomes the `leader` keyword on the card's real
- * effects, and the bare marker line is dropped.
+ * effects, and the bare marker line is dropped. PRINTED_TAG_KEYWORD maps it
+ * to `leader` as well, for the UI's sake — this is checked first, because
+ * only here does it also swallow the line it was printed on.
  */
 const LEADER_SKILL_TAGS = new Set(["leader skill"]);
 
@@ -151,7 +133,7 @@ function parseTags(text: string): Parsed {
       continue;
     }
     // A tag can be written as a pair: "[Enter] / [Level up]".
-    const mapped = TAG_TO_KEYWORD[key];
+    const mapped = PRINTED_TAG_KEYWORD[key];
     if (!mapped) {
       unknownTags.push(raw);
       continue;
