@@ -1,12 +1,18 @@
-// Saved decks, kept in this browser.
+// Saved decks, kept in this browser — plus the built-in ones that are not.
 //
-// There are no accounts, so there is nowhere else to put them. localStorage
-// survives refreshes and is what the lobby reads when it asks which deck you
-// are bringing. Everything here is defensive: a private window, blocked site
-// data, or a half-written entry from an older build must cost a deck at
-// worst, never a crash on load.
+// There are no accounts, so there is nowhere else to put a player's own decks.
+// localStorage survives refreshes and is what the lobby reads when it asks
+// which deck you are bringing. Everything here is defensive: a private window,
+// blocked site data, or a half-written entry from an older build must cost a
+// deck at worst, never a crash on load.
+//
+// The starter decks (shared/src/starterDecks.ts) are deliberately NOT written
+// into storage on first run. Seeding them would make them a player's own decks
+// — editable, deletable, and frozen at whatever the build shipped that day —
+// and a player who cleared one would never see it again. Read from code, they
+// are simply always there, and a new set ships with a new build.
 
-import { emptyDeck, type DeckList } from "@wuwatcg/shared";
+import { emptyDeck, isStarterDeckId, starterDecks, type DeckList } from "@wuwatcg/shared";
 
 const KEY = "wuwatcg.decks";
 
@@ -43,8 +49,23 @@ function write(decks: DeckList[]): void {
   }
 }
 
+/** Only the decks this player built. The builder and storage own these. */
 export function loadDecks(): DeckList[] {
   return read();
+}
+
+/**
+ * Every deck a player can pick or look at: their own first, then the built-in
+ * ones.
+ *
+ * Their own come first because a returning player is looking for their deck,
+ * not ours. A stored deck carrying a starter id is dropped rather than shown
+ * twice — that can only come from a build where these were seeded into
+ * storage, and two rows with one id is a duplicate React key as well as a
+ * confusing list.
+ */
+export function allDecks(): DeckList[] {
+  return [...read().filter((deck) => !isStarterDeckId(deck.id)), ...starterDecks()];
 }
 
 export function saveDeck(deck: DeckList): DeckList[] {

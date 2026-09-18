@@ -123,6 +123,11 @@ export const STRINGS = {
   "deckManager.playable": { th: "พร้อมเล่น", en: "Ready" },
   "deckManager.incomplete": { th: "ยังไม่ครบ", en: "Incomplete" },
   "deckManager.edit": { th: "แก้ไข", en: "Edit" },
+  "deckManager.starter": { th: "เด็คตั้งต้น", en: "Starter" },
+  "deckManager.starterTitle": {
+    th: "เด็คที่มากับเกม — แก้หรือลบไม่ได้ กด Duplicate เพื่อทำสำเนาที่แก้ได้",
+    en: "Built in — cannot be edited or deleted; Duplicate it to get a copy you can change",
+  },
   "deckManager.duplicate": { th: "ทำสำเนา", en: "Duplicate" },
   "deckManager.delete": { th: "ลบ", en: "Delete" },
   "deckManager.copySuffix": { th: "(สำเนา)", en: "(copy)" },
@@ -249,38 +254,6 @@ export const STRINGS = {
     th: (n: number, name: string) => `เทิร์น ${n} · ${name}`,
     en: (n: number, name: string) => `Turn ${n} · ${name}`,
   },
-  "controlBar.mainPhaseHint": {
-    th: () => `คลิกการ์ด/ตัวละครเพื่อใช้หรือกด Battle`,
-    en: () => `Click a card or character to act, or press Battle`,
-  },
-  "controlBar.noActionsLeft": { th: "ใช้แอ็กชันครบแล้ว", en: "No actions left" },
-  "controlBar.canCommitHint": {
-    th: "คลิกการ์ดเพื่อลงคว่ำ หรือกด End เพื่อผ่าน",
-    en: "Click a card to commit it, or press End to pass",
-  },
-  "controlBar.cannotCommitHint": {
-    th: "ไม่มีการ์ดที่จ่ายไหว — กด End",
-    en: "No card you can afford — press End",
-  },
-  "controlBar.waitOtherMainPhase": {
-    th: (name: string) => `รอ ${name} จบเฟสหลักก่อน`,
-    en: (name: string) => `Waiting for ${name} to finish the Main Phase`,
-  },
-  "controlBar.committed": { th: "ลงคว่ำแล้ว", en: "Committed" },
-  "controlBar.passed": { th: "ไม่ลงการ์ด", en: "Passed" },
-  "controlBar.waitingOtherSide": {
-    th: (state: string) => `${state} — รออีกฝ่ายเลือก`,
-    en: (state: string) => `${state} — waiting on the other side`,
-  },
-  "controlBar.comboOwnHint": { th: "คลิกการ์ดในมือเพื่อคอมโบ", en: "Click a card in hand to combo" },
-  "controlBar.comboUnlimited": { th: " (ไม่จำกัด)", en: " (unlimited)" },
-  "controlBar.comboRemaining": { th: (n: number) => ` (เหลือ ${n})`, en: (n: number) => ` (${n} left)` },
-  "controlBar.switchToCombo": {
-    th: (name: string) => `สลับมุมมองไป ${name} เพื่อคอมโบ`,
-    en: (name: string) => `Switch view to ${name} to combo`,
-  },
-  "controlBar.waitingToCombo": { th: (name: string) => `รอ ${name} คอมโบ`, en: (name: string) => `Waiting on ${name} to combo` },
-  "controlBar.waitingToPlay": { th: (name: string) => `รอ ${name} เล่น...`, en: (name: string) => `Waiting on ${name}...` },
   "controlBar.waitingToAnswer": {
     th: (name: string) => `รอ ${name} ตอบคำถาม...`,
     en: (name: string) => `Waiting on ${name} to answer...`,
@@ -294,21 +267,31 @@ export const STRINGS = {
 
   // --- PhaseTrack.tsx -----------------------------------------------------
   "phaseTrack.ariaLabel": { th: "ลำดับเฟสในเทิร์น", en: "Turn phase order" },
-  "phaseTrack.draw": { th: "เฟสจั่ว — กดเพื่อจั่วการ์ด", en: "Draw Phase — press to draw a card" },
+  "phaseTrack.draw": { th: "เฟสจั่ว — จั่วการ์ดขึ้นมือ", en: "Draw Phase — draw for the turn" },
   "phaseTrack.main": {
     th: "เฟสหลัก — ชาร์จ เลเวลอัป สลับ Leader (อย่างละครั้ง)",
     en: "Main Phase — Charge, Level Up, Switch Leader (once each)",
   },
   "phaseTrack.battle": { th: "เฟสประลอง — ลงการ์ดคว่ำ", en: "Battle Phase — commit a card face-down" },
   "phaseTrack.judgement": {
-    th: "เฟสตัดสิน — เปิดการ์ด ตัดสินผล และโจมตีต่อเนื่อง",
-    en: "Judgement Phase — reveal cards, settle the result, and combo",
+    th: "เฟสตัดสิน — เปิดการ์ด เทียบสี/ความเร็ว แล้วลงดาเมจ",
+    en: "Judgement Phase — reveal, settle colour and Speed, deal damage",
+  },
+  "phaseTrack.combo": {
+    th: "เฟสคอมโบ — ลงการ์ดสีแดงต่อเนื่อง (ถ้าไม่ลงจะข้ามไป)",
+    en: "Combo Phase — chain red follow-up attacks (skipped if you play none)",
   },
   "phaseTrack.end": { th: "เฟสจบเทิร์น", en: "End Phase" },
 
   // --- MatchLog.tsx -------------------------------------------------------
   "matchLog.manualHeading": { th: "ต้องทำเอง", en: "Do This Yourself" },
   "matchLog.empty": { th: "ยังไม่มีบันทึกการต่อสู้", en: "No battle log yet" },
+
+  // --- PlayerZone.tsx -----------------------------------------------------
+  "playerZone.advantageTitle": {
+    th: "ถือ Advantage เทิร์นนี้ — จากการชนะตัดสินของเทิร์นก่อน",
+    en: "Holds Advantage this turn — from winning last turn's battle",
+  },
 
   // --- PlayGame.tsx -------------------------------------------------------
   "playGame.offlineSuffix": { th: " · หลุด", en: " · disconnected" },
@@ -388,7 +371,18 @@ export const STRINGS = {
   "pileModal.empty": { th: "ไม่มีการ์ด", en: "No cards" },
 
   // --- OwnActionSlot.tsx -----------------------------------------------------
-  "ownActionSlot.committed": { th: "คว่ำไว้", en: "Committed" },
+  "ownActionSlot.label": { th: "พื้นที่แอ็กชัน", en: "Action Area" },
+  "ownActionSlot.committed": { th: "ลงคว่ำแล้ว", en: "Committed" },
+  "ownActionSlot.passed": { th: "ไม่ลงการ์ด", en: "Passed" },
+  "ownActionSlot.revealed": {
+    th: (n: number) => `เฉลยแล้ว ${n} ใบ`,
+    en: (n: number) => `${n} revealed`,
+  },
+
+  // --- PlayGame.tsx -------------------------------------------------------
+  "playGame.settingsTitle": { th: "ตัวเลือกเกม", en: "Game options" },
+  "playGame.settings": { th: "ตัวเลือกเกม", en: "Game Options" },
+  "playGame.viewHandTitle": { th: (name: string) => `ดูมือของ ${name}`, en: (name: string) => `View ${name}'s hand` },
 
   // --- NetGame.tsx ----------------------------------------------------------
   "netGame.connecting": { th: "กำลังเชื่อมต่อกับเกม...", en: "Connecting to the game..." },

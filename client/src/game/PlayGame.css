@@ -4,46 +4,214 @@
 
 .control-bar {
   display: flex;
-  /* One row, always. The board fits an exact 100vh and a second line of
-     buttons would push the hand off the bottom of it. */
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 12px 5px;
   background: #1b1d24;
   border-top: 1px solid #2c2f3a;
-  border-bottom: 1px solid #2c2f3a;
+  /* The full-width edge below the secondary hint stays visible as structure,
+     but should not read like a primary divider. */
+  border-bottom: 1px solid rgba(177, 193, 232, 0.07);
   font-size: calc(var(--board-text) * 1.25);
 }
 
-/* The bar is three parts: what is going on (left), the phase track (centre),
-   and the match-level buttons (right). Both outer parts share one flex
-   basis, which is what keeps the track on the board's centre line however
-   long either side happens to run. */
+/* Main play uses a compact two-line control: a clean phase-navigation line,
+   then one short live-status line. Keeping them separate means "waiting for
+   X" never pushes, truncates or masquerades as a sixth phase tab. */
+.control-main-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.control-bar.simple {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The two sides share a basis, so the centre track stays centred even if the
+   turn heading is long. Match-level controls deliberately do not live here:
+   they live in the board-corner gear menu. */
 .control-side {
   flex: 1 1 0;
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  /* Same reason as .control-actions: one row, always. */
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: hidden;
 }
 
-.control-side::-webkit-scrollbar {
-  display: none;
-}
-
+/* flex-start, not flex-end: Pass belongs BESIDE the track it was pulled out
+   of, so it hugs the last tab instead of drifting to the bar's far edge. The
+   side still holds the same flex basis as the left one, so the track stays
+   centred whether or not Pass is showing. */
 .control-side-end {
-  justify-content: flex-end;
+  justify-content: flex-start;
+}
+
+/* The one verb button beside the track. Deliberately not a
+   .phase-track-step: square-ish rather than a pill, so the row still reads as
+   five steps plus one action rather than six tabs, and the left margin is the
+   gap that keeps that reading.
+   Selectors mirror `.control-bar button.primary` further down: the generic
+   `.control-bar button:hover:not(:disabled)` would otherwise outrank a plain
+   class hover and paint it grey-blue. */
+.control-bar button.control-primary-move {
+  margin-left: 10px;
+  padding: 3px 12px;
+  border-radius: 6px;
+  border: 1px solid #4d79ef;
+  background: #33509f;
+  color: #eaf0ff;
+  font-size: calc(var(--board-text) * 1.15);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.control-bar button.control-primary-move:hover:not(:disabled) {
+  background: #4162c4;
+  border-color: #8aa8ff;
+  color: #fff;
+}
+
+/* Pass is the one move that gives something up rather than advancing the
+   turn, so it keeps the shape and drops the blue. Amber, not red: declining a
+   clash is an ordinary play, not a mistake. */
+.control-bar button.control-primary-move.control-pass {
+  border-color: #7a6330;
+  background: #33291a;
+  color: #e8c98a;
+}
+
+.control-bar button.control-primary-move.control-pass:hover:not(:disabled) {
+  background: #453521;
+  border-color: #b8922f;
+  color: #ffe6b0;
 }
 
 .control-phase {
   font-weight: 600;
   color: #e6e8ef;
-  margin-right: 4px;
   white-space: nowrap;
+}
+
+/* Only ever holds a refused move or a question owed by the other seat — the
+   phase narration that used to fill it is gone, and with it the reserved
+   min-height: the row is absent in ordinary play, so the bar is one line.
+   That is also why the old tooltip-level opacity is gone; the two things left
+   here are the ones a player has to be able to read. */
+.control-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  /* The divider still separates navigation from the notice, with the space
+     ABOVE it, so the control bar's lower edge keeps its compact spacing. */
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(177, 193, 232, 0.07);
+  color: #b9c6e8;
+  font-size: calc(var(--board-text) * 1.02);
+  line-height: 1.15;
+  text-align: center;
+}
+
+.control-status-action {
+  padding: 1px 5px !important;
+  border-radius: 4px !important;
+  font-size: calc(var(--board-text) * 0.94) !important;
+}
+
+/* A board-corner home for match-level actions. It is intentionally outside
+   the phase bar: leaving a room, conceding and dealing again are never a
+   phase of the turn. */
+.match-settings {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.75rem;
+  z-index: 65;
+}
+
+.match-settings-gear,
+.view-hand-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  border: 1px solid rgba(180, 197, 240, 0.42);
+  border-radius: 7px;
+  background: rgba(12, 21, 38, 0.85);
+  color: #e6e8ef;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
+.match-settings-gear {
+  width: 32px;
+  padding: 0;
+  font-size: 1rem;
+}
+
+.match-settings-gear:hover,
+.view-hand-toggle:hover {
+  background: #2b3653;
+  border-color: #7aa2ff;
+}
+
+.match-settings-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 132px;
+  padding: 4px;
+  border: 1px solid #3a4769;
+  border-radius: 8px;
+  background: #151b2b;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.58);
+}
+
+.match-settings-menu button {
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: none;
+  color: #e6e8ef;
+  font: inherit;
+  font-size: calc(var(--board-text) * 1.15);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.match-settings-menu button:hover {
+  background: #2a334b;
+  border-color: #4b5d87;
+}
+
+.match-settings-menu button.danger {
+  color: #ffb4b4;
+}
+
+.match-settings-menu button.danger:hover {
+  background: #4a232d;
+  border-color: #8c4552;
+}
+
+/* Hotseat still needs a safe way to flip whose hand is face-up. It is a view
+   control, not a match action, so it sits beside — not inside — the gear menu. */
+.view-hand-toggle {
+  position: absolute;
+  top: 0.65rem;
+  right: 3.3rem;
+  z-index: 64;
+  padding: 3px 8px;
+  font-size: var(--board-text);
 }
 
 /* --- Phase track -------------------------------------------------------- */
@@ -70,7 +238,11 @@
 }
 
 .phase-track-step {
-  padding: 3px 10px;
+  /* 8px, not the 10px this carried while there were five steps: Combo made it
+     six, and the track does not shrink (flex: 0 0 auto), so width it gains has
+     to come from somewhere or it eats the sides holding the turn heading and
+     the verb button. */
+  padding: 3px 8px;
   border-radius: 999px;
   border: 1px solid transparent;
   color: #6f7689;
@@ -79,23 +251,6 @@
   letter-spacing: 0.04em;
   white-space: nowrap;
   transition: color 120ms ease, background 120ms ease;
-}
-
-/* A step is a <button> only when its move is available, so the affordance is
-   carried by this class rather than by the element: the track has to read as
-   one row of steps whether or not any of them can be pressed. */
-.phase-track-step.pressable {
-  cursor: pointer;
-  color: #cdd3e4;
-  background: #2a2f3d;
-  border-color: #4b5164;
-  font-family: inherit;
-}
-
-.phase-track-step.pressable:hover {
-  color: #fff;
-  background: #3a4256;
-  border-color: #6b90f5;
 }
 
 /* The next step, but not ready yet — both players have not chosen. Dimmer
@@ -111,12 +266,6 @@
   background: #3f6ae0;
   border-color: #6b90f5;
   box-shadow: 0 0 0 3px rgba(63, 106, 224, 0.2);
-}
-
-/* The step the turn is ON and which is also pressable — the common case for
-   Battle and End. Keeps the active fill, gains the pointer. */
-.phase-track-step.active.pressable:hover {
-  background: #4d78ec;
 }
 
 .control-hint {
@@ -213,8 +362,8 @@
 
 /* --- Right-hand panels -------------------------------------------------- */
 
-/* Pushes the match-level controls to the far end of the same row, so the
-   board keeps its single-bar vertical budget. */
+/* Used only by the compact mulligan/Level Up bar. The full play bar carries
+   status in .control-status beneath the five phase tabs instead. */
 .control-actions {
   display: flex;
   align-items: center;
@@ -226,13 +375,6 @@
   padding-bottom: 2px;
 }
 
-.control-bar > button,
-.control-phase {
-  flex-shrink: 0;
-}
-
-/* Everything inside keeps its natural width so the row scrolls instead of
-   squashing each button until its label wraps onto three lines. */
 .control-actions > * {
   flex-shrink: 0;
   white-space: nowrap;
@@ -263,8 +405,19 @@
   /* A rule between entries, because a log line wraps onto two or three of
      them: without one there is no telling where an entry ends and the next
      begins. Faint — it separates, it does not divide. */
-  padding: 0.3rem 0;
+  padding: 0.3rem 0.35rem;
+  margin: 0 -0.35rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 5px;
+  transition: background 100ms ease, box-shadow 100ms ease;
+}
+
+/* A log row is a single thing even when its card and text are separate DOM
+   nodes. Highlighting the row gives the hover-preview image a clear reading
+   anchor without changing the card art itself. */
+.log-lines li:hover {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 2px 0 0 rgba(220, 225, 235, 0.5);
 }
 
 .log-lines li:last-child {

@@ -1,66 +1,56 @@
-// The turn, laid out as the five steps a player thinks in — and the control
-// that drives it.
+// The turn, laid out as the six steps a player thinks in — and nothing else.
 //
-// This used to be a read-only track beside a row of verb buttons ("Start
-// Turn", "Reveal", "End Turn"), which said the same thing twice: the button
-// named a move, the track named the phase that move leaves. Now pressing the
-// step IS the move, so where the turn is and what to do about it are one
-// thing.
+// Nothing here is pressable. The steps were briefly buttons, on the grounds
+// that pressing the step IS the move, but a row where some tabs act and others
+// only report is a row you have to test by clicking. So the track answers one
+// question — where is the turn — and the single verb button beside it (see
+// ControlBar) is the only thing that moves the game on.
 //
-// The engine still decides what is legal. A step is pressable only when the
-// caller hands it an action, and the caller asks legalIntents().
+// It does not read MatchState either. Which box is lit comes in as `active`,
+// worked out by ControlBar: one engine phase (`combo`) covers two of these
+// boxes, so the mapping needs the board, and putting it here would have made
+// this component know the rules as well as draw them.
 
-import type { TurnPhase } from "@wuwatcg/shared";
 import { useLang, type StringKey } from "../i18n/LanguageContext";
 
-export type PhaseStepKey = "draw" | "main" | "battle" | "judgement" | "end";
+export type PhaseStepKey = "draw" | "main" | "battle" | "judgement" | "combo" | "end";
 
 interface Step {
   key: PhaseStepKey;
   label: string;
-  /** Engine phases that light this step up. */
-  phases: TurnPhase[];
   /** The i18n key for the tooltip — the label itself stays short. */
   titleKey: StringKey;
 }
 
 /**
- * The Combo Step gets its own box here, as Judgement.
+ * Judgement and Combo are separate boxes, though the engine runs both inside
+ * one `combo` phase.
  *
- * It used to share the Battle box on the grounds that extending an attack is
- * still the battle you just won. But the reveal, the colour comparison, the
- * damage and the follow-ups all happen in it, and none of that is what the
- * Battle box now means — Battle is where the cards go face-down, and the
- * board sits there waiting for both players. Two different waits reading as
- * one box is what made the turn hard to follow.
+ * They were one box, called Judgement, and that hid the difference between
+ * "the clash has been decided, look at what it did" and "a follow-up chain is
+ * running". A turn with no follow-up never reaches the Combo box at all, which
+ * is the point: the track shows it was skipped rather than implying a step
+ * happened that did not.
  */
 const STEPS: Step[] = [
-  { key: "draw", label: "Draw", phases: ["draw"], titleKey: "phaseTrack.draw" },
-  { key: "main", label: "Main", phases: ["action"], titleKey: "phaseTrack.main" },
-  { key: "battle", label: "Battle", phases: ["counter"], titleKey: "phaseTrack.battle" },
-  { key: "judgement", label: "Judgement", phases: ["combo"], titleKey: "phaseTrack.judgement" },
-  { key: "end", label: "End", phases: ["end"], titleKey: "phaseTrack.end" },
+  { key: "draw", label: "Draw", titleKey: "phaseTrack.draw" },
+  { key: "main", label: "Main", titleKey: "phaseTrack.main" },
+  { key: "battle", label: "Battle", titleKey: "phaseTrack.battle" },
+  { key: "judgement", label: "Judgement", titleKey: "phaseTrack.judgement" },
+  { key: "combo", label: "Combo", titleKey: "phaseTrack.combo" },
+  { key: "end", label: "End", titleKey: "phaseTrack.end" },
 ];
 
-/** A step this client may press, and what pressing it means. */
-export interface PhaseAction {
-  onPick: () => void;
-  /** Replaces the tooltip: what pressing it will actually do. */
-  title?: string;
-}
-
 export function PhaseTrack({
-  phase,
-  actions = {},
+  active,
   waiting = {},
 }: {
-  phase: TurnPhase;
-  /** Keyed by step. A step with no entry is not pressable. */
-  actions?: Partial<Record<PhaseStepKey, PhaseAction>>;
+  /** The step the turn is on, or null outside a turn (the mulligan). */
+  active: PhaseStepKey | null;
   /**
    * Steps that are the next move but not ready — the reason is shown as the
-   * tooltip. "Not ready" and "not yours" look different on purpose: one is a
-   * wait, the other is simply not your move.
+   * tooltip, and the step is drawn dashed. Distinct from the active step: one
+   * is where the turn IS, the other is where it is trying to go.
    */
   waiting?: Partial<Record<PhaseStepKey, string>>;
 }) {
@@ -68,13 +58,9 @@ export function PhaseTrack({
   return (
     <ol className="phase-track" aria-label={t("phaseTrack.ariaLabel")}>
       {STEPS.map((step, index) => {
-        const active = step.phases.includes(phase);
-        const action = actions[step.key];
+        const isActive = step.key === active;
         const why = waiting[step.key];
         const stepTitle = t(step.titleKey);
-        const className = `phase-track-step ${active ? "active" : ""} ${
-          action ? "pressable" : ""
-        } ${why ? "waiting" : ""}`;
         return (
           <li key={step.key} className="phase-track-item">
             {index > 0 && (
@@ -82,25 +68,13 @@ export function PhaseTrack({
                 ›
               </span>
             )}
-            {action ? (
-              <button
-                type="button"
-                className={className}
-                title={action.title ?? stepTitle}
-                aria-current={active ? "step" : undefined}
-                onClick={action.onPick}
-              >
-                {step.label}
-              </button>
-            ) : (
-              <span
-                className={className}
-                title={why ? `${stepTitle} — ${why}` : stepTitle}
-                aria-current={active ? "step" : undefined}
-              >
-                {step.label}
-              </span>
-            )}
+            <span
+              className={`phase-track-step ${isActive ? "active" : ""} ${why ? "waiting" : ""}`}
+              title={why ? `${stepTitle} — ${why}` : stepTitle}
+              aria-current={isActive ? "step" : undefined}
+            >
+              {step.label}
+            </span>
           </li>
         );
       })}

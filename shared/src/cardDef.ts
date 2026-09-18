@@ -49,8 +49,26 @@ export interface EffectContext {
   readonly state: MatchState;
 
   // --- queries ---
-  /** Did the controller win the most recent battle? ([Advantage]) */
+  /**
+   * Did the controller win the battle that has most recently been decided?
+   *
+   * This is "did I just win", which is what a [Judgement] skill means by "if
+   * you deal damage to your opponent" — the winner is settled before Judgement
+   * resolves, so the card asks this rather than looking at Life. It is NOT
+   * [Advantage]: see hasAdvantage().
+   */
   wonLastBattle(): boolean;
+  /**
+   * Does the controller hold [Advantage] right now?
+   *
+   * Advantage is won by taking a battle, but it only starts applying on the
+   * FOLLOWING turn — the turn you won it in, you do not have it yet. So this
+   * reads a snapshot taken when the turn opened, not the live battle result:
+   * inside a [Judgement] skill, wonLastBattle() already says yes for the
+   * battle being resolved while this still says whatever you brought into the
+   * turn.
+   */
+  hasAdvantage(): boolean;
   /**
    * Did the controller win the last battle with a card of this colour?
    * Printed all over the place as "if you won with a green card".

@@ -31,12 +31,20 @@ import { DetailPanel } from "../board/DetailPanel";
 import { ChatPanel } from "../board/ChatPanel";
 import { ControlBar } from "./ControlBar";
 import { MatchLog } from "./MatchLog";
+import { MatchSettings } from "./MatchSettings";
 import type { MatchController } from "./matchController";
 import { useLang } from "../i18n/LanguageContext";
 import "../board/Board.css";
 import "./PlayGame.css";
 
-export function PlayGame({ match, children }: { match: MatchController; children?: React.ReactNode }) {
+export function PlayGame({
+  match,
+  onLeave,
+}: {
+  match: MatchController;
+  /** Online only: App owns the socket/route lifecycle for leaving a room. */
+  onLeave?: () => void;
+}) {
   const { t } = useLang();
   // Hand POSITIONS, not card ids — several copies of one printed card can sit
   // in a hand at once, and picking one must not light up the others.
@@ -196,6 +204,26 @@ export function PlayGame({ match, children }: { match: MatchController; children
       <PileModalProvider>
         <div className="game-ui">
           <div className="game-board">
+            <MatchSettings
+              onConcede={() => send(bottom, { kind: "concede" })}
+              canRestart={match.canRestart}
+              onRestart={() => {
+                setSelected([]);
+                setLevelUp(null);
+                match.restart();
+              }}
+              onLeave={onLeave}
+            />
+            {match.canFlip && (
+              <button
+                type="button"
+                className="view-hand-toggle"
+                title={t("playGame.viewHandTitle", nameOf(top))}
+                onClick={() => match.setViewing(top)}
+              >
+                {t("playGame.viewHand", nameOf(top))}
+              </button>
+            )}
             <PlayerZone
               board={state.boards[top]}
               name={label(top)}
@@ -203,6 +231,8 @@ export function PlayGame({ match, children }: { match: MatchController; children
               hideHand
               facedown={state.facedown[top]}
               actionZone={state.actionZone[top]}
+              committed={state.committed[top]}
+              advantage={state.advantageId === top}
               dealKey={state.matchId}
             />
 
@@ -234,27 +264,15 @@ export function PlayGame({ match, children }: { match: MatchController; children
                     }
                   : null
               }
-            >
-              {/* The board fits an exact 100vh budget, so these share the
-                  control bar's row rather than adding a second one. */}
-              {match.canFlip && (
-                <button type="button" onClick={() => match.setViewing(top)}>
-                  {t("playGame.viewHand", nameOf(top))}
-                </button>
-              )}
-              {match.canRestart && (
-                <button type="button" onClick={() => match.restart()}>
-                  {t("playGame.newGame")}
-                </button>
-              )}
-              {children}
-            </ControlBar>
+            />
 
             <PlayerZone
               board={state.boards[bottom]}
               name={label(bottom)}
               facedown={state.facedown[bottom]}
               actionZone={state.actionZone[bottom]}
+              committed={state.committed[bottom]}
+              advantage={state.advantageId === bottom}
               selectedHand={selected}
               handSelectionMeans={mulliganing ? "return" : "pick"}
               onHandCardClick={(card, index) => handleHandClick(bottom, card, index)}

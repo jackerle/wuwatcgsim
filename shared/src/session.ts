@@ -38,7 +38,6 @@ const TURN_PLAYER_ONLY: MatchIntent["kind"][] = [
   "switch",
   "toBattle",
   "resolveCounter",
-  "endTurn",
 ];
 
 /** A move that stopped on a question, kept so the answer can replay it. */

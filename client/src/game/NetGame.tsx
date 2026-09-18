@@ -23,11 +23,5 @@ export function NetGame({ isHost, onLeave }: { isHost: boolean; onLeave: () => v
     );
   }
 
-  return (
-    <PlayGame match={match}>
-      <button type="button" onClick={onLeave}>
-        {t("common.leaveRoom")}
-      </button>
-    </PlayGame>
-  );
+  return <PlayGame match={match} onLeave={onLeave} />;
 }

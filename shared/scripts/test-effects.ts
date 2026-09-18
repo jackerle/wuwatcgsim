@@ -157,12 +157,18 @@ function check(name: string, pass: boolean, detail = "") {
     },
   ]);
   const lost = freshState();
-  lost.lastBattleWinnerId = "p2";
+  lost.advantageId = "p2";
   const won = freshState();
-  won.lastBattleWinnerId = "p1";
+  won.advantageId = "p1";
+  // Winning THIS turn's clash is not Advantage yet: lastBattleWinnerId is
+  // already p1 by the time [Judgement] runs, and the gate must not read it.
+  const justWon = freshState();
+  justWon.lastBattleWinnerId = "p1";
+  justWon.advantageId = null;
 
   const blocked = resolveTrigger(lost, "judgement", [source(def)]);
   const allowed = resolveTrigger(won, "judgement", [source(def)]);
+  const sameTurn = resolveTrigger(justWon, "judgement", [source(def)]);
 
   check(
     "advantage: ไม่ได้ชนะรอบที่แล้ว -> skipped",
@@ -173,6 +179,11 @@ function check(name: string, pass: boolean, detail = "") {
     "advantage: ชนะรอบที่แล้ว -> ทำงาน",
     allowed.resolved[0].status === "applied" && allowed.state.boards.p2.life === 15,
     `p2life=${allowed.state.boards.p2.life}`
+  );
+  check(
+    "advantage: ชนะตัดสินเทิร์นนี้ -> ยังไม่ได้ advantage",
+    sameTurn.resolved[0].status === "skipped" && sameTurn.state.boards.p2.life === 20,
+    sameTurn.resolved[0].reason ?? ""
   );
 }
 

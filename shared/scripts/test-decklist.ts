@@ -23,6 +23,11 @@ import {
   type DeckList,
 } from "../src/deckList";
 import { playableCharacters } from "../src/decks";
+import {
+  isStarterDeckId,
+  starterDeckParseErrors,
+  starterDecks,
+} from "../src/starterDecks";
 import { CHARACTERS_IN_PLAY } from "../src/game";
 import { ACTION_DECK_SIZE, CHARACTER_DECK_MAX, validateDecks } from "../src/rules";
 
@@ -301,6 +306,68 @@ function fullDeck(characters = ROSTER, name = "Test"): DeckList {
   check(
     "ทุกใบในพูลค้นเจอใน card database",
     pool.every((card) => getCard(card.id)?.id === card.id)
+  );
+}
+
+// เด็คตั้งต้นที่ติดมากับแอป
+//
+// These are the only decks a first-time player has, so a typo in one of their
+// card ids is a deck that cannot be played at all — and the ids are hand-kept
+// text. This is the check that catches it at build time rather than in a lobby.
+{
+  const errors = starterDeckParseErrors();
+  check(
+    "เด็คตั้งต้นทุกใบ: parse ไม่มี error",
+    errors.length === 0,
+    JSON.stringify(errors)
+  );
+
+  const decks = starterDecks();
+  check("มีเด็คตั้งต้นอยู่จริง", decks.length > 0, `${decks.length} เด็ค`);
+  check(
+    "id ทุกใบขึ้นต้นด้วย starter- และไม่ซ้ำกัน",
+    decks.every((deck) => isStarterDeckId(deck.id)) &&
+      new Set(decks.map((deck) => deck.id)).size === decks.length,
+    decks.map((deck) => deck.id).join(", ")
+  );
+
+  for (const deck of decks) {
+    check(
+      `${deck.id}: เล่นได้จริง`,
+      isDeckPlayable(deck) && deckIssues(deck, "en").length === 0,
+      `name="${deck.name}" chars=${deck.characters.length} size=${deckSize(deck)} ${JSON.stringify(
+        deckIssues(deck, "en")
+      )}`
+    );
+    // The engine is the real judge: a list that passes deckIssues but cannot be
+    // dealt would still fail at createMatch.
+    const setup = deckToSetup(deck);
+    check(
+      `${deck.id}: แจกลงสนามได้ตามกติกา`,
+      validateDecks(setup.characterDeck, setup.actionDeck).length === 0,
+      validateDecks(setup.characterDeck, setup.actionDeck).join(" | ")
+    );
+  }
+
+  // A starter is a deck a player could have written out themselves, so a round
+  // trip through the text format has to come back identical.
+  for (const deck of decks) {
+    const again = parseDeck(formatDeck(deck), deck.id, deck.id).deck;
+    check(
+      `${deck.id}: export แล้ว import กลับ ได้เด็คเดิม`,
+      JSON.stringify(again) === JSON.stringify(deck),
+      `${JSON.stringify(again.characters)} vs ${JSON.stringify(deck.characters)}`
+    );
+  }
+
+  // Fresh objects each call: the builder mutates a DeckList in place, so a
+  // shared reference would let unsaved edits leak into the built-in deck.
+  const a = starterDecks()[0];
+  a.cards["BP01-069"] = 99;
+  check(
+    "starterDecks() คืนหน่วยใหม่ทุกครั้ง แก้แล้วไม่กระทบต้นฉบับ",
+    starterDecks()[0].cards["BP01-069"] !== 99,
+    `${starterDecks()[0].cards["BP01-069"]}`
   );
 }
 

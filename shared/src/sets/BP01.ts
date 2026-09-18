@@ -18,18 +18,33 @@ export const BP01: CardDef[] = [
     imageId: "BP01-001",
     altImageIds: ["BP01-001_4", "BP01-001_5"],
     level: 2,
+    rarity: 3,
+    weapon: "sword",
+    element: "havoc",
     effects: [
       {
-        condition: ["levelUp"], // ทำงานตอนไหน
+        condition: ["levelUp"],
         text: {
-          // ข้อความบนการ์ด ใส่ภาษาเดียวก่อนก็ได้
-          en: "Return this card to the Character deck",
-          th: "นำการ์ดใบนี้กลับเข้า Character deck",
+          th: "[Level up] นำการ์ดใบนี้กลับเข้า Character deck",
+          en: "[Level up] Return this card to the Character deck",
         },
-        resolve: (ctx) => ctx.returnToCharacterDeck(), // ผลที่เกิด
+        resolve: (ctx) => ctx.returnToCharacterDeck(),
+      },
+      {
+        condition: ["leader"],
+        text: {
+          th: "[Leader] ดาเมจที่เจ้าของได้รับ +1 การ์ดสีแดงของ「Camellya」ได้รับ +1 ดาเมจ",
+          en: "[Leader] Damage its owner takes +1. 「Camellya」 red cards gain +1 damage.",
+        },
+        resolve: (ctx) => {
+          // One printed Leader line has two continuous clauses: every hit
+          // against this player gets +1, while their red Camellya action
+          // cards get +1 attack (the runtime value used as card damage).
+          ctx.modifyDamageTaken(+1);
+          ctx.buff({ character: "Camellya", color: "red" }, "attack", +1);
+        },
       },
     ],
-    notes: { th: "TODO — ยังไม่ได้กรอก (ถ้าเป็นการ์ดตัวละคร เปลี่ยน type เป็น leader แล้วใส่ level แทน cost/color/speed/attack/chase)" },
   }),
   defineCard({
     type: "leader",

@@ -7,7 +7,7 @@
 // Run with: npm run test:match
 import { requireCard } from "../src/cardDb";
 import type { ChoiceAnswer } from "../src/cardDef";
-import { recomputeContinuous, resolveTrigger, sourcesInPlay } from "../src/effects";
+import { effectiveCost, recomputeContinuous, resolveTrigger, sourcesInPlay } from "../src/effects";
 import {
   canCommit,
   canCommitAnything,
@@ -741,6 +741,42 @@ let game = newMatch();
   check("ทั้งสองฝ่ายลงคว่ำได้แล้ว", canCommit(spent, "p1") && canCommit(spent, "p2"));
 }
 
+// --- Continuous sources activated during Counter affect that clash ----------
+
+{
+  // BP01-062 puts BP01-011 (Encore Lv.2) on an Encore and switches to it
+  // DURING Counter. BP01-011's passive gives red Encore cards +1 attack, so
+  // the BP01-062 already in the Action Area must hit for 4, not its printed
+  // 3. This proves Counter triggers settle continuous effects before both
+  // the colour/speed comparison and the final post-Judgement damage read.
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  s.boards.p1.hand = [action("BP01-058")]; // green, so p2's red BP01-062 wins
+  s.boards.p2.hand = [action("BP01-062")];
+  s.boards.p2.competitionArea = [action("BP01-044"), action("BP01-044")];
+  const lifeBefore = s.boards.p1.life;
+
+  s = drive(s, "p1", { kind: "commit", cardId: "BP01-058" }).result.state;
+  s = drive(s, "p2", { kind: "commit", cardId: "BP01-062" }).result.state;
+  const resolved = drive(s, "p1", { kind: "resolveCounter" }).result;
+
+  check(
+    "BP01-062 -> BP01-011: Level 2 ลงสนามจริงระหว่าง Counter",
+    resolved.state.boards.p2.leader?.card.id === "BP01-011",
+    resolved.state.boards.p2.leader?.card.id ?? "-"
+  );
+  check(
+    "BP01-062 ได้ +1 จาก BP01-011 ก่อนคิดดาเมจ",
+    resolved.state.boards.p1.life === lifeBefore - 4,
+    `${lifeBefore} -> ${resolved.state.boards.p1.life}`
+  );
+  check(
+    "modifier ของ BP01-011 ยัง active หลัง Counter จบ",
+    resolved.state.statModifiers.some(
+      (modifier) => modifier.sourceCardId === "BP01-011" && modifier.stat === "attack"
+    )
+  );
+}
+
 // --- The clash -------------------------------------------------------------
 
 {
@@ -812,6 +848,26 @@ let game = newMatch();
   blocked.turnLog.flags.p2 = ["noCombo"];
   const stopped = step(blocked, "p2", { kind: "combo", cardId: "BP01-044" });
   check("ธง noCombo ห้ามคอมโบจริง", stopped.error?.includes("stops you comboing") === true, stopped.error ?? "");
+
+  // A restriction prevents another follow-up, not the only exits from the
+  // phase. This is intentionally p2 (the non-turn player) winning: that is
+  // the case the old turn gate hid from the UI and made BP01-061 look like a
+  // deadlock.
+  for (const flag of ["noCombo", "noFollowUp"]) {
+    const locked = structuredClone(red);
+    locked.turnPlayerId = "p1";
+    locked.combo = { playerId: "p2", unlimited: true, remaining: Infinity };
+    locked.turnLog.flags.p2 = [flag];
+    const choices = legalIntents(locked, "p2");
+    check(
+      `${flag}: เจ้าของคอมโบที่ไม่ใช่เจ้าของเทิร์นยังมีทางออก`,
+      !choices.includes("combo") && choices.includes("passCombo") && choices.includes("endTurn"),
+      choices.join(",")
+    );
+    check(`${flag}: เจ้าของเทิร์นไม่มีสิทธิ์จบแทน`, legalIntents(locked, "p1").length === 0);
+    const ended = step(locked, "p2", { kind: "endTurn" });
+    check(`${flag}: กด End แล้วเกมเดินต่อ`, ended.error === null && ended.state.phase === "draw", ended.error ?? ended.state.phase);
+  }
 
   const passed = step(game, "p2", { kind: "passCombo" });
   check("จบขั้นคอมโบ -> เข้าเฟสจบเทิร์น", passed.state.phase === "end" && passed.error === null);
@@ -1731,6 +1787,64 @@ let game = newMatch();
   );
 }
 
+
+// --- [Battle] fires for a follow-up too ------------------------------------
+//
+// [Battle] (our `counter`) only asks that the card was played in the Battle
+// phase, and a follow-up is. Only [Judgement] belongs to the one card that
+// decided the clash.
+
+{
+  // p1 lays nothing down, so p2's red card wins unopposed and takes the
+  // (unlimited) combo window.
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  s.boards.p2.hand = [action("BP01-044"), action("BP01-062")];
+  s.boards.p2.competitionArea = Array.from({ length: 4 }, () => action("BP01-044"));
+
+  s = drive(s, "p1", { kind: "pass" }).result.state;
+  s = drive(s, "p2", { kind: "commit", cardId: "BP01-044" }).result.state;
+  s = drive(s, "p1", { kind: "resolveCounter" }).result.state;
+  check("p2 ชนะแบบไม่มีคู่ต่อสู้ -> ได้หน้าต่างคอมโบ", s.combo?.playerId === "p2", JSON.stringify(s.combo));
+  check("Encore ยังอยู่ Level 0 ก่อนคอมโบ", s.boards.p2.leader?.card.id === "BP01-015", s.boards.p2.leader?.card.id ?? "-");
+
+  const out = drive(s, "p2", { kind: "combo", cardId: "BP01-062" });
+  s = out.result.state;
+  check("BP01-062 ลงเป็นคอมโบได้", !out.result.error, out.result.error ?? "");
+  check(
+    "[Battle] ของ BP01-062 ทำงานตอนใช้กลางคอมโบ -> Encore ขึ้น Level 2",
+    s.boards.p2.leader?.card.id === "BP01-011",
+    s.boards.p2.leader?.card.id ?? "-"
+  );
+}
+
+// --- [Advantage] starts the turn AFTER it was won ---------------------------
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  s.boards.p1.hand = [action("BP01-044"), action("BP01-062")];
+  s.boards.p1.competitionArea = Array.from({ length: 6 }, () => action("BP01-044"));
+
+  s = drive(s, "p1", { kind: "commit", cardId: "BP01-044" }).result.state;
+  s = drive(s, "p2", { kind: "pass" }).result.state;
+  s = drive(s, "p1", { kind: "resolveCounter" }).result.state;
+  const liberation = action("BP01-062");
+  check("p1 ชนะการตัดสิน", s.lastBattleWinnerId === "p1", s.lastBattleWinnerId ?? "-");
+  check("เทิร์นที่ชนะ: ยังไม่มี Advantage", s.advantageId === null, s.advantageId ?? "-");
+  check(
+    "เทิร์นที่ชนะ: cost ของ BP01-062 ยังเป็น 2",
+    effectiveCost(s, liberation, "p1") === 2,
+    `${effectiveCost(s, liberation, "p1")}`
+  );
+
+  s = drive(s, "p1", { kind: "endTurn" }).result.state;
+  s = drive(s, "p2", { kind: "startTurn" }).result.state;
+  check("เทิร์นถัดไป: Advantage เป็นของ p1", s.advantageId === "p1", s.advantageId ?? "-");
+  check(
+    "เทิร์นถัดไป: cost ของ BP01-062 ลดเหลือ 1",
+    effectiveCost(s, liberation, "p1") === 1,
+    `${effectiveCost(s, liberation, "p1")}`
+  );
+}
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

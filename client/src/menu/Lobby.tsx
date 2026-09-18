@@ -10,7 +10,7 @@ import { useState } from "react";
 import { isDeckPlayable, type DeckList, type Room } from "@wuwatcg/shared";
 import { socket } from "../socket";
 import { DeckManager } from "../decks/DeckManager";
-import { loadDecks, rememberDeckId, rememberedDeckId } from "../decks/storage";
+import { allDecks, rememberDeckId, rememberedDeckId } from "../decks/storage";
 import { useLang } from "../i18n/LanguageContext";
 import "./MainMenu.css";
 
@@ -60,8 +60,10 @@ export function Lobby({
     );
   }
 
-  const saved = loadDecks();
-  const playable = saved.filter(isDeckPlayable);
+  // allDecks: the built-in decks are pickable for a match like any other, and
+  // for a first-time player they are the ONLY ones — counting just the stored
+  // ones here would offer "build a deck first" beside three ready to play.
+  const playable = allDecks().filter(isDeckPlayable);
 
   return (
     <main className="page play-page">

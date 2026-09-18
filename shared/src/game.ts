@@ -215,10 +215,23 @@ export interface MatchState {
   /** Who may still add follow-up cards this Combo Step, and how many. */
   combo: ComboWindow | null;
   /**
-   * Who won the most recent battle — what [Advantage] checks. null before the
-   * first battle, or after one that drew.
+   * Who won the most recent battle. null before the first battle, or after one
+   * that drew. This is the live result — a [Judgement] skill asking "if you
+   * deal damage" reads it, because the winner is settled before Judgement
+   * resolves. [Advantage] does NOT: see `advantageId`.
    */
   lastBattleWinnerId: string | null;
+  /**
+   * Who holds [Advantage] for the turn now being played.
+   *
+   * Winning a battle does not hand you Advantage in the same turn — you have
+   * it from the NEXT turn onwards. So this is a snapshot of
+   * `lastBattleWinnerId` taken when the turn opened and left alone for the
+   * rest of it, rather than the live value: this turn's clash overwrites
+   * `lastBattleWinnerId` before [Judgement] and the Combo Step run, and
+   * reading that would switch Advantage on mid-turn for whoever just won.
+   */
+  advantageId: string | null;
   /**
    * The detail of that battle, which a lot of printed abilities ask about:
    * "if you won with a green card", "if you lost to a red card". null on a
@@ -348,6 +361,7 @@ export function emptyMatchState(matchId: string, playerIds: string[]): MatchStat
     actionZone: byPlayer<ActionCard[]>(() => []),
     combo: null,
     lastBattleWinnerId: null,
+    advantageId: null,
     lastBattle: null,
     statModifiers: [],
     turnLog: emptyTurnLog(),

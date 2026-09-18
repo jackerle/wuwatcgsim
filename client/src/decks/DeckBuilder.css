@@ -104,7 +104,12 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 300px;
+  /* The rail scales with the window instead of sitting at a flat 300px: on a
+     wide screen that left the preview small while the pool had space to spare.
+     Floor and ceiling both matter — below ~330px the Detail panel's text wraps
+     to shreds, and past ~460px the card stops getting bigger (see the
+     max-height on the image below) so the extra width would only be padding. */
+  grid-template-columns: 1fr clamp(330px, 27vw, 460px);
 }
 
 .deck-main {
@@ -428,10 +433,15 @@
   justify-content: center;
 }
 
+/* Both caps have to move together. A card is about 1.4× taller than it is
+   wide, so a 300px height cap drew a ~215px-wide card — widening the rail
+   alone would have added blank space either side of the same small picture.
+   The vh term is what keeps the Detail panel and the issues list below it from
+   being squeezed off a short window. */
 .deck-side-preview .hover-preview-panel img,
 .deck-side-preview .hover-preview-panel .card-art-missing {
   max-width: 100%;
-  max-height: 300px;
+  max-height: min(52vh, 560px);
   border-radius: 8px;
 }
 
@@ -672,6 +682,26 @@
 
 .deck-row-name {
   font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* Marks a deck that ships with the app. Beside the name rather than in the
+   sub-line, because it changes which buttons the row has — that is something
+   to notice before reaching for Delete and finding it missing. */
+.deck-row-tag {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(134, 79, 254, 0.7);
+  background: rgba(134, 79, 254, 0.14);
+  color: #b79dff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .deck-row-sub {

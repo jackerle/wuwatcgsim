@@ -178,7 +178,17 @@ const check = (name: string, ok: boolean, detail = "") => {
   s.boards.p1.hand = [encore];
   check("cost ปกติของ BP01-062 คือ 2", effectiveCost(s, encore, "p1") === 2, `${effectiveCost(s, encore, "p1")}`);
 
+  // Winning this turn's clash is not enough: Advantage only starts applying on
+  // the following turn, so the gate reads advantageId, not lastBattleWinnerId.
   s.lastBattleWinnerId = "p1";
+  const sameTurn = recomputeContinuous(s).state;
+  check(
+    "ชนะตัดสินเทิร์นนี้ -> cost ยังเป็น 2",
+    effectiveCost(sameTurn, encore, "p1") === 2,
+    `${effectiveCost(sameTurn, encore, "p1")}`
+  );
+
+  s.advantageId = "p1";
   const live = recomputeContinuous(s).state;
   check("ชนะรอบที่แล้ว -> cost ลดเหลือ 1", effectiveCost(live, encore, "p1") === 1, `${effectiveCost(live, encore, "p1")}`);
 
@@ -355,6 +365,9 @@ const check = (name: string, ok: boolean, detail = "") => {
   // BP01-039 puts a random card from the opponent's hand under their deck.
   const make = () => {
     const s = state();
+    // Both halves of "[Advantage] if you deal damage": the Advantage brought
+    // into the turn, and the win that is being judged right now.
+    s.advantageId = "p1";
     s.lastBattleWinnerId = "p1";
     s.boards.p2.hand = ["BP01-044", "BP01-045", "BP01-047", "BP01-049"].map(card);
     return s;

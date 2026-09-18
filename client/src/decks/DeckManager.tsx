@@ -5,10 +5,10 @@
 // screen rather than two that could drift apart.
 
 import { useState } from "react";
-import { deckIssues, deckSize, isDeckPlayable, type DeckList } from "@wuwatcg/shared";
+import { deckIssues, deckSize, isDeckPlayable, isStarterDeckId, type DeckList } from "@wuwatcg/shared";
 import { CardArt } from "../board/CardImage";
 import { ImagePreloadPill } from "../board/ImagePreloadPill";
-import { createDeck, deleteDeck, loadDecks, saveDeck } from "./storage";
+import { allDecks, createDeck, deleteDeck, saveDeck } from "./storage";
 import { portraitOf } from "./portraits";
 import { DeckBuilder } from "./DeckBuilder";
 import { useLang } from "../i18n/LanguageContext";
@@ -28,7 +28,11 @@ export function DeckManager({
   title?: string;
 }) {
   const { t } = useLang();
-  const [decks, setDecks] = useState<DeckList[]>(loadDecks);
+  // allDecks, not loadDecks: the built-in decks are not in storage, so every
+  // refresh of this list has to go back through the merge. saveDeck and
+  // deleteDeck hand back the STORED decks only — using their return value
+  // directly is what would make the starters vanish after any edit.
+  const [decks, setDecks] = useState<DeckList[]>(allDecks);
   const [editing, setEditing] = useState<DeckList | null>(null);
 
   if (editing) {
@@ -37,7 +41,8 @@ export function DeckManager({
         deck={editing}
         onCancel={() => setEditing(null)}
         onSave={(deck) => {
-          setDecks(saveDeck(deck));
+          saveDeck(deck);
+          setDecks(allDecks());
           setEditing(null);
         }}
       />
@@ -69,15 +74,26 @@ export function DeckManager({
             deck={deck}
             chosen={pickedId === deck.id}
             onPick={onPick}
-            onEdit={() => setEditing(deck)}
-            onDelete={() => setDecks(deleteDeck(deck.id))}
+            // A built-in deck has nothing to edit or delete: it lives in code,
+            // so a "delete" would appear to work and then come back on the
+            // next load. Duplicate is how you get one you can change.
+            onEdit={isStarterDeckId(deck.id) ? undefined : () => setEditing(deck)}
+            onDelete={
+              isStarterDeckId(deck.id)
+                ? undefined
+                : () => {
+                    deleteDeck(deck.id);
+                    setDecks(allDecks());
+                  }
+            }
             onDuplicate={() => {
               const copy = {
                 ...createDeck(`${deck.name} ${t("deckManager.copySuffix")}`),
                 characters: [...deck.characters],
                 cards: { ...deck.cards },
               };
-              setDecks(saveDeck(copy));
+              saveDeck(copy);
+              setDecks(allDecks());
             }}
           />
         ))}
@@ -97,8 +113,10 @@ function DeckRow({
   deck: DeckList;
   chosen: boolean;
   onPick?: (deck: DeckList) => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  /** Left out for a built-in deck, which cannot be changed in place. */
+  onEdit?: () => void;
+  /** Left out for a built-in deck, which cannot be removed. */
+  onDelete?: () => void;
   onDuplicate: () => void;
 }) {
   const { t, lang } = useLang();
@@ -129,7 +147,14 @@ function DeckRow({
       </div>
 
       <div className="deck-row-main">
-        <div className="deck-row-name">{deck.name}</div>
+        <div className="deck-row-name">
+          {deck.name}
+          {isStarterDeckId(deck.id) && (
+            <span className="deck-row-tag" title={t("deckManager.starterTitle")}>
+              {t("deckManager.starter")}
+            </span>
+          )}
+        </div>
         <div className="deck-row-sub">
           {deck.characters.length > 0 ? deck.characters.join(" · ") : t("deckManager.noCharacters")}
           {" — "}
@@ -143,15 +168,19 @@ function DeckRow({
       </span>
 
       <div className="deck-row-actions" onClick={(e) => e.stopPropagation()}>
-        <button type="button" onClick={onEdit}>
-          {t("deckManager.edit")}
-        </button>
+        {onEdit && (
+          <button type="button" onClick={onEdit}>
+            {t("deckManager.edit")}
+          </button>
+        )}
         <button type="button" onClick={onDuplicate}>
           {t("deckManager.duplicate")}
         </button>
-        <button type="button" className="danger" onClick={onDelete}>
-          {t("deckManager.delete")}
-        </button>
+        {onDelete && (
+          <button type="button" className="danger" onClick={onDelete}>
+            {t("deckManager.delete")}
+          </button>
+        )}
       </div>
     </div>
   );

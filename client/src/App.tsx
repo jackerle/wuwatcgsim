@@ -16,7 +16,7 @@ import { NetGame } from "./game/NetGame";
 import { MainMenu } from "./menu/MainMenu";
 import { PlayMenu } from "./menu/PlayMenu";
 import { DeckManager } from "./decks/DeckManager";
-import { loadDecks } from "./decks/storage";
+import { allDecks } from "./decks/storage";
 import { Lobby } from "./menu/Lobby";
 import { warmCardImages } from "./board/imagePreload";
 import { isSelfPlayPath, pathForScreen, screenFromPath, SELF_PLAY_PATH, type Screen } from "./routing";
@@ -201,7 +201,7 @@ export default function App() {
   return (
     <MainMenu
       playerName={playerName}
-      deckCount={loadDecks().length}
+      deckCount={allDecks().length}
       onNameChange={(name) => {
         setPlayerName(name);
         rememberName(name);

@@ -1,3 +1,4 @@
+import { KEYWORD_COLOR } from "@wuwatcg/shared";
 import type { ActionCard, CharacterCard, CharacterInstance, PlayerBoard } from "@wuwatcg/shared";
 import type { HoverPreviewCard } from "./HoverPreviewContext";
 import { CharacterSlot, type SlotActions } from "./CharacterSlot";
@@ -37,6 +38,8 @@ export function PlayerZone({
   mirrored,
   facedown,
   actionZone,
+  committed,
+  advantage,
   selectedHand,
   handSelectionMeans,
   onHandCardClick,
@@ -53,6 +56,13 @@ export function PlayerZone({
   facedown?: ActionCard | null;
   /** Cards turned face-up in the Action Area: the clash card, then follow-ups. */
   actionZone?: ActionCard[];
+  /** Has this player committed a card or chosen not to? Public in Battle. */
+  committed?: boolean;
+  /**
+   * Does this player hold [Advantage] for the turn being played? Public — it
+   * is decided by who won a battle both players watched.
+   */
+  advantage?: boolean;
   /** Hand positions picked out — see Hand. */
   selectedHand?: number[];
   /** What that selection means — see Hand's `selectionMeans`. */
@@ -90,10 +100,29 @@ export function PlayerZone({
         <OwnActionSlot
           facedown={facedown ?? null}
           revealed={actionZone ?? []}
+          committed={committed}
           hideFacedown={hideHand}
         />
         <Pile label="Deck" count={board.actionDeck.length} />
         <div className="stats-bar">
+          {/*
+            Above the name, and "Adv" in both languages rather than the
+            localized keyword: this row is narrow, and the Thai
+            "แอดวานเทจ" is long enough to push the name and Life
+            around when it appears mid-game. The colour still comes from
+            KEYWORD_COLOR, so the badge and the [Advantage] tag printed in
+            every ability's text can never drift to two purples. The tooltip
+            carries the full wording, in the player's own language.
+          */}
+          {advantage && (
+            <span
+              className="advantage-badge"
+              style={{ color: KEYWORD_COLOR.advantage }}
+              title={t("playerZone.advantageTitle")}
+            >
+              ◈Adv
+            </span>
+          )}
           <span className="player-name">{name}</span>
           <span className="stat" title="Life">
             ❤ {board.life}

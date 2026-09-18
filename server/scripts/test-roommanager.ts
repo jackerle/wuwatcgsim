@@ -81,7 +81,10 @@ async function run() {
       after?.session?.winnerId === "p1",
       String(after?.session?.winnerId)
     );
-    check("บันทึกไว้ว่าออกจากเกม", after!.session!.log.some((l) => l.includes("p2") && l.includes("left")));
+    check(
+      "บันทึกไว้ว่าออกจากเกม",
+      after!.session!.log.some((line) => line.en.includes("p2") && line.en.includes("left"))
+    );
     check("host ยังอยู่ในห้องคนเดียว", after?.room.players.length === 1);
     check(
       "ห้องยังอยู่ในสถานะ inMatch เพื่อให้เห็นบอร์ดจบเกม",

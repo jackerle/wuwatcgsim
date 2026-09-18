@@ -247,6 +247,7 @@ function createContext(
     state,
 
     wonLastBattle: () => state.lastBattleWinnerId === controllerId,
+    hasAdvantage: () => state.advantageId === controllerId,
     wonWith: (color) =>
       state.lastBattle?.winnerId === controllerId &&
       state.lastBattle.colorByPlayer[controllerId] === color,
@@ -916,8 +917,13 @@ export function conditionBlocking(
 ): string | null {
   const keywords = keywordsOf(condition);
 
-  if (keywords.includes("advantage") && !ctx.wonLastBattle()) {
-    return "Advantage: did not win the last battle";
+  // [Advantage] is a status carried INTO the turn, not "did I just win": a
+  // battle won this turn only starts paying out next turn. ctx.hasAdvantage()
+  // reads the turn's snapshot for exactly that reason — wonLastBattle() would
+  // already be true by the time [Judgement] and the Combo Step run, handing
+  // the winner their Advantage several steps early.
+  if (keywords.includes("advantage") && !ctx.hasAdvantage()) {
+    return "Advantage: did not hold Advantage coming into this turn";
   }
   // [Leader] reads differently depending on what it is printed on.
   //

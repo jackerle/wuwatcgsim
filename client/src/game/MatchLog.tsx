@@ -4,6 +4,7 @@
 // never silently dropped — it surfaces here with its printed text, so the
 // players can apply it themselves and the game keeps moving.
 
+import { useLayoutEffect, useRef } from "react";
 import { getCard, localize, type LogLine, type ResolvedEffect } from "@wuwatcg/shared";
 import { CardImage } from "../board/CardImage";
 import { EffectText } from "../board/EffectText";
@@ -78,10 +79,21 @@ export function MatchLog({
   names: Record<string, string>;
 }) {
   const { t, lang } = useLang();
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // A log is read as the present, not as a feed the player has to chase. New
+  // engine entries (and newly surfaced manual effects) therefore pin the
+  // scrollport to its newest line. The scroll element is this body, not the
+  // outer panel — Board.css gives this exact element overflow:auto.
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (body) body.scrollTop = body.scrollHeight;
+  }, [log, manual]);
+
   return (
     <div className="side-panel battlelog-panel">
       <div className="side-panel-header">Battle Log</div>
-      <div className="side-panel-body">
+      <div className="side-panel-body battlelog-body" ref={bodyRef}>
         {manual.length > 0 && (
           <div className="manual-effects">
             <h4>{t("matchLog.manualHeading")}</h4>

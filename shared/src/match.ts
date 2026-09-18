@@ -362,6 +362,15 @@ class Run {
       for (const line of entry.log) this.log.push(creditCard(line, entry.cardId));
     }
     if (result.pending) throw new Suspended(result.pending, null);
+
+    // A trigger may switch Leader, level a character up, return a character,
+    // or otherwise activate/deactivate a continuous source. Stat-dependent
+    // work immediately after it — Counter's clash calculation, Judgement's
+    // final primary damage and a Combo card's hit — must see that new board,
+    // not the passives from before the trigger fired. Keep this AFTER the
+    // pending check: a question replays the whole step from its original
+    // state, so settling a half-resolved trigger would corrupt the replay.
+    this.settle();
   }
 
   /**
@@ -678,6 +687,12 @@ function startTurn(run: Run): void {
 
   const turnPlayer = run.state.turnPlayerId;
   run.state = resetTurnLog(run.state);
+  // [Advantage] changes hands here and nowhere else. The battle that decided
+  // it was fought last turn, and winning it did NOT grant Advantage for the
+  // rest of that turn — this is the turn it starts counting. Snapshotting it
+  // is what keeps it still for the whole turn: this turn's clash overwrites
+  // lastBattleWinnerId before [Judgement] and the Combo Step run.
+  run.state.advantageId = run.state.lastBattleWinnerId;
   for (const board of Object.values(run.state.boards)) {
     board.actionsTakenThisTurn = [];
   }
@@ -1089,6 +1104,13 @@ function playCombo(run: Run, playerId: string, cardId: string): void {
 
   run.settle();
   run.fireOn("enter", sourceForCard(run.state, card, playerId));
+  // [Battle] (our `counter`) asks only that the card was PLAYED in the Battle
+  // phase, and a follow-up is played in it — so a card put down as a combo
+  // fires its [Battle] skill just as it would have on the reveal. Only
+  // [Judgement] is restricted to the one card that decided the clash.
+  // Raised for this card alone: the board-wide [Battle] skills already had
+  // their turn at the reveal and must not fire again per follow-up.
+  run.fireOn("counter", sourceForCard(run.state, card, playerId));
   run.fireOn("combo", sourceForCard(run.state, card, playerId));
 
   // A follow-up attack lands on its own, outside the colour clash: there is
@@ -1219,10 +1241,24 @@ function passCombo(run: Run, playerId: string): void {
 // --- End Phase -------------------------------------------------------------
 
 function endTurn(run: Run, playerId: string): void {
-  if (playerId !== run.state.turnPlayerId) run.reject("It is not your turn");
+  // The player holding the Combo window owns its last decision: they may
+  // continue attacking, pass, or press End to finish it. This can be the
+  // NON-turn player after winning the clash, so letting turnPlayer end it
+  // would let the losing side spend somebody else's follow-up window.
+  if (run.state.phase === "combo" && run.state.combo) {
+    if (playerId !== run.state.combo.playerId) {
+      run.reject("Only the combo player may end the Combo Step");
+    }
+  } else if (playerId !== run.state.turnPlayerId) {
+    // No combo owner remains in the ordinary End Phase: turn ownership rules
+    // take over as usual.
+    run.reject("It is not your turn");
+  }
+
   if (run.state.phase !== "end" && run.state.phase !== "combo") {
     run.reject("The turn is not finished yet");
   }
+
   run.state.phase = "end";
 
   run.fire("endTurn");
@@ -1303,6 +1339,28 @@ export function legalIntents(state: MatchState, playerId: string): MatchIntent["
   if (state.phase === "mulligan") {
     return state.mulliganDone[playerId] ? [] : ["mulligan"];
   }
+  // Combo is the single phase whose owner may differ from turnPlayer. Check
+  // it BEFORE the ordinary turn gate: a non-turn player can win the clash,
+  // and still owns every decision that follows — including the exit when an
+  // effect makes another follow-up illegal.
+  if (state.phase === "combo") {
+    if (state.combo) {
+      if (state.combo.playerId !== playerId) return [];
+      const canFollow =
+        (state.combo.unlimited || state.combo.remaining > 0) &&
+        !isRestricted(state, playerId, "noCombo") &&
+        !isRestricted(state, playerId, "noFollowUp");
+      // Do NOT hide both exits when a restriction applies. `noCombo` and
+      // `noFollowUp` only forbid playing another card; their owner must still
+      // be able to pass the window or press End, otherwise the phase has no
+      // legal way out.
+      return canFollow ? ["combo", "passCombo", "endTurn"] : ["passCombo", "endTurn"];
+    }
+    // A clash can reach this phase with no follow-up window at all. Then it
+    // is merely the tail of the turn and the turn player ends it.
+    return playerId === state.turnPlayerId ? ["endTurn"] : [];
+  }
+
   if (playerId !== state.turnPlayerId) return [];
 
   // "mulligan" is already gone by here, handled above.
@@ -1325,10 +1383,6 @@ export function legalIntents(state: MatchState, playerId: string): MatchIntent["
       if (everyoneChose) return ["resolveCounter"];
       return state.committed[playerId] ? [] : ["commit", "pass"];
     }
-    case "combo":
-      return state.combo?.playerId === playerId
-        ? ["combo", "passCombo", "endTurn"]
-        : ["endTurn"];
     case "end":
       return ["endTurn"];
   }

@@ -12,17 +12,32 @@ import { useLang } from "../i18n/LanguageContext";
 export function OwnActionSlot({
   facedown,
   revealed,
+  committed = false,
   hideFacedown,
 }: {
   /** Committed but not yet turned up. */
   facedown: ActionCard | null;
   /** Turned up, oldest first: the clash card then its follow-ups. */
   revealed: ActionCard[];
+  /** Player has chosen a card or explicitly passed this Battle Phase. */
+  committed?: boolean;
   /** True for the opponent's side — a committed card shows only its back. */
   hideFacedown?: boolean;
 }) {
   const { t } = useLang();
   const cards = revealed.length > 0 ? revealed : [];
+  // This label is deliberately public-state only. It makes both sides of the
+  // clash legible at a glance — including an opponent who has passed — while
+  // CardImage/the card back still protects which card they chose until the
+  // Judgement Phase turns it up.
+  const status =
+    cards.length > 0
+      ? t("ownActionSlot.revealed", cards.length)
+      : facedown
+        ? t("ownActionSlot.committed")
+        : committed
+          ? t("ownActionSlot.passed")
+          : null;
 
   return (
     <div className="own-action-slot">
@@ -69,7 +84,10 @@ export function OwnActionSlot({
           <div className="action-slot-card empty" />
         )}
       </div>
-      <span className="action-slot-label">Action Area</span>
+      <span className="action-slot-label">
+        {t("ownActionSlot.label")}
+        {status && <small className="action-slot-status"> · {status}</small>}
+      </span>
     </div>
   );
 }

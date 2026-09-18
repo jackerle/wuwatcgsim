@@ -318,6 +318,17 @@
   font-size: var(--board-text);
   opacity: 0.6;
   letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* The short public status makes both sides of Battle/Judgement readable: a
+   face-down opponent remains hidden, but "committed", "passed" and revealed
+   card counts are deliberately public table information. */
+.action-slot-status {
+  color: #b9c6e8;
+  opacity: 0.95;
+  font-size: calc(var(--board-text) * 0.94);
+  letter-spacing: 0;
 }
 
 .stats-bar {
@@ -338,6 +349,22 @@
   font-size: calc(var(--board-text) * 1.5);
   opacity: 0.9;
   white-space: nowrap;
+}
+
+/* Tops .stats-bar, above the player's name, and only while that player
+   actually holds it — an always-present badge that greys out would make the
+   two boards look identical at a glance, which is the one thing this is for.
+   The text colour comes from KEYWORD_COLOR in PlayerZone; only the frame is
+   here, tinted off the same purple. */
+.advantage-badge {
+  font-size: calc(var(--board-text) * 1.2);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(134, 79, 254, 0.75);
+  background: rgba(134, 79, 254, 0.16);
 }
 
 /* --- Characters row: leader raised in front, back characters behind --- */
