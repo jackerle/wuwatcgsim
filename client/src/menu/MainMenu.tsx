@@ -1,5 +1,7 @@
 // The front door: play, or build a deck.
 
+import { useLang } from "../i18n/LanguageContext";
+import { LanguageSwitch } from "./LanguageSwitch";
 import "./MainMenu.css";
 
 export function MainMenu({
@@ -17,18 +19,21 @@ export function MainMenu({
   onHotseat: () => void;
   deckCount: number;
 }) {
+  const { t } = useLang();
+
   return (
     <main className="page menu-page">
+      <LanguageSwitch />
       <div className="menu">
         <h1 className="menu-title">WuWa TCG</h1>
-        <p className="menu-sub">Wuthering Waves TCG Simulator</p>
+        <p className="menu-sub">{t("mainMenu.subtitle")}</p>
 
         <label className="menu-name">
-          ชื่อผู้เล่น
+          {t("mainMenu.playerNameLabel")}
           <input
             value={playerName}
             onChange={(e) => onNameChange(e.target.value)}
-            placeholder="ใส่ชื่อของคุณ"
+            placeholder={t("mainMenu.playerNamePlaceholder")}
             maxLength={20}
           />
         </label>
@@ -38,11 +43,11 @@ export function MainMenu({
           className="menu-button primary"
           onClick={onPlay}
           disabled={!playerName.trim()}
-          title={playerName.trim() ? undefined : "ใส่ชื่อก่อน"}
+          title={playerName.trim() ? undefined : t("mainMenu.needNameTitle")}
         >
           <span className="menu-button-text">
             <span className="menu-button-label">Play</span>
-            <span className="menu-button-sub">หาห้อง หรือสร้างห้องใหม่</span>
+            <span className="menu-button-sub">{t("mainMenu.playSub")}</span>
           </span>
           <img className="menu-button-art" src="/cards/rover_f.webp" alt="" aria-hidden="true" />
         </button>
@@ -51,16 +56,20 @@ export function MainMenu({
           <span className="menu-button-text">
             <span className="menu-button-label">Deck</span>
             <span className="menu-button-sub">
-              {deckCount > 0 ? `จัดเด็ค — มีอยู่ ${deckCount} เด็ค` : "จัดเด็ค — ยังไม่มีเด็ค"}
+              {deckCount > 0 ? t("mainMenu.deckSubWithCount", deckCount) : t("mainMenu.deckSubEmpty")}
             </span>
           </span>
           <img className="menu-button-art" src="/cards/rover_m.webp" alt="" aria-hidden="true" />
         </button>
 
         <button type="button" className="menu-link" onClick={onHotseat}>
-          เล่นสองฝั่งบนจอนี้ (ไม่ต้องมีคู่)
+          {t("mainMenu.hotseat")}
         </button>
       </div>
+
+      <p className="menu-credit">
+        {t("mainMenu.credit")} <a href="mailto:zeustololisis@gmail.com">zeustololisis@gmail.com</a>
+      </p>
     </main>
   );
 }

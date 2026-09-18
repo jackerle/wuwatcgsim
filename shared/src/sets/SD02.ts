@@ -24,7 +24,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["leader", "counter"],
-        text: { th: "[Leader] [Counter] หาก counter ด้วยการ์ดสีเขียว สามารถแสดงการ์ด 2 ใบบนสุดของเด็ค จากนั้นนำขึ้นมือ" },
+        text: {
+          th: "[Leader] [Counter] หาก counter ด้วยการ์ดสีเขียว สามารถแสดงการ์ด 2 ใบบนสุดของเด็ค จากนั้นนำขึ้นมือ",
+          en: "[Leader] [Counter] If you counter with a green card, you may reveal the top 2 cards of your deck, then take them to hand",
+        },
         resolve: (ctx) => {
           if (!(ctx.lastPlayedColor() === "green")) return;
           const revealed = ctx.revealTop(2);
@@ -52,7 +55,7 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["leader", "counter"],
-        text: { th: "[Leader] [Counter] หาก counter ด้วยการ์ดสีแดง ทำ 1 ดาเมจใส่ฝ่ายตรงข้าม" },
+        text: { th: "[Leader] [Counter] หาก counter ด้วยการ์ดสีแดง ทำ 1 ดาเมจใส่ฝ่ายตรงข้าม", en: "[Leader] [Counter] If you counter with a red card, deal 1 damage to your opponent" },
         resolve: (ctx) => { if (ctx.lastPlayedColor() === "red") ctx.damage(1); },
       },
     ],
@@ -72,7 +75,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["leader", "counter"],
-        text: { th: "[Leader] [Counter] หาก counter ด้วยการ์ดสีฟ้า สามารถนำการ์ด 1 ใบบนสุดของเด็ควางที่ Concerto area" },
+        text: {
+          th: "[Leader] [Counter] หาก counter ด้วยการ์ดสีฟ้า สามารถนำการ์ด 1 ใบบนสุดของเด็ควางที่ Concerto area",
+          en: "[Leader] [Counter] If you counter with a blue card, you may put the top card of your deck into the Concerto area",
+        },
         resolve: (ctx) => {
           if (!(ctx.lastPlayedColor() === "blue")) return;
           if (ctx.board().actionDeck.length === 0) return;
@@ -102,7 +108,7 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["leader", "endTurn"],
-        text: { th: "[Leader] [At end of each turn] จั่วการ์ด 1 ใบ" },
+        text: { th: "[Leader] [At end of each turn] จั่วการ์ด 1 ใบ", en: "[Leader] [At end of each turn] Draw 1 card" },
         resolve: (ctx) => ctx.draw(1),
       },
     ],
@@ -121,7 +127,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Leader] [Judgement] หากแพ้ให้กับการ์ดสีแดงในการเล่นการ์ดสีเขียว สามารถแสดงการ์ด 1 ใบบนสุดของเด็ค จากนั้นนำขึ้นมือ" },
+        text: {
+          th: "[Leader] [Judgement] หากแพ้ให้กับการ์ดสีแดงในการเล่นการ์ดสีเขียว สามารถแสดงการ์ด 1 ใบบนสุดของเด็ค จากนั้นนำขึ้นมือ",
+          en: "[Leader] [Judgement] If a green card of yours loses to a red card, you may reveal the top card of your deck, then take it to hand",
+        },
         resolve: (ctx) => {
           if (!(ctx.lostTo("red") && ctx.lastPlayedColor() === "green")) return;
           const revealed = ctx.revealTop(1);
@@ -149,7 +158,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["leader", "endTurn"],
-        text: { th: "[Leader] [At end of each turn] นำการ์ดใบบนสุดของเด็ควางที่ Concerto area" },
+        text: {
+          th: "[Leader] [At end of each turn] นำการ์ดใบบนสุดของเด็ควางที่ Concerto area",
+          en: "[Leader] [At end of each turn] Put the top card of your deck into the Concerto area",
+        },
         resolve: (ctx) => {
           ctx.topToConcerto(1);
         },
@@ -170,7 +182,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Leader] [Judgement] หากแพ้ให้กับการ์ดสีเขียวในการเล่นการ์ดสีฟ้า สามารถแสดงการ์ด 1 ใบบนสุดของเด็ค จากนั้นนำขึ้นมือ" },
+        text: {
+          th: "[Leader] [Judgement] หากแพ้ให้กับการ์ดสีเขียวในการเล่นการ์ดสีฟ้า สามารถแสดงการ์ด 1 ใบบนสุดของเด็ค จากนั้นนำขึ้นมือ",
+          en: "[Leader] [Judgement] If a blue card of yours loses to a green card, you may reveal the top card of your deck, then take it to hand",
+        },
         resolve: (ctx) => {
           if (!(ctx.lostTo("green") && ctx.lastPlayedColor() === "blue")) return;
           const revealed = ctx.revealTop(1);
@@ -208,7 +223,10 @@ export const SD02: CardDef[] = [
         // ability being handed out (see `grants` above), not to this one.
         // Handing it out is continuous — true for as long as Jinshi leads.
         condition: ["leader"],
-        text: { th: "[Leader] การ์ดสีแดงของคุณได้รับ “[Combo] การ์ดมบนี้ได้รับ +1 ดาเมจ”" },
+        text: {
+          th: "[Leader] การ์ดสีแดงของคุณได้รับ “[Combo] การ์ดมบนี้ได้รับ +1 ดาเมจ”",
+          en: "[Leader] Your red cards gain “[Combo] This card gains +1 damage”",
+        },
         resolve: (ctx) =>
             ctx.grantEffect({ color: "red" }, "comboBoost", "whileActive"),
       },
@@ -228,7 +246,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Leader] [Judgement] หากแพ้ให้กับการ์ดสีฟ้าในการเล้นการ์ดสีแดง สามารถแสดงการ์ด 1 ใบบนสุดของเด็ค จากนั้นนำขึ้นมือ" },
+        text: {
+          th: "[Leader] [Judgement] หากแพ้ให้กับการ์ดสีฟ้าในการเล้นการ์ดสีแดง สามารถแสดงการ์ด 1 ใบบนสุดของเด็ค จากนั้นนำขึ้นมือ",
+          en: "[Leader] [Judgement] If a red card of yours loses to a blue card, you may reveal the top card of your deck, then take it to hand",
+        },
         resolve: (ctx) => {
           if (!(ctx.lostTo("blue") && ctx.lastPlayedColor() === "red")) return;
           const revealed = ctx.revealTop(1);
@@ -287,7 +308,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["combo"],
-        text: { th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น Jinshi การใบนี้ได้รับ +2 ดาเมจ" },
+        text: {
+          th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น Jinshi การใบนี้ได้รับ +2 ดาเมจ",
+          en: "[Combo] Switch Leaders; if you switch to Jinshi, this card gains +2 damage",
+        },
         resolve: (ctx) => {
             const back = ctx.board().back;
             if (back.length === 0) return;
@@ -321,13 +345,16 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["counter"],
-        text: { th: "[Counter] ในเทิร์นนี้ ไม่สามารถสลับ Leader ได้" },
+        text: { th: "[Counter] ในเทิร์นนี้ ไม่สามารถสลับ Leader ได้", en: "[Counter] This turn, you cannot switch Leaders" },
         resolve: (ctx) => ctx.restrict("noLeaderSwitch"),
       },
       {
         condition: ["judgement", "follow"],
         followCount: 8,
-        text: { th: "[Judgement] หากชนะ จั่วการ์ด 3 ใบ ได้รับ +8[follow-up attack]" },
+        text: {
+          th: "[Judgement] หากชนะ จั่วการ์ด 3 ใบ ได้รับ +8[follow-up attack]",
+          en: "[Judgement] If you win, draw 3 cards and gain +8 [follow-up attack]",
+        },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
             ctx.draw(3);
@@ -353,7 +380,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["leader", "combo"],
-        text: { th: "[Leader Skill] [Combo] หากใน Action area มีการ์ด 3 ใบหรือมากกว่า การ์ดใบนี้ได้รับ +3 ดาเมจ" },
+        text: {
+          th: "[Leader Skill] [Combo] หากใน Action area มีการ์ด 3 ใบหรือมากกว่า การ์ดใบนี้ได้รับ +3 ดาเมจ",
+          en: "[Leader Skill] [Combo] If your Action area has 3 or more cards, this card gains +3 damage",
+        },
         resolve: (ctx) => {
             if (ctx.actionZone().length >= 3) ctx.buff({ cardId: ctx.self.id }, "attack", 3, "battle");
           },
@@ -392,7 +422,7 @@ export const SD02: CardDef[] = [
       {
         condition: ["judgement", "follow"],
         followCount: 2,
-        text: { th: "[Judgement] หากชนะ ได้รับ 2[follow-up attack]" },
+        text: { th: "[Judgement] หากชนะ ได้รับ 2[follow-up attack]", en: "[Judgement] If you win, gain +2 [follow-up attack]" },
         resolve: (ctx) => { if (ctx.wonLastBattle()) ctx.grantFollowUp(2); },
       },
     ],
@@ -413,7 +443,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["combo"],
-        text: { th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น Sanhua นำการ์ด 1 ใบบนสุดของเด็ควางที่ Concerto area" },
+        text: {
+          th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น Sanhua นำการ์ด 1 ใบบนสุดของเด็ควางที่ Concerto area",
+          en: "[Combo] Switch Leaders; if you switch to Sanhua, put the top card of your deck into the Concerto area",
+        },
         resolve: (ctx) => {
             const back = ctx.board().back;
             if (back.length === 0) return;
@@ -447,7 +480,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Leader Skill] [Judgement] หากชนะ นำการ์ด 2 ใบบนสุดของเด็ควางที่ Concerto area" },
+        text: {
+          th: "[Leader Skill] [Judgement] หากชนะ นำการ์ด 2 ใบบนสุดของเด็ควางที่ Concerto area",
+          en: "[Leader Skill] [Judgement] If you win, put the top 2 cards of your deck into the Concerto area",
+        },
         resolve: (ctx) => {
           if (!(ctx.wonLastBattle())) return;
           ctx.topToConcerto(2);
@@ -472,7 +508,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Leader Skill] [Judgement] หากชนะ ในรอบถัดไปฝ่ายตรงข้ามไม่สามารถใช้โจมตีต่อเนื่องได้" },
+        text: {
+          th: "[Leader Skill] [Judgement] หากชนะ ในรอบถัดไปฝ่ายตรงข้ามไม่สามารถใช้โจมตีต่อเนื่องได้",
+          en: "[Leader Skill] [Judgement] If you win, your opponent cannot Combo next round",
+        },
         resolve: (ctx) => {
             if (ctx.wonLastBattle()) ctx.restrictNextTurn("noFollowUp", ctx.opponentId);
           },
@@ -510,7 +549,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["judgement"],
-        text: { th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ จากนั้นทิ้งการ์ดในมือ 1 ใบ" },
+        text: {
+          th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ จากนั้นทิ้งการ์ดในมือ 1 ใบ",
+          en: "[Judgement] If you win, draw 1 card, then discard 1 card from hand",
+        },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
             ctx.draw(1);
@@ -536,7 +578,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["combo"],
-        text: { th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น Rover (M) จั่วการ์ด 1 ใบ" },
+        text: {
+          th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น Rover (M) จั่วการ์ด 1 ใบ",
+          en: "[Combo] Switch Leaders; if you switch to Rover (M), draw 1 card",
+        },
         resolve: (ctx) => {
             const back = ctx.board().back;
             if (back.length === 0) return;
@@ -570,7 +615,10 @@ export const SD02: CardDef[] = [
     effects: [
       {
         condition: ["judgement"],
-        text: { th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ ฝ่ายตรงข้ามแสดงการ์ดในมือ" },
+        text: {
+          th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ ฝ่ายตรงข้ามแสดงการ์ดในมือ",
+          en: "[Judgement] If you win, draw 1 card and your opponent reveals their hand",
+        },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
             ctx.draw(1);
@@ -596,7 +644,10 @@ export const SD02: CardDef[] = [
       {
         condition: ["judgement", "follow"],
         followCount: 2,
-        text: { th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ ได้รับ +2[follow-up attack]" },
+        text: {
+          th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ ได้รับ +2[follow-up attack]",
+          en: "[Judgement] If you win, draw 1 card and gain +2 [follow-up attack]",
+        },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
             ctx.draw(1);

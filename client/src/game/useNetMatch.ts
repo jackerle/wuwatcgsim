@@ -10,7 +10,8 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 import type { ChoiceAnswer, MatchIntent, Seat } from "@wuwatcg/shared";
 import { socket } from "../socket";
 import { getSnapshot, subscribe } from "./matchStore";
-import { SEAT_FALLBACK_NAMES, type MatchController } from "./matchController";
+import { seatFallbackNames, type MatchController } from "./matchController";
+import { useLang } from "../i18n/LanguageContext";
 
 export interface NetMatchOptions {
   /** Only the host may deal a new game. */
@@ -19,6 +20,7 @@ export interface NetMatchOptions {
 
 /** Null until the server has sent a board — there is nothing to draw before. */
 export function useNetMatch({ isHost }: NetMatchOptions): MatchController | null {
+  const { lang } = useLang();
   // The store is listening from module load, so whatever arrived before this
   // screen mounted is already here.
   const { update, chat } = useSyncExternalStore(subscribe, getSnapshot);
@@ -45,7 +47,7 @@ export function useNetMatch({ isHost }: NetMatchOptions): MatchController | null
       manual: update.manual,
       log: update.log,
       error: update.error,
-      names: { ...SEAT_FALLBACK_NAMES, ...update.names },
+      names: { ...seatFallbackNames(lang), ...update.names },
       connected: update.connected,
       viewing: update.seat,
       setViewing,
@@ -62,5 +64,5 @@ export function useNetMatch({ isHost }: NetMatchOptions): MatchController | null
       chat,
       sendChat,
     };
-  }, [update, chat, isHost, send, answer, cancel, restart, sendChat, setViewing]);
+  }, [update, chat, isHost, send, answer, cancel, restart, sendChat, setViewing, lang]);
 }

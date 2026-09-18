@@ -124,8 +124,8 @@ const ENCORE = ["BP01-015", "BP01-013", "BP01-030", "BP01-033"].map(character);
   check("แจกแล้วอยู่ที่เฟสเปลี่ยนการ์ด", session.state.phase === "mulligan", session.state.phase);
   check(
     "log บอกว่าใครเริ่มก่อน",
-    session.log.some((line) => line.includes(session.state.startingPlayerId)),
-    session.log[0] ?? ""
+    session.log.some((line) => line.th.includes(session.state.startingPlayerId)),
+    session.log[0]?.th ?? ""
   );
   check(
     "ระหว่างเปลี่ยนการ์ด เริ่มเทิร์นไม่ได้",
@@ -324,8 +324,8 @@ function withQuestion(): MatchSession {
   check("ฝ่ายที่เหลือชนะ", session.winnerId === "p1", String(session.winnerId));
   check(
     "บันทึกลง log ว่าออกจากเกม",
-    session.log.some((line) => line.includes("p2") && line.includes("left")),
-    session.log.at(-1) ?? ""
+    session.log.some((line) => line.en.includes("p2") && line.en.includes("left")),
+    session.log.at(-1)?.en ?? ""
   );
 }
 

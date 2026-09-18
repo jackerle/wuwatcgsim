@@ -3,7 +3,11 @@
 // The rules all live in shared/src/deckList.ts — this screen only shows what
 // is legal and why not. deckIssues() is the single source of "can you play
 // this", and the same function runs on the server when the deck is handed
-// in, so a deck that looks legal here cannot be refused there.
+// in, so a deck that looks legal here cannot be refused there. It takes the
+// current language and returns its messages already translated — the server
+// calls it with no language (it has no player preference to hand, and that
+// path is a rare fallback since this screen already filters to playable
+// decks before a submission ever reaches it), so its default stays Thai.
 
 import { useMemo, useState } from "react";
 import {
@@ -26,6 +30,8 @@ import { HoverPreviewPanel } from "../board/HoverPreviewPanel";
 import { DetailPanel } from "../board/DetailPanel";
 import { ImagePreloadPill } from "../board/ImagePreloadPill";
 import { portraitOf } from "./portraits";
+import { ShareDeckDialog } from "./ShareDeckDialog";
+import { useLang } from "../i18n/LanguageContext";
 import "./DeckBuilder.css";
 
 const CHARACTERS = playableCharacters();
@@ -55,12 +61,14 @@ function Builder({
   onSave: (deck: DeckList) => void;
   onCancel: () => void;
 }) {
+  const { t, lang } = useLang();
   const [deck, setDeck] = useState<DeckList>(initial);
   const [transfer, setTransfer] = useState<"import" | "export" | null>(null);
+  const [sharing, setSharing] = useState(false);
   const { setHovered } = useHoverPreview();
 
   const pool = useMemo(() => cardPoolFor(deck.characters), [deck.characters]);
-  const issues = useMemo(() => deckIssues(deck), [deck]);
+  const issues = useMemo(() => deckIssues(deck, lang), [deck, lang]);
   const size = deckSize(deck);
 
   function toggleCharacter(name: string) {
@@ -102,7 +110,7 @@ function Builder({
             className="deck-name"
             value={deck.name}
             onChange={(e) => setDeck({ ...deck, name: e.target.value })}
-            placeholder="ชื่อเด็ค"
+            placeholder={t("deckBuilder.namePlaceholder")}
           />
           <span className={`deck-count ${issues.length === 0 ? "ok" : ""}`}>
             {size}/40
@@ -115,18 +123,21 @@ function Builder({
           <button type="button" onClick={() => setTransfer("export")}>
             Export
           </button>
+          <button type="button" onClick={() => setSharing(true)}>
+            {t("deckBuilder.share")}
+          </button>
           <button type="button" onClick={onCancel}>
-            ยกเลิก
+            {t("common.cancel")}
           </button>
           <button type="button" className="primary" onClick={() => onSave(deck)}>
-            บันทึก
+            {t("common.save")}
           </button>
         </header>
 
         <div className="deck-body">
           <section className="deck-main">
             <h3 className="deck-heading">
-              ตัวละคร ({deck.characters.length}/{CHARACTERS_IN_PLAY})
+              {t("deckBuilder.characters", deck.characters.length, CHARACTERS_IN_PLAY)}
             </h3>
             <div className="character-picker">
               {CHARACTERS.map((name) => {
@@ -139,7 +150,7 @@ function Builder({
                     type="button"
                     className={`character-chip ${picked ? "picked" : ""} ${full ? "full" : ""}`}
                     disabled={full}
-                    title={full ? `เลือกได้ ${CHARACTERS_IN_PLAY} ตัวเท่านั้น` : undefined}
+                    title={full ? t("deckBuilder.maxCharactersTitle", CHARACTERS_IN_PLAY) : undefined}
                     onMouseEnter={() =>
                       art &&
                       setHovered({ cardId: art.id, imageId: art.imageId, name, kind: "character", level: 0 })
@@ -161,17 +172,18 @@ function Builder({
             {deck.characters.length > 0 && (
               <>
                 <p className="deck-note">
-                  การ์ดตัวละคร {chosenCharacterCards.length} ใบ (ทุกเลเวลของทั้งสามตัว) ถูกใส่ให้อัตโนมัติ
+                  {t("deckBuilder.characterCardsNote", chosenCharacterCards.length)}
                 </p>
                 <LeaderLevels characters={deck.characters} onHover={setHovered} />
               </>
             )}
 
             <h3 className="deck-heading">
-              การ์ดที่เลือกได้ {pool.length > 0 && <small>({pool.length} แบบ)</small>}
+              {t("deckBuilder.availableCards")}{" "}
+              {pool.length > 0 && <small>{t("deckBuilder.availableCardsCount", pool.length)}</small>}
             </h3>
             {deck.characters.length === 0 ? (
-              <p className="deck-empty">เลือกตัวละครก่อน แล้วการ์ดของพวกเขาจะขึ้นมาให้เลือก</p>
+              <p className="deck-empty">{t("deckBuilder.pickCharactersFirst")}</p>
             ) : (
               <div className="card-pool">
                 {pool.map((card) => (
@@ -196,7 +208,7 @@ function Builder({
             </div>
             <div className="deck-side-issues">
               {issues.length === 0 ? (
-                <p className="deck-ok">เด็คนี้พร้อมเล่นแล้ว</p>
+                <p className="deck-ok">{t("deckBuilder.deckReady")}</p>
               ) : (
                 <ul>
                   {issues.map((issue) => (
@@ -223,6 +235,8 @@ function Builder({
           }}
         />
       )}
+
+      {sharing && <ShareDeckDialog deck={deck} onClose={() => setSharing(false)} />}
     </main>
   );
 }
@@ -241,11 +255,12 @@ function LeaderLevels({
   characters: readonly string[];
   onHover: ReturnType<typeof useHoverPreview>["setHovered"];
 }) {
+  const { t } = useLang();
   if (characters.length === 0) return null;
 
   return (
     <div className="leader-levels">
-      <h3 className="deck-heading">เลเวลของตัวละคร</h3>
+      <h3 className="deck-heading">{t("deckBuilder.leaderLevelsHeading")}</h3>
       <div className="leader-levels-rows">
         {characters.map((name) => {
           const levels = [...cardsFor(name).characters].sort((a, b) => a.level - b.level);
@@ -292,6 +307,7 @@ function PoolCard({
   onChange: (copies: number) => void;
   onHover: ReturnType<typeof useHoverPreview>["setHovered"];
 }) {
+  const { t } = useLang();
   const preview = {
     cardId: card.id,
     imageId: card.imageId,
@@ -316,7 +332,11 @@ function PoolCard({
         className="pool-card-art"
         onClick={() => onChange(copies + 1)}
         disabled={copies >= MAX_COPIES_PER_CARD}
-        title={copies >= MAX_COPIES_PER_CARD ? `สูงสุด ${MAX_COPIES_PER_CARD} ใบ` : "เพิ่ม 1 ใบ"}
+        title={
+          copies >= MAX_COPIES_PER_CARD
+            ? t("deckBuilder.maxCopiesTitle", MAX_COPIES_PER_CARD)
+            : t("deckBuilder.addOneTitle")
+        }
       >
         <CardArt card={preview} />
         <span className={`pool-card-cost color-${card.color}`}>{card.cost}</span>
@@ -353,6 +373,7 @@ function TransferDialog({
   onClose: () => void;
   onImport: (deck: DeckList) => void;
 }) {
+  const { t } = useLang();
   const [text, setText] = useState(mode === "export" ? formatDeck(deck) : "");
   const [errors, setErrors] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
@@ -372,9 +393,10 @@ function TransferDialog({
   return (
     <div className="deck-dialog-backdrop" role="dialog" aria-modal="true">
       <div className="deck-dialog">
-        <h3>{mode === "export" ? "Export เด็ค" : "Import เด็ค"}</h3>
+        <h3>{mode === "export" ? t("deckBuilder.exportTitle") : t("deckBuilder.importTitle")}</h3>
         <p className="deck-dialog-hint">
-          หนึ่งบรรทัดต่อการ์ด เช่น <code>BP01-001x1</code> หรือ <code>SD01-010x3</code>
+          {t("deckBuilder.transferHintPrefix")} <code>BP01-001x1</code> {t("deckBuilder.transferHintOr")}{" "}
+          <code>SD01-010x3</code>
         </p>
         <textarea
           className="deck-dialog-text"
@@ -393,7 +415,7 @@ function TransferDialog({
         )}
         <div className="deck-dialog-actions">
           <button type="button" onClick={onClose}>
-            ปิด
+            {t("common.close")}
           </button>
           {mode === "export" ? (
             <button
@@ -404,11 +426,11 @@ function TransferDialog({
                 setCopied(true);
               }}
             >
-              {copied ? "คัดลอกแล้ว" : "คัดลอก"}
+              {copied ? t("deckBuilder.copied") : t("deckBuilder.copy")}
             </button>
           ) : (
             <button type="button" className="primary" onClick={runImport} disabled={!text.trim()}>
-              นำเข้า
+              {t("deckBuilder.doImport")}
             </button>
           )}
         </div>

@@ -6,6 +6,7 @@ import { Hand } from "./Hand";
 import { ChargeArea } from "./ChargeArea";
 import { OwnActionSlot } from "./OwnActionSlot";
 import { Pile } from "./Pile";
+import { useLang } from "../i18n/LanguageContext";
 
 function toActionPreview(card: ActionCard): HoverPreviewCard {
   return {
@@ -72,6 +73,7 @@ export function PlayerZone({
   /** What each card in hand can be told to do — see Hand. */
   handMenuFor?: (card: ActionCard, index: number) => CardMenuItem[] | undefined;
 }) {
+  const { t } = useLang();
   const poolCards = board.characterPool.map(toCharacterPreview);
   const trashCards = board.trash.map(toActionPreview);
 
@@ -112,7 +114,7 @@ export function PlayerZone({
               <CharacterSlot
                 key={slot?.card.id ?? `empty-${index}`}
                 slot={slot}
-                label={index === 1 ? "Leader" : "หลัง"}
+                label={index === 1 ? "Leader" : t("common.back.position")}
                 actions={slot ? actionsFor?.(slot) : undefined}
               />
             )

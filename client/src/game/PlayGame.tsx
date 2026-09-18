@@ -32,10 +32,12 @@ import { ChatPanel } from "../board/ChatPanel";
 import { ControlBar } from "./ControlBar";
 import { MatchLog } from "./MatchLog";
 import type { MatchController } from "./matchController";
+import { useLang } from "../i18n/LanguageContext";
 import "../board/Board.css";
 import "./PlayGame.css";
 
 export function PlayGame({ match, children }: { match: MatchController; children?: React.ReactNode }) {
+  const { t } = useLang();
   // Hand POSITIONS, not card ids — several copies of one printed card can sit
   // in a hand at once, and picking one must not light up the others.
   const [selected, setSelected] = useState<number[]>([]);
@@ -162,8 +164,8 @@ export function PlayGame({ match, children }: { match: MatchController; children
     if (turnPlayer === bottom && legalIntents(state, bottom).includes("charge")) {
       items.push({
         key: "charge",
-        label: "ชาร์จ",
-        hint: `เก็บเป็นพลังงาน (เทิร์นละ ${CHARGE_PER_TURN} ใบ)`,
+        label: t("playGame.chargeLabel"),
+        hint: t("playGame.chargeHint", CHARGE_PER_TURN),
         onPick: () => send(bottom, { kind: "charge", cardIds: [card.id] }),
       });
     }
@@ -171,8 +173,8 @@ export function PlayGame({ match, children }: { match: MatchController; children
     if (canCommit(state, bottom) && !blocked) {
       items.push({
         key: "commit",
-        label: "ลงคว่ำ",
-        hint: "เข้าเฟสประลอง — เปิดพร้อมกันทั้งสองฝ่าย",
+        label: t("playGame.commitLabel"),
+        hint: t("playGame.commitHint"),
         onPick: () => send(bottom, { kind: "commit", cardId: card.id }),
       });
     }
@@ -184,7 +186,7 @@ export function PlayGame({ match, children }: { match: MatchController; children
   };
 
   const label = (seat: Seat) => {
-    const offline = match.connected[seat] === false ? " · หลุด" : "";
+    const offline = match.connected[seat] === false ? t("playGame.offlineSuffix") : "";
     const turn = turnPlayer === seat ? (seat === bottom ? "" : "") : "";
     return `${nameOf(seat)}${turn}${offline}`;
   };
@@ -237,12 +239,12 @@ export function PlayGame({ match, children }: { match: MatchController; children
                   control bar's row rather than adding a second one. */}
               {match.canFlip && (
                 <button type="button" onClick={() => match.setViewing(top)}>
-                  ดูมือ {nameOf(top)}
+                  {t("playGame.viewHand", nameOf(top))}
                 </button>
               )}
               {match.canRestart && (
                 <button type="button" onClick={() => match.restart()}>
-                  เกมใหม่
+                  {t("playGame.newGame")}
                 </button>
               )}
               {children}

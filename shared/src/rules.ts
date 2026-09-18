@@ -15,7 +15,7 @@ import {
   type PlayerBoard,
   type TurnPhase,
 } from "./game";
-import { LOG } from "./log";
+import { LOG, type LogLine } from "./log";
 
 // --- Deck building ---------------------------------------------------------
 
@@ -107,7 +107,7 @@ export function drawCount(turnNumber: number, isStartingPlayer: boolean): number
  * trash in underneath while a card is still on top would quietly change
  * which card comes off next.
  */
-export function recycleTrash(state: MatchState, board: PlayerBoard, log?: string[]): boolean {
+export function recycleTrash(state: MatchState, board: PlayerBoard, log?: LogLine[]): boolean {
   if (board.actionDeck.length > 0 || board.trash.length === 0) return false;
   board.actionDeck = shuffleWithState(state, board.trash);
   board.trash = [];
@@ -131,7 +131,7 @@ export function takeFromDeck(
   state: MatchState,
   board: PlayerBoard,
   count: number,
-  log?: string[]
+  log?: LogLine[]
 ): ActionCard[] {
   const taken: ActionCard[] = [];
   while (taken.length < count) {

@@ -46,12 +46,15 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["levelUp"],
-        text: { th: "[Level up] นำการ์ดใบนี้กลับเข้า Character deck" },
+        text: {
+          th: "[Level up] นำการ์ดใบนี้กลับเข้า Character deck",
+          en: "[Level up] Return this card to the Character deck",
+        },
         resolve: (ctx) => ctx.returnToCharacterDeck(),
       },
       {
         condition: ["leader"],
-        text: { th: "[Leader] แต่ละรอบการเล่น ดาเมจที่ได้รับ -1" },
+        text: { th: "[Leader] แต่ละรอบการเล่น ดาเมจที่ได้รับ -1", en: "[Leader] Once per round, damage taken -1" },
         // "แต่ละรอบการเล่น" — once a round, so it softens the first hit and
         // is spent. Without the limit an unlimited red chain would have every
         // one of its hits cut, which is not what one line of text buys.
@@ -74,7 +77,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "counter"],
-        text: { th: "[Leader] [Counter] หาก counter ด้วยการ์ดสีเขียว สามารถแสดงการ์ด 1 ใบบนสุดของเด็ค จากนั้นนำขึ้นมือ" },
+        text: {
+          th: "[Leader] [Counter] หาก counter ด้วยการ์ดสีเขียว สามารถแสดงการ์ด 1 ใบบนสุดของเด็ค จากนั้นนำขึ้นมือ",
+          en: "[Leader] [Counter] If you counter with a green card, you may reveal the top card of your deck, then take it to hand",
+        },
         resolve: (ctx) => {
           if (!(ctx.lastPlayedColor() === "green")) return;
           const revealed = ctx.revealTop(1);
@@ -87,7 +93,7 @@ export const BP01: CardDef[] = [
       },
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Leader] [Judgement] หากชนะด้วยการ์ดสีเขียว ฟื้นฟูพลังชีวิต 1" },
+        text: { th: "[Leader] [Judgement] หากชนะด้วยการ์ดสีเขียว ฟื้นฟูพลังชีวิต 1", en: "[Leader] [Judgement] If you win with a green card, heal 1 life" },
         resolve: (ctx) => {
           if (ctx.wonWith("green")) ctx.heal(1);
         },
@@ -109,18 +115,21 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive"],
-        text: { th: "การ์ดใบนี้สามารถเล่นได้จากความสามารถเท่านั้น" },
+        text: { th: "การ์ดใบนี้สามารถเล่นได้จากความสามารถเท่านั้น", en: "This card can only be played by an ability" },
         resolve: (ctx) => ctx.log(`${ctx.self.name} enters play only through an ability`),
         tags: ["abilityOnly"],
       },
       {
         condition: ["passive"],
-        text: { th: "การ์ดสีแดงของ 【Encore】 ได้รับ +1 ดาเมจ" },
+        text: { th: "การ์ดสีแดงของ 【Encore】 ได้รับ +1 ดาเมจ", en: "【Encore】's red cards gain +1 damage" },
         resolve: (ctx) => ctx.buff({ character: "Encore", color: "red" }, "attack", +1),
       },
       {
         condition: ["endTurn"],
-        text: { th: "[At end of each turn]หากการ์ดใบนี้ไม่ได้ถูกลงในรอบนี้ นำการ์ดใบนี้กลับเข้า Charcater deck" },
+        text: {
+          th: "[At end of each turn]หากการ์ดใบนี้ไม่ได้ถูกลงในรอบนี้ นำการ์ดใบนี้กลับเข้า Charcater deck",
+          en: "[At end of each turn] If this card wasn't played this round, return it to the Character deck",
+        },
         resolve: (ctx) => {
           if (!ctx.selfPlayedThisTurn()) ctx.returnToCharacterDeck();
         },
@@ -140,7 +149,7 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Leader] [Judgement] หากชนะด้วยการ์ดสีแดง ทำ 2 ดาเมจใส่ฝ่ายตรงข้าม" },
+        text: { th: "[Leader] [Judgement] หากชนะด้วยการ์ดสีแดง ทำ 2 ดาเมจใส่ฝ่ายตรงข้าม", en: "[Leader] [Judgement] If you win with a red card, deal 2 damage to your opponent" },
         resolve: (ctx) => {
           if (ctx.wonWith("red")) ctx.damage(2);
         },
@@ -164,7 +173,7 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["judgement"],
-        text: { th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ" },
+        text: { th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ", en: "[Judgement] If you win, draw 1 card" },
         resolve: (ctx) => {
           if (ctx.wonLastBattle()) ctx.draw(1);
         },
@@ -188,7 +197,7 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["judgement"],
-        text: { th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ" },
+        text: { th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ", en: "[Judgement] If you win, draw 1 card" },
         resolve: (ctx) => {
           if (ctx.wonLastBattle()) ctx.draw(1);
         },
@@ -212,7 +221,7 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["judgement"],
-        text: { th: "[Judgement]หากชนะ ฟื้นฟู 1 พลังชีวิต" },
+        text: { th: "[Judgement]หากชนะ ฟื้นฟู 1 พลังชีวิต", en: "[Judgement] If you win, heal 1 life" },
         resolve: (ctx) => {
           if (ctx.wonLastBattle()) ctx.heal(1);
         },
@@ -235,14 +244,17 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["judgement"],
-        text: { th: "[Judgement] หากชนะ จั่วการ์ด 2 ใบ" },
+        text: { th: "[Judgement] หากชนะ จั่วการ์ด 2 ใบ", en: "[Judgement] If you win, draw 2 cards" },
         resolve: (ctx) => {
           if (ctx.wonLastBattle()) ctx.draw(2);
         },
       },
       {
         condition: ["judgement"],
-        text: { th: "[Advantage] [Judgement] หากแพ้ด้วยการ์ดใบนี้ และหาก Leader เป็น Shorekeeper ในรอบนี้ ฝ่ายตรงข้ามไม่สามารถ Combo ได้" },
+        text: {
+          th: "[Advantage] [Judgement] หากแพ้ด้วยการ์ดใบนี้ และหาก Leader เป็น Shorekeeper ในรอบนี้ ฝ่ายตรงข้ามไม่สามารถ Combo ได้",
+          en: "[Advantage] [Judgement] If you lose with this card, and your Leader is Shorekeeper, your opponent cannot Combo this round",
+        },
         resolve: (ctx) => {
             if (ctx.wonLastBattle()) return;
             if (ctx.leaderName() !== "Shorekeeper") return;
@@ -268,7 +280,7 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["judgement"],
-        text: { th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ" },
+        text: { th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ", en: "[Judgement] If you win, draw 1 card" },
         resolve: (ctx) => {
           if (ctx.wonLastBattle()) ctx.draw(1);
         },
@@ -292,7 +304,7 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["judgement"],
-        text: { th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ" },
+        text: { th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ", en: "[Judgement] If you win, draw 1 card" },
         resolve: (ctx) => {
           if (ctx.wonLastBattle()) ctx.draw(1);
         },
@@ -316,7 +328,7 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["judgement"],
-        text: { th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ" },
+        text: { th: "[Judgement] หากชนะ จั่วการ์ด 1 ใบ", en: "[Judgement] If you win, draw 1 card" },
         resolve: (ctx) => {
           if (ctx.wonLastBattle()) ctx.draw(1);
         },
@@ -338,7 +350,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["enter", "levelUp"],
-        text: { th: "[Enter] / [Level up] สามารถนำการ์ด {Basic Attack} 1 ใบจากกองทิ้งขึ้นมือ" },
+        text: {
+          th: "[Enter] / [Level up] สามารถนำการ์ด {Basic Attack} 1 ใบจากกองทิ้งขึ้นมือ",
+          en: "[Enter] / [Level up] You may take 1 {Basic Attack} card from the trash to hand",
+        },
         resolve: (ctx) => {
           // "สามารถ" — the player may decline, so ask before touching anything.
           const candidates = ctx
@@ -369,7 +384,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Leader] [Judgement] หากแพ้การ์ดสีฟ้า ในการเล่นการ์ดสีแดง สามารถแสดงการ์ด 1 ใบบนสุดของเด็ค จากนั้นนำขึ้นมือ" },
+        text: {
+          th: "[Leader] [Judgement] หากแพ้การ์ดสีฟ้า ในการเล่นการ์ดสีแดง สามารถแสดงการ์ด 1 ใบบนสุดของเด็ค จากนั้นนำขึ้นมือ",
+          en: "[Leader] [Judgement] If a red card of yours loses to a blue card, you may reveal the top card of your deck, then take it to hand",
+        },
         resolve: (ctx) => {
           if (!(ctx.lostTo("blue") && ctx.lastPlayedColor() === "red")) return;
           const revealed = ctx.revealTop(1);
@@ -397,7 +415,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Leader] [Judgement] หากชนะ นำการ์ด {Basic attack} 1 ใบจากกองทิ้งขึ้นมือ" },
+        text: {
+          th: "[Leader] [Judgement] หากชนะ นำการ์ด {Basic attack} 1 ใบจากกองทิ้งขึ้นมือ",
+          en: "[Leader] [Judgement] If you win, take 1 {Basic Attack} card from the trash to hand",
+        },
         resolve: (ctx) => {
           if (!ctx.wonLastBattle()) return;
           ctx.trashToHand(1, { subtype: "Basic Attack" });
@@ -420,7 +441,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive"],
-        text: { th: "2 ครั้งต่อรอบการเล่น หากฟื้นฟูพลังชีวิต สามารถจั่วการ์ด 1 ใบขึ้นมือ" },
+        text: {
+          th: "2 ครั้งต่อรอบการเล่น หากฟื้นฟูพลังชีวิต สามารถจั่วการ์ด 1 ใบขึ้นมือ",
+          en: "Up to twice per round, whenever you heal life, you may draw 1 card",
+        },
         resolve: (ctx) => {
           // Only fires off a heal, and only twice a round.
           if (ctx.healedThisTurn() <= 0) return;
@@ -445,7 +469,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "counterPhaseStart"],
-        text: { th: "[Leader] [At start of own Counter phase] \nหากบนมือมีการ์ด 4 ใบหรือต่ำกว่า จั่วให้มือมี 5 ใบ" },
+        text: {
+          th: "[Leader] [At start of own Counter phase] \nหากบนมือมีการ์ด 4 ใบหรือต่ำกว่า จั่วให้มือมี 5 ใบ",
+          en: "[Leader] [At start of own Counter phase] \nIf you have 4 or fewer cards in hand, draw up to 5",
+        },
         resolve: (ctx) => {
             const missing = 5 - ctx.hand().length;
             if (missing > 0) ctx.draw(missing);
@@ -470,7 +497,7 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["counter"],
-        text: { th: "[Counter] สามารถเปลี่ยน Leader เป็น Sanhua" },
+        text: { th: "[Counter] สามารถเปลี่ยน Leader เป็น Sanhua", en: "[Counter] You may switch your Leader to Sanhua" },
         resolve: (ctx) => {
             if (ctx.confirm({ th: "เปลี่ยน Leader เป็น Sanhua ไหม", en: "Switch your Leader to Sanhua?" })) {
               ctx.switchLeaderTo("Sanhua");
@@ -479,7 +506,10 @@ export const BP01: CardDef[] = [
       },
       {
         condition: ["judgement"],
-        text: { th: "[Judgement] หากชนะและมี Leader เป็น Sanhua Level up ให้ Sanhua ของเจ้าของ" },
+        text: {
+          th: "[Judgement] หากชนะและมี Leader เป็น Sanhua Level up ให้ Sanhua ของเจ้าของ",
+          en: "[Judgement] If you win and your Leader is Sanhua, level up your Sanhua",
+        },
         resolve: (ctx) => {
             if (ctx.wonLastBattle() && ctx.leaderName() === "Sanhua") ctx.levelUpCharacter("Sanhua");
           },
@@ -501,7 +531,7 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["switch"],
-        text: { th: "[Switch] สามารถจั่วการ์ด 1 ใบ จากนั้นทิ้งการ์ด 1 ใบ" },
+        text: { th: "[Switch] สามารถจั่วการ์ด 1 ใบ จากนั้นทิ้งการ์ด 1 ใบ", en: "[Switch] You may draw 1 card, then discard 1 card" },
         resolve: (ctx) => {
             if (!ctx.confirm({ th: "จั่ว 1 ใบแล้วทิ้ง 1 ใบไหม", en: "Draw a card, then discard one?" })) return;
             ctx.draw(1);
@@ -526,7 +556,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["enter", "levelUp"],
-        text: { th: "[Enter] / [Level up] สามารถนำการ์ด {Intro Skill} 1 ใบจากกองทิ้งขึ้นมือ" },
+        text: {
+          th: "[Enter] / [Level up] สามารถนำการ์ด {Intro Skill} 1 ใบจากกองทิ้งขึ้นมือ",
+          en: "[Enter] / [Level up] You may take 1 {Intro Skill} card from the trash to hand",
+        },
         resolve: (ctx) => {
           // "สามารถ" — the player may decline, so ask before touching anything.
           const candidates = ctx
@@ -557,7 +590,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "endTurn"],
-        text: { th: "[Leader] [At end of each turn] หากฝ่ายตรงข้ามได้รับดาเมจในรอบนี้ นำการ์ดของ Encore 1 ใบจากกองทิ้งขึ้นมือ" },
+        text: {
+          th: "[Leader] [At end of each turn] หากฝ่ายตรงข้ามได้รับดาเมจในรอบนี้ นำการ์ดของ Encore 1 ใบจากกองทิ้งขึ้นมือ",
+          en: "[Leader] [At end of each turn] If your opponent took damage this round, take 1 Encore card from the trash to hand",
+        },
         resolve: (ctx) => {
           if (ctx.damageTakenThisTurn(ctx.opponentId) > 0) {
             ctx.trashToHand(1, { character: "Encore" });
@@ -581,7 +617,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["enter", "levelUp"],
-        text: { th: "[Enter] / [Level up] นำการ์สีแดงของ Encore 1 ใบจากกองทิ้งขึ้นมือ" },
+        text: {
+          th: "[Enter] / [Level up] นำการ์สีแดงของ Encore 1 ใบจากกองทิ้งขึ้นมือ",
+          en: "[Enter] / [Level up] Take 1 of Encore's red cards from the trash to hand",
+        },
         resolve: (ctx) => ctx.trashToHand(1, { character: "Encore", color: "red" }),
       },
     ],
@@ -618,7 +657,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Leader] การ์ด {Heavy Attack} และ {Forte Circuit} ของ Encore ได้รับ “[Judgement] หากแพ้การ์ดสีแดงในการเล่นการ์ดใบนี้ หลังจบช่วง Counter ทำดาเมจเท่ากับดาเมจของการ์ดใบนี้แก่ฝ่ายตรงข้าม”" },
+        text: {
+          th: "[Leader] การ์ด {Heavy Attack} และ {Forte Circuit} ของ Encore ได้รับ “[Judgement] หากแพ้การ์ดสีแดงในการเล่นการ์ดใบนี้ หลังจบช่วง Counter ทำดาเมจเท่ากับดาเมจของการ์ดใบนี้แก่ฝ่ายตรงข้าม”",
+          en: "[Leader] Encore's {Heavy Attack} and {Forte Circuit} cards gain “[Judgement] If this card lost to a red card, after the Counter phase ends, deal damage to your opponent equal to this card's damage”",
+        },
         resolve: (ctx) => {
             // The ability is handed to the cards themselves, so it fires from
             // whichever one is actually played.
@@ -646,7 +688,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader"],
-        text: { th: "[Leader] แต่ละรอบ การ์ด {Normal attack} ใบแรกของ Encore ได้รับ +2 ดาเมจ" },
+        text: {
+          th: "[Leader] แต่ละรอบ การ์ด {Normal attack} ใบแรกของ Encore ได้รับ +2 ดาเมจ",
+          en: "[Leader] Once per round, Encore's first {Normal Attack} card gains +2 damage",
+        },
         resolve: (ctx) =>
             ctx.buff({ character: "Encore", subtype: "Normal Attack" }, "attack", 2, "turn", {
               limit: 1,
@@ -669,7 +714,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Leader] [Judgement] หากชนะการ์ดสีฟ้าด้วยการ์ดสีเขียว ถ้ามีการ์ดในมือไม่ถึง 8 ใบ จั่วการ์ดให้เป็น 8 ใบ" },
+        text: {
+          th: "[Leader] [Judgement] หากชนะการ์ดสีฟ้าด้วยการ์ดสีเขียว ถ้ามีการ์ดในมือไม่ถึง 8 ใบ จั่วการ์ดให้เป็น 8 ใบ",
+          en: "[Leader] [Judgement] If you beat a blue card with a green card, and you have fewer than 8 cards in hand, draw up to 8",
+        },
         resolve: (ctx) => {
             if (!ctx.wonWith("green")) return;
             if (ctx.lastPlayedColor(ctx.opponentId) !== "blue") return;
@@ -694,7 +742,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["enter", "levelUp"],
-        text: { th: "[Enter] / [Level up] แสดงการ์ด 1 ใบบนสุดของเด็ค สามารถนำการ์ดใบนี้ขึ้นมือได้" },
+        text: {
+          th: "[Enter] / [Level up] แสดงการ์ด 1 ใบบนสุดของเด็ค สามารถนำการ์ดใบนี้ขึ้นมือได้",
+          en: "[Enter] / [Level up] Reveal the top card of your deck; you may take it to hand",
+        },
         resolve: (ctx) => {
           const revealed = ctx.revealTop(1);
           if (revealed.length === 0) return;
@@ -722,7 +773,10 @@ export const BP01: CardDef[] = [
       {
         condition: ["leader", "judgement", "follow"],
         followCount: 3,
-        text: { th: "[Leader] [Judgement] หากชนะด้วยการ์ดสีเขียว ได้รับ +3 [Follow-up attack]" },
+        text: {
+          th: "[Leader] [Judgement] หากชนะด้วยการ์ดสีเขียว ได้รับ +3 [Follow-up attack]",
+          en: "[Leader] [Judgement] If you win with a green card, gain +3 [Follow-up attack]",
+        },
         resolve: (ctx) => { if (ctx.wonWith("green")) ctx.grantFollowUp(3); },
       },
     ],
@@ -742,7 +796,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["enter", "levelUp"],
-        text: { th: "[Enter] / [Level up] แสดงการ์ด 1 ใบบนสุดของเด็ค สามารถนำการ์ดใบนี้ขึ้นมือได้" },
+        text: {
+          th: "[Enter] / [Level up] แสดงการ์ด 1 ใบบนสุดของเด็ค สามารถนำการ์ดใบนี้ขึ้นมือได้",
+          en: "[Enter] / [Level up] Reveal the top card of your deck; you may take it to hand",
+        },
         resolve: (ctx) => {
           const revealed = ctx.revealTop(1);
           if (revealed.length === 0) return;
@@ -769,7 +826,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["endTurn"],
-        text: { th: "[At end of own turn] ทิ้งการ์ด 1 ใบ หากทำสลับ Leader เป็น Yangyang" },
+        text: {
+          th: "[At end of own turn] ทิ้งการ์ด 1 ใบ หากทำสลับ Leader เป็น Yangyang",
+          en: "[At end of own turn] You may discard 1 card; if you do, switch your Leader to Yangyang",
+        },
         resolve: (ctx) => {
             if (ctx.hand().length === 0) return;
             const pick = ctx.chooseCard(
@@ -799,7 +859,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["enter", "levelUp"],
-        text: { th: "[Enter] / [Level up] สามารถนำการ์ดใบบนสุดของเด็ควางที่ Concerto area" },
+        text: {
+          th: "[Enter] / [Level up] สามารถนำการ์ดใบบนสุดของเด็ควางที่ Concerto area",
+          en: "[Enter] / [Level up] You may put the top card of your deck into the Concerto area",
+        },
         resolve: (ctx) => {
           if (ctx.board().actionDeck.length === 0) return;
           if (
@@ -829,7 +892,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "counterPhaseEnd"],
-        text: { th: "[Leader] [At end of Counter phase] หากใน Action area ของเจ้าของมีการ์ด {Normal Attack} 2 ใบหรือมากกว่า ทำ 3 ดาเมจใส่ฝ่ายตรงข้าม" },
+        text: {
+          th: "[Leader] [At end of Counter phase] หากใน Action area ของเจ้าของมีการ์ด {Normal Attack} 2 ใบหรือมากกว่า ทำ 3 ดาเมจใส่ฝ่ายตรงข้าม",
+          en: "[Leader] [At end of Counter phase] If your Action area has 2 or more {Normal Attack} cards, deal 3 damage to your opponent",
+        },
         resolve: (ctx) => {
           const normals = ctx.countMatching(ctx.actionZone(), { subtype: "Normal Attack" });
           if (normals >= 2) ctx.damage(3);
@@ -852,7 +918,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["enter", "levelUp"],
-        text: { th: "[Enter] / [Level up] สามารถนำการ์ด {Normal Attack} 1 ใบจากกองทิ้งขึ้นมือ" },
+        text: {
+          th: "[Enter] / [Level up] สามารถนำการ์ด {Normal Attack} 1 ใบจากกองทิ้งขึ้นมือ",
+          en: "[Enter] / [Level up] You may take 1 {Normal Attack} card from the trash to hand",
+        },
         resolve: (ctx) => {
           // "สามารถ" — the player may decline, so ask before touching anything.
           const candidates = ctx
@@ -883,7 +952,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Leader] [Judgement] หากชนะในรอบของเจ้าของ แสดงการ์ด 5 ใบบนสุดของเด็ค นำการ์ดของ 【Jinshi】 ทั้งหมดขึ้นมือ จากนั้นนำการ์ดที่เหลือลงกองทิ้ง" },
+        text: {
+          th: "[Leader] [Judgement] หากชนะในรอบของเจ้าของ แสดงการ์ด 5 ใบบนสุดของเด็ค นำการ์ดของ 【Jinshi】 ทั้งหมดขึ้นมือ จากนั้นนำการ์ดที่เหลือลงกองทิ้ง",
+          en: "[Leader] [Judgement] If you win on your own turn, reveal the top 5 cards of your deck, take all 【Jinshi】 cards among them to hand, then discard the rest",
+        },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
             const top = ctx.deckToHand(5);
@@ -909,7 +981,10 @@ export const BP01: CardDef[] = [
       {
         condition: ["leader", "judgement", "follow"],
         followCount: 3,
-        text: { th: "[Leader] [Judgement] หากชนะด้วยการ์ดสีฟ้า สามารถเปลี่ยนลีดเดอร์และได้รับ +3[follow-up attack]" },
+        text: {
+          th: "[Leader] [Judgement] หากชนะด้วยการ์ดสีฟ้า สามารถเปลี่ยนลีดเดอร์และได้รับ +3[follow-up attack]",
+          en: "[Leader] [Judgement] If you win with a blue card, you may switch Leaders and gain +3 [follow-up attack]",
+        },
         resolve: (ctx) => {
             if (!ctx.wonWith("blue")) return;
             const back = ctx.board().back;
@@ -943,7 +1018,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["enter", "levelUp"],
-        text: { th: "[Enter] / [Level up] สามารถนำการ์ดจากกองทิ้ง 1 ใบวางที่ Concerto area" },
+        text: {
+          th: "[Enter] / [Level up] สามารถนำการ์ดจากกองทิ้ง 1 ใบวางที่ Concerto area",
+          en: "[Enter] / [Level up] You may put 1 card from the trash into the Concerto area",
+        },
         resolve: (ctx) => {
             const pick = ctx.chooseCard(
               { th: "นำการ์ดจากกองทิ้งไปวางที่ Concerto area", en: "Put a card from the trash into the Concerto area?" },
@@ -972,12 +1050,15 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive"],
-        text: { th: "การ์ด〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ" },
+        text: { th: "การ์ด〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ", en: "At most 1 〈Echo〉 card may be in the Action Area" },
         resolve: (ctx) => ctx.limitActionArea({ subtype: "Echo" }, 1),
       },
       {
         condition: ["passive"],
-        text: { th: "หากใน Concerto Area มีการ์ด〈Molten Rift〉2 ใบ หรือมากกว่ารวมการ์ดใบนี้ การ์ด〈Fusion〉ใบแรกที่ใช้ได้รับ +1 ดาเมจ" },
+        text: {
+          th: "หากใน Concerto Area มีการ์ด〈Molten Rift〉2 ใบ หรือมากกว่ารวมการ์ดใบนี้ การ์ด〈Fusion〉ใบแรกที่ใช้ได้รับ +1 ดาเมจ",
+          en: "If the Concerto Area has 2 or more 〈Molten Rift〉 cards including this one, the first 〈Fusion〉 card played gains +1 damage",
+        },
         resolve: (ctx) => {
             if (ctx.countMatching(ctx.concerto(), { subtype: "Molten Rift" }) < 2) return;
             ctx.buff({ subtype: "Fusion" }, "attack", 1, "turn", { limit: 1 });
@@ -1002,12 +1083,15 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive"],
-        text: { th: "การ์ด〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ" },
+        text: { th: "การ์ด〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ", en: "At most 1 〈Echo〉 card may be in the Action Area" },
         resolve: (ctx) => ctx.limitActionArea({ subtype: "Echo" }, 1),
       },
       {
         condition: ["judgement", "advantage"],
-        text: { th: "[Advantage] หากสร้างความเสียหายแก่ฝ่ายตรงข้าม ทุกๆการ์ด 4 ใบในมือของฝ่ายตรงข้าม ฝ่ายตรงข้ามทิ้งการ์ด 1 ใบในมือ" },
+        text: {
+          th: "[Advantage] หากสร้างความเสียหายแก่ฝ่ายตรงข้าม ทุกๆการ์ด 4 ใบในมือของฝ่ายตรงข้าม ฝ่ายตรงข้ามทิ้งการ์ด 1 ใบในมือ",
+          en: "[Advantage] If you deal damage to your opponent, for every 4 cards in their hand, they discard 1 card",
+        },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
             ctx.discard(Math.floor(ctx.hand(ctx.opponentId).length / 4), ctx.opponentId);
@@ -1032,12 +1116,15 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive"],
-        text: { th: "การ์ด〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ" },
+        text: { th: "การ์ด〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ", en: "At most 1 〈Echo〉 card may be in the Action Area" },
         resolve: (ctx) => ctx.limitActionArea({ subtype: "Echo" }, 1),
       },
       {
         condition: ["passive"],
-        text: { th: "หากใน Concerto Area มีการ์ด〈Freezing Frost〉2 ใบ หรือมากกว่ารวมการ์ดใบนี้ การ์ด〈Glacio〉ใบแรกที่ใช้ได้รับ +1 ดาเมจ" },
+        text: {
+          th: "หากใน Concerto Area มีการ์ด〈Freezing Frost〉2 ใบ หรือมากกว่ารวมการ์ดใบนี้ การ์ด〈Glacio〉ใบแรกที่ใช้ได้รับ +1 ดาเมจ",
+          en: "If the Concerto Area has 2 or more 〈Freezing Frost〉 cards including this one, the first 〈Glacio〉 card played gains +1 damage",
+        },
         resolve: (ctx) => {
             if (ctx.countMatching(ctx.concerto(), { subtype: "Freezing Frost" }) < 2) return;
             ctx.buff({ subtype: "Glacio" }, "attack", 1, "turn", { limit: 1 });
@@ -1062,12 +1149,15 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive"],
-        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ" },
+        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ", en: "At most 1 〈Echo〉 card may be in the Action Area" },
         resolve: (ctx) => ctx.limitActionArea({ subtype: "Echo" }, 1),
       },
       {
         condition: ["judgement", "advantage"],
-        text: { th: "[Advantage] หากสร้างความเสียหายแก่ฝ่ายตรงข้าม นำการ์ด 1 ใบใน Concerto Area ของฝ่ายตรงข้ามลงกองทิ้ง" },
+        text: {
+          th: "[Advantage] หากสร้างความเสียหายแก่ฝ่ายตรงข้าม นำการ์ด 1 ใบใน Concerto Area ของฝ่ายตรงข้ามลงกองทิ้ง",
+          en: "[Advantage] If you deal damage to your opponent, put 1 card from their Concerto Area into the trash",
+        },
         resolve: (ctx) => {
             if (ctx.wonLastBattle()) ctx.concertoToTrash(1, undefined, ctx.opponentId);
           },
@@ -1091,12 +1181,15 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive"],
-        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ" },
+        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ", en: "At most 1 〈Echo〉 card may be in the Action Area" },
         resolve: (ctx) => ctx.limitActionArea({ subtype: "Echo" }, 1),
       },
       {
         condition: ["passive"],
-        text: { th: "หากใน Concerto Area มีการ์ด〈Sierra Gale〉2 ใบ หรือมากกว่ารวมการ์ดใบนี้ การ์ด〈Aero〉ใบแรกที่ใช้ได้รับ +1 ดาเมจ" },
+        text: {
+          th: "หากใน Concerto Area มีการ์ด〈Sierra Gale〉2 ใบ หรือมากกว่ารวมการ์ดใบนี้ การ์ด〈Aero〉ใบแรกที่ใช้ได้รับ +1 ดาเมจ",
+          en: "If the Concerto Area has 2 or more 〈Sierra Gale〉 cards including this one, the first 〈Aero〉 card played gains +1 damage",
+        },
         resolve: (ctx) => {
             if (ctx.countMatching(ctx.concerto(), { subtype: "Sierra Gale" }) < 2) return;
             ctx.buff({ subtype: "Aero" }, "attack", 1, "turn", { limit: 1 });
@@ -1121,12 +1214,15 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive"],
-        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ" },
+        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ", en: "At most 1 〈Echo〉 card may be in the Action Area" },
         resolve: (ctx) => ctx.limitActionArea({ subtype: "Echo" }, 1),
       },
       {
         condition: ["judgement", "advantage"],
-        text: { th: "[Advantage] หากสร้างความเสียหายแก่ฝ่ายตรงข้าม สุ่มการ์ด 1 ใบในมือฝ่ายตรงข้ามลงไปไว้ใต้ Action deck ของฝ่ายตรงข้าม" },
+        text: {
+          th: "[Advantage] หากสร้างความเสียหายแก่ฝ่ายตรงข้าม สุ่มการ์ด 1 ใบในมือฝ่ายตรงข้ามลงไปไว้ใต้ Action deck ของฝ่ายตรงข้าม",
+          en: "[Advantage] If you deal damage to your opponent, put 1 random card from their hand on the bottom of their Action deck",
+        },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
             const picked = ctx.randomFromHand(ctx.opponentId);
@@ -1152,12 +1248,15 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive"],
-        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ" },
+        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ", en: "At most 1 〈Echo〉 card may be in the Action Area" },
         resolve: (ctx) => ctx.limitActionArea({ subtype: "Echo" }, 1),
       },
       {
         condition: ["passive"],
-        text: { th: "หากใน Concerto Area มีการ์ด 〈Havoc Eclipse〉 2 ใบ หรือมากกว่ารวมการ์ดใบนี้ การ์ด 〈Havoc〉ใบแรกที่ใช้ได้รับ +1 ดาเมจ" },
+        text: {
+          th: "หากใน Concerto Area มีการ์ด 〈Havoc Eclipse〉 2 ใบ หรือมากกว่ารวมการ์ดใบนี้ การ์ด 〈Havoc〉ใบแรกที่ใช้ได้รับ +1 ดาเมจ",
+          en: "If the Concerto Area has 2 or more 〈Havoc Eclipse〉 cards including this one, the first 〈Havoc〉 card played gains +1 damage",
+        },
         resolve: (ctx) => {
             if (ctx.countMatching(ctx.concerto(), { subtype: "Havoc Eclipse" }) < 2) return;
             ctx.buff({ subtype: "Havoc" }, "attack", 1, "turn", { limit: 1 });
@@ -1182,12 +1281,15 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive"],
-        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ" },
+        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ", en: "At most 1 〈Echo〉 card may be in the Action Area" },
         resolve: (ctx) => ctx.limitActionArea({ subtype: "Echo" }, 1),
       },
       {
         condition: ["judgement", "advantage"],
-        text: { th: "[Advantage] หากสร้างความเสียหายแก่ฝ่ายตรงข้าม นำการ์ด 3 ใบบนสุดของเด็คฝ่ายตรงข้ามตรงข้ามลงกองทิ้ง" },
+        text: {
+          th: "[Advantage] หากสร้างความเสียหายแก่ฝ่ายตรงข้าม นำการ์ด 3 ใบบนสุดของเด็คฝ่ายตรงข้ามตรงข้ามลงกองทิ้ง",
+          en: "[Advantage] If you deal damage to your opponent, put the top 3 cards of their deck into the trash",
+        },
         resolve: (ctx) => {
             if (ctx.wonLastBattle()) ctx.deckToTrash(3, ctx.opponentId);
           },
@@ -1211,12 +1313,15 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive"],
-        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ" },
+        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ", en: "At most 1 〈Echo〉 card may be in the Action Area" },
         resolve: (ctx) => ctx.limitActionArea({ subtype: "Echo" }, 1),
       },
       {
         condition: ["passive"],
-        text: { th: "หากใน Concerto Area มีการ์ด 〈Celestial Light〉2 ใบ หรือมากกว่ารวมการ์ดใบนี้ การ์ด 〈Spectro〉 ใบแรกที่ใช้ได้รับ +1 ดาเมจ" },
+        text: {
+          th: "หากใน Concerto Area มีการ์ด 〈Celestial Light〉2 ใบ หรือมากกว่ารวมการ์ดใบนี้ การ์ด 〈Spectro〉 ใบแรกที่ใช้ได้รับ +1 ดาเมจ",
+          en: "If the Concerto Area has 2 or more 〈Celestial Light〉 cards including this one, the first 〈Spectro〉 card played gains +1 damage",
+        },
         resolve: (ctx) => {
           if (ctx.countMatching(ctx.concerto(), { subtype: "Celestial Light" }) < 2) return;
           ctx.buff({ subtype: "Spectro" }, "attack", 1, "turn", { limit: 1 });
@@ -1241,12 +1346,15 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive"],
-        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ" },
+        text: { th: "การ์ด 〈Echo〉สามารถอยู่บน Action Area ได้สูงสุด 1 ใบ", en: "At most 1 〈Echo〉 card may be in the Action Area" },
         resolve: (ctx) => ctx.limitActionArea({ subtype: "Echo" }, 1),
       },
       {
         condition: ["judgement", "advantage"],
-        text: { th: "[Advantage] หากสร้างความเสียหายแก่ฝ่ายตรงข้าม นำการ์ด 2 ใบจากกองทิ้งฝ่ายตรงข้าม นำไปไว้ใต้ Action deck ของฝ่ายตรงข้าม" },
+        text: {
+          th: "[Advantage] หากสร้างความเสียหายแก่ฝ่ายตรงข้าม นำการ์ด 2 ใบจากกองทิ้งฝ่ายตรงข้าม นำไปไว้ใต้ Action deck ของฝ่ายตรงข้าม",
+          en: "[Advantage] If you deal damage to your opponent, put 2 cards from their trash on the bottom of their Action deck",
+        },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
             ctx.toDeckBottom(ctx.board(ctx.opponentId).trash.slice(-2), ctx.opponentId);
@@ -1302,7 +1410,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["combo"],
-        text: { th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น 「Camellya」 Level up ให้「Camellya」 ของคุณ" },
+        text: {
+          th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น 「Camellya」 Level up ให้「Camellya」 ของคุณ",
+          en: "[Combo] Switch Leaders; if you switch to 「Camellya」, level up your 「Camellya」",
+        },
         resolve: (ctx) => {
             const back = ctx.board().back;
             if (back.length === 0) return;
@@ -1337,7 +1448,7 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "counter"],
-        text: { th: "[Leader Skill] [Counter] Level up ให้ Camellya ของคุณ" },
+        text: { th: "[Leader Skill] [Counter] Level up ให้ Camellya ของคุณ", en: "[Leader Skill] [Counter] Level up your Camellya" },
         resolve: (ctx) => ctx.levelUpCharacter("Camellya"),
       },
     ],
@@ -1374,7 +1485,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["combo"],
-        text: { th: "[Combo] หากใน Action area ของเจ้าของมีการ์มากกว่าหรือเท่ากับ 2 ใบ การ์ดใบนี้ได้รับ +1 ดาเมจ" },
+        text: {
+          th: "[Combo] หากใน Action area ของเจ้าของมีการ์มากกว่าหรือเท่ากับ 2 ใบ การ์ดใบนี้ได้รับ +1 ดาเมจ",
+          en: "[Combo] If your Action area has 2 or more cards, this card gains +1 damage",
+        },
         resolve: (ctx) => {
             if (ctx.actionZone().length >= 2) ctx.buff({ cardId: ctx.self.id }, "attack", 1, "battle");
           },
@@ -1413,7 +1527,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["combo"],
-        text: { th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น 「Shorekeeper」ฟื้นฟู 1 พลังชีวิต" },
+        text: {
+          th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น 「Shorekeeper」ฟื้นฟู 1 พลังชีวิต",
+          en: "[Combo] Switch Leaders; if you switch to 「Shorekeeper」, heal 1 life",
+        },
         resolve: (ctx) => {
             const back = ctx.board().back;
             if (back.length === 0) return;
@@ -1448,7 +1565,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive"],
-        text: { th: "หากพลังชีวิตของเจ้าของ มากกว่าฝ่ายตรงข้าม การ์ดใบนี้ได้รับ +1 ดาเมจ" },
+        text: {
+          th: "หากพลังชีวิตของเจ้าของ มากกว่าฝ่ายตรงข้าม การ์ดใบนี้ได้รับ +1 ดาเมจ",
+          en: "If your life is higher than your opponent's, this card gains +1 damage",
+        },
         resolve: (ctx) => {
             if (ctx.life() > ctx.life(ctx.opponentId)) {
               ctx.buff({ cardId: ctx.self.id }, "attack", 1, "turn");
@@ -1474,7 +1594,7 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Judgement] หากชนะ Level up ให้「Shorekeeper」 ของเจ้าของ" },
+        text: { th: "[Judgement] หากชนะ Level up ให้「Shorekeeper」 ของเจ้าของ", en: "[Judgement] If you win, level up your 「Shorekeeper」" },
         resolve: (ctx) => { if (ctx.wonLastBattle()) ctx.levelUpCharacter("Shorekeeper"); },
       },
     ],
@@ -1505,14 +1625,20 @@ export const BP01: CardDef[] = [
         // part of the ability handed out (see `grants`), not a second trigger
         // for this one.
         condition: ["leader", "counter"],
-        text: { th: "[Counter] ในรอบนี้ การ์ด〈Intro Skill〉2 ใบถัดไปที่เล่นได้รับ \"[Combo] จั่วการ์ด 1 ใบ\"" },
+        text: {
+          th: "[Counter] ในรอบนี้ การ์ด〈Intro Skill〉2 ใบถัดไปที่เล่นได้รับ \"[Combo] จั่วการ์ด 1 ใบ\"",
+          en: "[Counter] This round, the next 2 〈Intro Skill〉 cards played gain \"[Combo] Draw a card.\"",
+        },
         resolve: (ctx) =>
             ctx.grantEffect({ subtype: "Intro Skill" }, "comboDraw", "turn", { limit: 2 }),
       },
       {
         condition: ["leader", "judgement", "follow"],
         followCount: 8,
-        text: { th: "[Judgement] หากชนะ ฟื้นฟู 1 พลังชีวิตและได้รับ +8 [follow-up attack]" },
+        text: {
+          th: "[Judgement] หากชนะ ฟื้นฟู 1 พลังชีวิตและได้รับ +8 [follow-up attack]",
+          en: "[Judgement] If you win, heal 1 life and gain +8 [follow-up attack]",
+        },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
             ctx.heal(1);
@@ -1538,7 +1664,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["advantage", "counter"],
-        text: { th: "[Advantage] [Counter] หาก Leader เป็น 「Encore」 ความเร็วของการ์ดใบนี้เป็น 10" },
+        text: {
+          th: "[Advantage] [Counter] หาก Leader เป็น 「Encore」 ความเร็วของการ์ดใบนี้เป็น 10",
+          en: "[Advantage] [Counter] If your Leader is 「Encore」, this card's Speed becomes 10",
+        },
         resolve: (ctx) => {
             if (ctx.leaderName() === "Encore") ctx.setStat({ cardId: ctx.self.id }, "speed", 10, "battle");
           },
@@ -1562,7 +1691,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["judgement"],
-        text: { th: "หากสร้างความเสียหายใส่ฝ่ายตรงข้าม หาก Leader เป็น 「Encore」 จั่วการ์ด 1 ใบ" },
+        text: {
+          th: "หากสร้างความเสียหายใส่ฝ่ายตรงข้าม หาก Leader เป็น 「Encore」 จั่วการ์ด 1 ใบ",
+          en: "If you deal damage to your opponent and your Leader is 「Encore」, draw 1 card",
+        },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
             if (ctx.leaderName() !== "Encore") return;
@@ -1588,7 +1720,7 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "counter", "combo"],
-        text: { th: "[Counter] / [Combo] ในรอบนี้ เจ้าของจะไม่สามารถโจมตีต่อเนื่องได้" },
+        text: { th: "[Counter] / [Combo] ในรอบนี้ เจ้าของจะไม่สามารถโจมตีต่อเนื่องได้", en: "[Counter] / [Combo] This round, you cannot Combo" },
         resolve: (ctx) => ctx.restrict("noCombo"),
       },
     ],
@@ -1609,12 +1741,15 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["passive", "advantage"],
-        text: { th: "[Advantage] คอสของการ์ดใบนี้ -1" },
+        text: { th: "[Advantage] คอสของการ์ดใบนี้ -1", en: "[Advantage] This card's cost -1" },
         resolve: (ctx) => ctx.buff({ cardId: ctx.self.id }, "cost", -1, "turn"),
       },
       {
         condition: ["counter"],
-        text: { th: "[Counter] นำการ์ด 「Encore」 Level 2 วางบนสุดของ 「Encore」 ของเจ้าของ (นับเป็นการ Level up)  สลับ Leader เป็น 「Encore」" },
+        text: {
+          th: "[Counter] นำการ์ด 「Encore」 Level 2 วางบนสุดของ 「Encore」 ของเจ้าของ (นับเป็นการ Level up)  สลับ Leader เป็น 「Encore」",
+          en: "[Counter] Put an 「Encore」 Level 2 card on top of your 「Encore」 (this counts as leveling up), then switch your Leader to 「Encore」",
+        },
         resolve: (ctx) => {
             // "Level 2" is printed on the card, so nothing else is on offer —
             // and this is the one way an 「Encore」 Level 2 reaches the field
@@ -1642,7 +1777,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["combo"],
-        text: { th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น 「Encore 」นำการ์ดสีแดงของ Encore ที่ไม่ใช่ 〈Intro Skill〉 1 ใบขึ้นมือ" },
+        text: {
+          th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น 「Encore 」นำการ์ดสีแดงของ Encore ที่ไม่ใช่ 〈Intro Skill〉 1 ใบขึ้นมือ",
+          en: "[Combo] Switch Leaders; if you switch to 「Encore」, take 1 of Encore's red cards that isn't 〈Intro Skill〉 to hand",
+        },
         resolve: (ctx) => {
             const back = ctx.board().back;
             if (back.length === 0) return;
@@ -1693,7 +1831,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["combo"],
-        text: { th: "[Combo] สามารถทิ้งการ์ด 1 ใบ หากทำการ์ดใบนี้ได้รับ +1 ดาเมจ" },
+        text: {
+          th: "[Combo] สามารถทิ้งการ์ด 1 ใบ หากทำการ์ดใบนี้ได้รับ +1 ดาเมจ",
+          en: "[Combo] You may discard 1 card; if you do, this card gains +1 damage",
+        },
         resolve: (ctx) => {
             const pick = ctx.chooseCard(
               { th: "ทิ้งการ์ด 1 ใบเพื่อ +1 ดาเมจ", en: "Discard a card for +1 damage?" },
@@ -1724,7 +1865,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["combo"],
-        text: { th: "[Combo] สามารถทิ้งการ์ด 1 ใบ หากทำการ์ดใบนี้ได้รับ +1 ดาเมจ" },
+        text: {
+          th: "[Combo] สามารถทิ้งการ์ด 1 ใบ หากทำการ์ดใบนี้ได้รับ +1 ดาเมจ",
+          en: "[Combo] You may discard 1 card; if you do, this card gains +1 damage",
+        },
         resolve: (ctx) => {
             const pick = ctx.chooseCard(
               { th: "ทิ้งการ์ด 1 ใบเพื่อ +1 ดาเมจ", en: "Discard a card for +1 damage?" },
@@ -1756,12 +1900,15 @@ export const BP01: CardDef[] = [
       {
         condition: ["judgement", "follow"],
         followCount: 1,
-        text: { th: "[Judgement] หากชนะ ได้รับ +1[follow-up attack]" },
+        text: { th: "[Judgement] หากชนะ ได้รับ +1[follow-up attack]", en: "[Judgement] If you win, gain +1 [follow-up attack]" },
         resolve: (ctx) => { if (ctx.wonLastBattle()) ctx.grantFollowUp(1); },
       },
       {
         condition: ["counterPhaseEnd"],
-        text: { th: "[At end of each counter phase] หาก Leader เป็น Yangyang สามารถจ่าย 1 cost จากนั้นนั้นการ์ดใบนี้ขึ้นมือ" },
+        text: {
+          th: "[At end of each counter phase] หาก Leader เป็น Yangyang สามารถจ่าย 1 cost จากนั้นนั้นการ์ดใบนี้ขึ้นมือ",
+          en: "[At end of each counter phase] If your Leader is Yangyang, you may pay 1 cost to return this card to hand",
+        },
         resolve: (ctx) => {
             if (ctx.leaderName() !== "Yangyang") return;
             if (!ctx.confirm({ th: "จ่าย 1 cost เพื่อเอาการ์ดใบนี้กลับขึ้นมือไหม", en: "Pay 1 to return this card to hand?" })) return;
@@ -1787,7 +1934,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Leader Skill] [Judgement] หากชนะ นำการ์ดสีฟ้า 1 ใบ จากกองทิ้งขึ้นมือ" },
+        text: {
+          th: "[Leader Skill] [Judgement] หากชนะ นำการ์ดสีฟ้า 1 ใบ จากกองทิ้งขึ้นมือ",
+          en: "[Leader Skill] [Judgement] If you win, take 1 blue card from the trash to hand",
+        },
         resolve: (ctx) => {
           if (ctx.wonLastBattle()) ctx.trashToHand(1, { color: "blue" });
         },
@@ -1811,7 +1961,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["combo"],
-        text: { th: "[Combo] ในรอบนี้ หากเจ้าของเล่นการ์ด 〈Airborn〉นำการ์ด 1 ใบบนสุดของเด็ควางที่ Concerto Area" },
+        text: {
+          th: "[Combo] ในรอบนี้ หากเจ้าของเล่นการ์ด 〈Airborn〉นำการ์ด 1 ใบบนสุดของเด็ควางที่ Concerto Area",
+          en: "[Combo] This round, if you played an 〈Airborn〉 card, put the top card of your deck into the Concerto Area",
+        },
         resolve: (ctx) => {
           if (ctx.countPlayedThisTurn({ subtype: "Airborn" }) > 0) ctx.topToConcerto(1);
         },
@@ -1835,7 +1988,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "advantage", "counter"],
-        text: { th: "[Leader Skill] [Advantage] [Counter] นำการ์ด {Basic Attack} หรือ {Resonance Liberation} 1 ใบจากกองทิ้งขึ้นมือ" },
+        text: {
+          th: "[Leader Skill] [Advantage] [Counter] นำการ์ด {Basic Attack} หรือ {Resonance Liberation} 1 ใบจากกองทิ้งขึ้นมือ",
+          en: "[Leader Skill] [Advantage] [Counter] Take 1 {Basic Attack} or {Resonance Liberation} card from the trash to hand",
+        },
         resolve: (ctx) => {
             const options = ctx.board().trash.filter(
               (c) => ctx.countMatching([c], { subtype: ["Basic Attack", "Resonance Liberation"] }) > 0
@@ -1867,7 +2023,7 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Judgement] หากชนะ นำ 「Incarnation」 ขึ้นมือ จากนั้นสับเด็ค" },
+        text: { th: "[Judgement] หากชนะ นำ 「Incarnation」 ขึ้นมือ จากนั้นสับเด็ค", en: "[Judgement] If you win, take 「Incarnation」 to hand, then shuffle your deck" },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
             // "Incarnation" is the name of SD02-010.
@@ -1893,7 +2049,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "combo"],
-        text: { th: "[Combo] การ์ดใบนี้ได้รับ +1 ดาเมจ ตามจำนวนการ์ดที่อยู่บน Action area ฝ่ายเรา" },
+        text: {
+          th: "[Combo] การ์ดใบนี้ได้รับ +1 ดาเมจ ตามจำนวนการ์ดที่อยู่บน Action area ฝ่ายเรา",
+          en: "[Combo] This card gains +1 damage for each card in your Action area",
+        },
         resolve: (ctx) => {
             const stacked = ctx.actionZone().length;
             if (stacked > 0) ctx.buff({ cardId: ctx.self.id }, "attack", stacked, "battle");
@@ -1901,7 +2060,7 @@ export const BP01: CardDef[] = [
       },
       {
         condition: ["leader", "counter", "combo"],
-        text: { th: "[Counter] / [Combo] ในรอบนี้ เจ้าของไม่สามารถโจมตีต่อเนื่องได้" },
+        text: { th: "[Counter] / [Combo] ในรอบนี้ เจ้าของไม่สามารถโจมตีต่อเนื่องได้", en: "[Counter] / [Combo] This round, you cannot Combo" },
         resolve: (ctx) => ctx.restrict("noCombo"),
       },
     ],
@@ -1923,7 +2082,10 @@ export const BP01: CardDef[] = [
     effects: [
       {
         condition: ["leader", "judgement"],
-        text: { th: "[Judgement] หากชนะและมีการ์ดของ 【Sanhua】 ใน Concerto Area เจ้าของสามารถสลับ Leader ได้" },
+        text: {
+          th: "[Judgement] หากชนะและมีการ์ดของ 【Sanhua】 ใน Concerto Area เจ้าของสามารถสลับ Leader ได้",
+          en: "[Judgement] If you win and have a 【Sanhua】 card in your Concerto Area, you may switch Leaders",
+        },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
             if (ctx.countMatching(ctx.concerto(), { character: "Sanhua" }) === 0) return;

@@ -11,6 +11,7 @@ import { isDeckPlayable, type DeckList, type Room } from "@wuwatcg/shared";
 import { socket } from "../socket";
 import { DeckManager } from "../decks/DeckManager";
 import { loadDecks, rememberDeckId, rememberedDeckId } from "../decks/storage";
+import { useLang } from "../i18n/LanguageContext";
 import "./MainMenu.css";
 
 export function Lobby({
@@ -24,6 +25,7 @@ export function Lobby({
   error: string | null;
   onLeave: () => void;
 }) {
+  const { t } = useLang();
   const [picking, setPicking] = useState(false);
   const [deck, setDeck] = useState<DeckList | null>(null);
   const [deckError, setDeckError] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export function Lobby({
   if (picking) {
     return (
       <DeckManager
-        title="เลือกเด็คที่จะใช้"
+        title={t("lobby.pickDeckTitle")}
         pickedId={deck?.id ?? rememberedDeckId()}
         onPick={submit}
         onBack={() => setPicking(false)}
@@ -65,22 +67,23 @@ export function Lobby({
     <main className="page play-page">
       <div className="play-panel">
         <div className="play-head">
-          <h1>ห้อง {room.code}</h1>
+          <h1>{t("lobby.roomHeading", room.code)}</h1>
           <span className="play-spacer" />
           <span className="room-row-sub">
-            {room.visibility === "public" ? "สาธารณะ" : "ส่วนตัว"}
+            {room.visibility === "public" ? t("lobby.visibilityPublic") : t("lobby.visibilityPrivate")}
           </span>
           <button type="button" onClick={onLeave}>
-            ออกจากห้อง
+            {t("common.leaveRoom")}
           </button>
         </div>
 
         <section className="play-card">
-          <h2>{both ? "ผู้เล่นครบแล้ว" : "รอผู้เล่นอีกคน"}</h2>
+          <h2>{both ? t("lobby.bothReady") : t("lobby.waitingForPlayer")}</h2>
           {!both && (
             <p className="play-empty" style={{ textAlign: "left", padding: 0 }}>
-              บอกรหัสห้อง <span className="room-code">{room.code}</span> ให้เพื่อน
-              {room.visibility === "public" && " หรือรอให้ใครสักคนเจอห้องนี้ในลิสต์"}
+              {t("lobby.shareCodeBefore")} <span className="room-code">{room.code}</span>{" "}
+              {t("lobby.shareCodeAfter")}
+              {room.visibility === "public" && ` ${t("lobby.orWaitInList")}`}
             </p>
           )}
           {room.players.map((p) => {
@@ -91,15 +94,15 @@ export function Lobby({
                   <div className="room-row-host">
                     {p.name}
                     {p.isHost && " (host)"}
-                    {p.id === me && " (คุณ)"}
+                    {p.id === me && ` ${t("lobby.you")}`}
                   </div>
                   <div className="room-row-sub">
-                    {picks.length > 0 ? picks.join(" · ") : "ยังไม่ได้เลือกเด็ค"}
-                    {!p.connected && " — หลุดการเชื่อมต่อ"}
+                    {picks.length > 0 ? picks.join(" · ") : t("lobby.noDeckPicked")}
+                    {!p.connected && ` — ${t("lobby.disconnectedSuffix")}`}
                   </div>
                 </div>
                 <span className={`deck-row-badge ${picks.length > 0 ? "ok" : ""}`}>
-                  {picks.length > 0 ? "พร้อม" : "รอ"}
+                  {picks.length > 0 ? t("lobby.ready") : t("lobby.waiting")}
                 </span>
               </div>
             );
@@ -107,7 +110,7 @@ export function Lobby({
         </section>
 
         <section className="play-card">
-          <h2>เด็คของคุณ</h2>
+          <h2>{t("lobby.yourDeck")}</h2>
           {deck ? (
             <div className="room-row">
               <div className="room-row-main">
@@ -115,18 +118,16 @@ export function Lobby({
                 <div className="room-row-sub">{deck.characters.join(" · ")}</div>
               </div>
               <button type="button" onClick={() => setPicking(true)}>
-                เปลี่ยน
+                {t("lobby.change")}
               </button>
             </div>
           ) : (
             <div className="play-row">
               <button type="button" className="primary" onClick={() => setPicking(true)}>
-                {playable.length > 0 ? "เลือกเด็ค" : "จัดเด็คก่อน"}
+                {playable.length > 0 ? t("lobby.chooseDeck") : t("lobby.buildDeckFirst")}
               </button>
               <span className="room-row-sub">
-                {playable.length > 0
-                  ? `มีเด็คที่เล่นได้ ${playable.length} เด็ค`
-                  : "ยังไม่มีเด็คที่ครบ 40 ใบ"}
+                {playable.length > 0 ? t("lobby.playableDeckCount", playable.length) : t("lobby.noFullDeck")}
               </span>
             </div>
           )}
@@ -138,17 +139,17 @@ export function Lobby({
             type="button"
             className="primary"
             disabled={!ready}
-            title={ready ? undefined : "ต้องมีผู้เล่นสองคนและเลือกเด็คครบทั้งคู่"}
+            title={ready ? undefined : t("lobby.needTwoPlayersTitle")}
             onClick={() =>
               socket.emit("startMatch", (result) =>
                 setStartError("error" in result ? result.error : null)
               )
             }
           >
-            เริ่มเกม
+            {t("lobby.startGame")}
           </button>
         ) : (
-          <p className="play-empty">รอเจ้าของห้องกดเริ่มเกม</p>
+          <p className="play-empty">{t("lobby.waitingForHost")}</p>
         )}
 
         {(error || startError) && <p className="play-error">{error ?? startError}</p>}

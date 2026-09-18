@@ -30,7 +30,7 @@
 // partially-applied board for display only — never feed it back in.
 
 import { getCard } from "./cardDb";
-import { LOG } from "./log";
+import { LOG, type LogLine } from "./log";
 import type { ChoiceAnswer, PendingChoice } from "./cardDef";
 import { effectiveStats, type EffectTrigger } from "./cards";
 import {
@@ -265,7 +265,7 @@ export interface StepResult {
   /** Effects nobody has written code for — the players apply these by hand. */
   manual: ResolvedEffect[];
   /** What happened, oldest first, for the battle log. */
-  log: string[];
+  log: LogLine[];
   /** Set when the intent was illegal. The state is untouched. */
   error: string | null;
   /**
@@ -296,7 +296,7 @@ class Suspended {
 class Run {
   state: MatchState;
   readonly cursor: AnswerCursor;
-  readonly log: string[] = [];
+  readonly log: LogLine[] = [];
   readonly manual: ResolvedEffect[] = [];
   /** cardId + effect index of every manual effect already reported. */
   private readonly reported = new Set<string>();
@@ -387,7 +387,7 @@ class Run {
   }
 
   /** A line the engine itself wrote, optionally crediting a card for it. */
-  note(message: string, cardId?: string): void {
+  note(message: LogLine, cardId?: string): void {
     this.log.push(cardId ? creditCard(message, cardId) : message);
   }
 }
@@ -401,8 +401,12 @@ class Run {
  * sentences that all look alike. Lines that already name a card are left
  * alone rather than credited twice.
  */
-function creditCard(line: string, cardId: string): string {
-  return /\[[A-Z]{2}\d{2}-\d{3}[^\]]*\]/.test(line) ? line : `${line} [${cardId}]`;
+function creditCard(entry: LogLine, cardId: string): LogLine {
+  const already = (text: string) => /\[[A-Z]{2}\d{2}-\d{3}[^\]]*\]/.test(text);
+  return {
+    th: already(entry.th) ? entry.th : `${entry.th} [${cardId}]`,
+    en: already(entry.en) ? entry.en : `${entry.en} [${cardId}]`,
+  };
 }
 
 /**
@@ -1020,7 +1024,9 @@ function resolveCounter(run: Run): void {
     // Name the card that did it: with abilities, the clash and follow-ups all
     // taking Life in the same phase, "takes 1" on its own leaves a player no
     // way to tell which of them it was.
-    const source = winner ? `${winner.name} [${winner.id}]` : "การปะทะ";
+    const source: LogLine | string = winner
+      ? `${winner.name} [${winner.id}]`
+      : { th: "การปะทะ", en: "the clash" };
     run.note(
       LOG.takesFrom(result.loserId, total, source, run.board(result.loserId).life),
       winner?.id
@@ -1177,8 +1183,8 @@ function unopposedOrClash(
  * anything happened is a [Judgement] skill firing. Saying why leaves nobody
  * wondering whether the engine got it wrong.
  */
-function whyClause(why: CombatReason | null): string {
-  if (!why) return "";
+function whyClause(why: CombatReason | null): LogLine {
+  if (!why) return { th: "", en: "" };
   switch (why.kind) {
     case "color":
       return LOG.byColor(why.winner, why.loser);

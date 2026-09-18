@@ -19,19 +19,45 @@ import { DeckManager } from "./decks/DeckManager";
 import { loadDecks } from "./decks/storage";
 import { Lobby } from "./menu/Lobby";
 import { warmCardImages } from "./board/imagePreload";
+import { isSelfPlayPath, pathForScreen, screenFromPath, SELF_PLAY_PATH, type Screen } from "./routing";
 
 const ME = playerId();
 
-/** Which screen is up. A room or a running match overrides this entirely. */
-type Screen = "menu" | "play" | "decks";
-
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("menu");
+  const [screen, setScreenState] = useState<Screen>(() => screenFromPath(location.pathname));
+  const [hotseat, setHotseatState] = useState(() => isSelfPlayPath(location.pathname));
+  // Wraps the raw setter so every screen change also lands in browser
+  // history — a real Back press then just re-fires this same setter via the
+  // popstate listener below, instead of screen state and the address bar
+  // being two things that can drift apart.
+  const setScreen = useCallback((next: Screen) => {
+    setScreenState(next);
+    const path = pathForScreen(next);
+    if (location.pathname !== path) history.pushState({ screen: next }, "", path);
+  }, []);
+  // Hotseat is an override, not one of the three Screen paths — same idea,
+  // its own path (/self-play) so it can come and go from the address bar
+  // and Back too. Turning it off falls back to the menu, the same place
+  // leaving it any other way lands.
+  const setHotseat = useCallback((on: boolean) => {
+    setHotseatState(on);
+    const path = on ? SELF_PLAY_PATH : pathForScreen("menu");
+    if (location.pathname !== path) history.pushState({}, "", path);
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => {
+      setScreenState(screenFromPath(location.pathname));
+      setHotseatState(isSelfPlayPath(location.pathname));
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   const [playerName, setPlayerName] = useState(rememberedName);
   const [room, setRoom] = useState<Room | null>(null);
   const [seat, setSeat] = useState<Seat | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hotseat, setHotseat] = useState(false);
   /** Stops the refresh-rejoin from firing again on every reconnect. */
   const rejoined = useRef(false);
 
@@ -125,7 +151,7 @@ export default function App() {
     setRoom(null);
     setSeat(null);
     setScreen("play");
-  }, [room]);
+  }, [room, setScreen]);
 
   // ?play still opens a hotseat game straight off, which is how the board gets
   // exercised without needing a second person or a server.

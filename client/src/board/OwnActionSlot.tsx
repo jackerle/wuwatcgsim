@@ -1,5 +1,6 @@
 import type { ActionCard } from "@wuwatcg/shared";
 import { CardImage } from "./CardImage";
+import { useLang } from "../i18n/LanguageContext";
 
 /**
  * This player's Action Area.
@@ -20,6 +21,7 @@ export function OwnActionSlot({
   /** True for the opponent's side — a committed card shows only its back. */
   hideFacedown?: boolean;
 }) {
+  const { t } = useLang();
   const cards = revealed.length > 0 ? revealed : [];
 
   return (
@@ -60,7 +62,7 @@ export function OwnActionSlot({
                   speed: facedown.speed,
                 }}
               />
-              <span className="action-slot-committed">คว่ำไว้</span>
+              <span className="action-slot-committed">{t("ownActionSlot.committed")}</span>
             </div>
           )
         ) : (

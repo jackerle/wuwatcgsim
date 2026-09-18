@@ -1,5 +1,6 @@
 import { PlayGame } from "./PlayGame";
 import { useNetMatch } from "./useNetMatch";
+import { useLang } from "../i18n/LanguageContext";
 
 /**
  * A match against someone else, drawn from whatever the server last sent.
@@ -9,13 +10,14 @@ import { useNetMatch } from "./useNetMatch";
  * rendering an empty table.
  */
 export function NetGame({ isHost, onLeave }: { isHost: boolean; onLeave: () => void }) {
+  const { t } = useLang();
   const match = useNetMatch({ isHost });
 
   if (!match) {
     return (
       <div className="page">
         <div className="card">
-          <p className="status">กำลังเชื่อมต่อกับเกม...</p>
+          <p className="status">{t("netGame.connecting")}</p>
         </div>
       </div>
     );
@@ -24,7 +26,7 @@ export function NetGame({ isHost, onLeave }: { isHost: boolean; onLeave: () => v
   return (
     <PlayGame match={match}>
       <button type="button" onClick={onLeave}>
-        ออกจากห้อง
+        {t("common.leaveRoom")}
       </button>
     </PlayGame>
   );

@@ -1,4 +1,5 @@
 import { useCardPreloadProgress } from "./useCardPreloadProgress";
+import { useLang } from "../i18n/LanguageContext";
 
 /**
  * A quiet status pill for the one-time card-art warm-up — visible only
@@ -8,12 +9,13 @@ import { useCardPreloadProgress } from "./useCardPreloadProgress";
  * ones that show it.
  */
 export function ImagePreloadPill() {
+  const { t } = useLang();
   const { done, total } = useCardPreloadProgress();
   if (total === 0 || done >= total) return null;
 
   return (
-    <span className="image-preload-pill" title="โหลดรูปการ์ดไว้ล่วงหน้า เพื่อให้ดูตัวอย่างได้ไม่มีสะดุด">
-      กำลังโหลดรูปการ์ด… {done}/{total}
+    <span className="image-preload-pill" title={t("imagePreload.title")}>
+      {t("imagePreload.loading", done, total)}
     </span>
   );
 }

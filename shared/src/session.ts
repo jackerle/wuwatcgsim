@@ -15,7 +15,7 @@ import { deckToSetup, type DeckList } from "./deckList";
 import { shuffle, starterFor } from "./decks";
 import type { ResolvedEffect } from "./effects";
 import type { MatchState } from "./game";
-import { LOG } from "./log";
+import { LOG, type LogLine } from "./log";
 import { createMatch, step, viewFor, type MatchIntent, type StepResult } from "./match";
 import type { Seat } from "./types";
 import { SEATS } from "./types";
@@ -64,7 +64,7 @@ export interface SeatUpdate {
    */
   actorSeat: Seat | null;
   manual: ResolvedEffect[];
-  log: string[];
+  log: LogLine[];
   error: string | null;
 }
 
@@ -147,7 +147,7 @@ export class MatchSession {
   state: MatchState;
   question: OpenQuestion | null = null;
   manual: ResolvedEffect[] = [];
-  log: string[] = [];
+  log: LogLine[] = [];
   /** The last refusal per seat, shown only to the player who earned it. */
   private errors: Partial<Record<Seat, string>> = {};
   /**
@@ -243,7 +243,7 @@ export class MatchSession {
     const other = SEATS.find((s) => s !== seat) ?? null;
     this.question = null;
     this.state.winnerId = other ?? "draw";
-    this.log = [...this.log, `${seat} left the match — ${other ?? "nobody"} wins`].slice(-LOG_LIMIT);
+    this.log = [...this.log, LOG.leftMatch(seat, other)].slice(-LOG_LIMIT);
   }
 
   private run(actor: Seat, intent: MatchIntent, answers: ChoiceAnswer[]): boolean {

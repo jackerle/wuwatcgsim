@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { localize, type ChoiceAnswer, type PendingChoice } from "@wuwatcg/shared";
 import { CardImage } from "./CardImage";
+import { useLang } from "../i18n/LanguageContext";
 
 /**
  * The question a card is waiting on, shown over the board.
@@ -26,7 +27,6 @@ export function ChoiceDialog({
   choice,
   onAnswer,
   onCancel,
-  lang = "th",
 }: {
   choice: PendingChoice | null;
   onAnswer: (answer: ChoiceAnswer) => void;
@@ -36,8 +36,8 @@ export function ChoiceDialog({
    * that cannot be got rid of takes the game with it — this is the way out.
    */
   onCancel?: (() => void) | null;
-  lang?: "th" | "en";
 }) {
+  const { t, lang } = useLang();
   const [selected, setSelected] = useState<string[]>([]);
 
   // A new question starts from a clean selection — except when there is
@@ -45,7 +45,7 @@ export function ChoiceDialog({
   // exactly one red Encore in there is not a choice of WHICH, only of
   // whether, so the one card is marked for them.
   //
-  // Marked, never sent: the card says "you MAY", and pressing ยืนยัน is how
+  // Marked, never sent: the card says "you MAY", and pressing Confirm is how
   // the player says yes. Answering it for them would spend an optional
   // ability they were about to decline.
   useEffect(() => {
@@ -124,19 +124,19 @@ export function ChoiceDialog({
             <button
               type="button"
               className="choice-cancel"
-              title="ยกเลิกการสั่งทั้งหมด แล้วกลับไปที่กระดานเดิม"
+              title={t("choiceDialog.cancelAllTitle")}
               onClick={onCancel}
             >
-              ยกเลิกการสั่ง
+              {t("common.cancelQuestion")}
             </button>
           )}
           {kind === "confirm" ? (
             <>
               <button type="button" className="choice-no" onClick={() => onAnswer(false)}>
-                ไม่
+                {t("choiceDialog.no")}
               </button>
               <button type="button" className="choice-yes" onClick={() => onAnswer(true)}>
-                ตกลง
+                {t("choiceDialog.ok")}
               </button>
             </>
           ) : (
@@ -147,11 +147,11 @@ export function ChoiceDialog({
                   className="choice-no"
                   onClick={() => onAnswer(max === 1 ? "" : [])}
                 >
-                  ไม่เอา
+                  {t("choiceDialog.decline")}
                 </button>
               )}
               <button type="button" className="choice-yes" disabled={!enough} onClick={submit}>
-                {max > 1 ? `ยืนยัน (${selected.length}/${max})` : "ยืนยัน"}
+                {max > 1 ? t("common.confirmCount", selected.length, max) : t("common.confirm")}
               </button>
             </>
           )}

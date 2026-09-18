@@ -22,7 +22,8 @@ import {
   type MatchIntent,
   type Seat,
 } from "@wuwatcg/shared";
-import { SEAT_FALLBACK_NAMES, type MatchController } from "./matchController";
+import { seatFallbackNames, type MatchController } from "./matchController";
+import { useLang } from "../i18n/LanguageContext";
 
 export interface LocalMatchOptions {
   /** The character each seat leads with. */
@@ -43,6 +44,7 @@ function deal(options: LocalMatchOptions): MatchSession {
 }
 
 export function useLocalMatch(options: LocalMatchOptions): MatchController {
+  const { lang } = useLang();
   const session = useRef<MatchSession | null>(null);
   if (!session.current) session.current = deal(options);
 
@@ -92,7 +94,7 @@ export function useLocalMatch(options: LocalMatchOptions): MatchController {
       manual: current.manual,
       log: current.log,
       error: current.lastError,
-      names: SEAT_FALLBACK_NAMES,
+      names: seatFallbackNames(lang),
       connected: { p1: true, p2: true },
       viewing,
       setViewing,
@@ -110,6 +112,6 @@ export function useLocalMatch(options: LocalMatchOptions): MatchController {
     }),
     // `version` is the signal: the session mutates in place, so nothing else
     // here changes identity when the board moves.
-    [current, version, viewing, send, answer, cancel, restart]
+    [current, version, viewing, send, answer, cancel, restart, lang]
   );
 }

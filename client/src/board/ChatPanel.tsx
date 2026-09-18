@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@wuwatcg/shared";
+import { useLang } from "../i18n/LanguageContext";
 
 /**
  * Table talk.
@@ -15,6 +16,7 @@ export function ChatPanel({
   messages: ChatMessage[] | null;
   onSend: (text: string) => void;
 }) {
+  const { t } = useLang();
   const [draft, setDraft] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
 
@@ -27,7 +29,7 @@ export function ChatPanel({
     return (
       <div className="side-panel chat-panel">
         <div className="side-panel-header">Chat</div>
-        <div className="side-panel-body placeholder">เล่นอยู่หน้าจอเดียวกัน — คุยกันได้เลย</div>
+        <div className="side-panel-body placeholder">{t("chatPanel.sameScreen")}</div>
       </div>
     );
   }
@@ -45,7 +47,7 @@ export function ChatPanel({
       <div className="side-panel-header">Chat</div>
       <div className="side-panel-body chat-log">
         {messages.length === 0 ? (
-          <div className="placeholder">ยังไม่มีข้อความ</div>
+          <div className="placeholder">{t("chatPanel.empty")}</div>
         ) : (
           messages.map((message) => (
             <div key={message.id} className="chat-line">
@@ -60,11 +62,11 @@ export function ChatPanel({
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="พิมพ์ข้อความ..."
+          placeholder={t("chatPanel.placeholder")}
           maxLength={300}
         />
         <button type="submit" disabled={!draft.trim()}>
-          ส่ง
+          {t("chatPanel.send")}
         </button>
       </form>
     </div>

@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import type { RoomSummary, RoomVisibility } from "@wuwatcg/shared";
 import { socket } from "../socket";
+import { useLang } from "../i18n/LanguageContext";
 import "./MainMenu.css";
 
 export function PlayMenu({
@@ -21,6 +22,7 @@ export function PlayMenu({
   onBack: () => void;
   error: string | null;
 }) {
+  const { t } = useLang();
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
   const [code, setCode] = useState("");
   const [visibility, setVisibility] = useState<RoomVisibility>("public");
@@ -39,27 +41,28 @@ export function PlayMenu({
     <main className="page play-page">
       <div className="play-panel">
         <div className="play-head">
-          <h1>เล่นออนไลน์</h1>
+          <h1>{t("playMenu.title")}</h1>
           <span className="play-spacer" />
           <button type="button" onClick={onBack}>
-            กลับ
+            {t("common.back")}
           </button>
         </div>
 
         {error && <p className="play-error">{error}</p>}
 
         <section className="play-card">
-          <h2>ห้องสาธารณะ ({rooms.length})</h2>
+          <h2>{t("playMenu.publicRooms", rooms.length)}</h2>
           <div className="room-list">
             {rooms.length === 0 ? (
-              <p className="play-empty">ยังไม่มีใครเปิดห้องรออยู่ — สร้างห้องเองได้เลย</p>
+              <p className="play-empty">{t("playMenu.noRooms")}</p>
             ) : (
               rooms.map((room) => (
                 <div key={room.code} className="room-row">
                   <div className="room-row-main">
                     <div className="room-row-host">{room.hostName}</div>
                     <div className="room-row-sub">
-                      <span className="room-code">{room.code}</span> · {room.players}/{room.maxPlayers} คน
+                      <span className="room-code">{room.code}</span> ·{" "}
+                      {t("playMenu.playerCount", room.players, room.maxPlayers)}
                       {room.picks.some((pick) => pick.length > 0) &&
                         ` · ${room.picks
                           .filter((pick) => pick.length > 0)
@@ -68,7 +71,7 @@ export function PlayMenu({
                     </div>
                   </div>
                   <button type="button" className="primary" onClick={() => onJoin(room.code)}>
-                    เข้าร่วม
+                    {t("playMenu.join")}
                   </button>
                 </div>
               ))
@@ -77,22 +80,22 @@ export function PlayMenu({
         </section>
 
         <section className="play-card">
-          <h2>เข้าห้องด้วยรหัส</h2>
+          <h2>{t("playMenu.joinWithCode")}</h2>
           <div className="play-row">
             <input
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="เช่น AB12"
+              placeholder={t("playMenu.codePlaceholder")}
               maxLength={4}
             />
             <button type="button" disabled={!code.trim()} onClick={() => onJoin(code)}>
-              เข้าร่วม
+              {t("playMenu.join")}
             </button>
           </div>
         </section>
 
         <section className="play-card">
-          <h2>สร้างห้อง</h2>
+          <h2>{t("playMenu.createRoom")}</h2>
           <div className="play-row">
             <span className="visibility-toggle">
               <button
@@ -112,13 +115,11 @@ export function PlayMenu({
             </span>
             <span className="play-spacer" />
             <button type="button" className="primary" onClick={() => onCreate(visibility)}>
-              สร้างห้อง
+              {t("playMenu.createRoom")}
             </button>
           </div>
           <p className="play-empty" style={{ textAlign: "left", padding: 0 }}>
-            {visibility === "public"
-              ? "ใครก็เข้ามาเล่นด้วยได้ ห้องจะขึ้นในลิสต์ด้านบน"
-              : "ห้องจะไม่ขึ้นในลิสต์ ต้องบอกรหัสห้องให้เพื่อนเอง"}
+            {visibility === "public" ? t("playMenu.publicDesc") : t("playMenu.privateDesc")}
           </p>
         </section>
       </div>

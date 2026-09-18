@@ -72,7 +72,7 @@ for (let g = 0; g < 25; g += 1) {
       // LOG.healsFrom in shared/src/log.ts. A line the log stops writing that
       // way must be caught here, not silently stop counting.
       const mentions = fresh.filter(
-        (l) => l.startsWith(`${seat} เสีย `) || l.startsWith(`${seat} ฟื้นฟู `)
+        (l) => l.th.startsWith(`${seat} เสีย `) || l.th.startsWith(`${seat} ฟื้นฟู `)
       );
       if (mentions.length === 0) {
         silent += 1;
@@ -80,12 +80,12 @@ for (let g = 0; g < 25; g += 1) {
         console.log("   recent:", JSON.stringify(s.log.slice(-4)));
       } else {
         const logged = mentions.reduce((sum, l) => {
-          const m = /(เสีย|ฟื้นฟู) (\d+)/.exec(l);
+          const m = /(เสีย|ฟื้นฟู) (\d+)/.exec(l.th);
           return sum + (m ? (m[1] === "เสีย" ? 1 : -1) * Number(m[2]) : 0);
         }, 0);
         if (logged !== delta) {
           mismatched += 1;
-          console.log(`game ${g} step ${i}: ${seat} lost ${delta} but log says ${logged} — ${JSON.stringify(mentions)}`);
+          console.log(`game ${g} step ${i}: ${seat} lost ${delta} but log says ${logged} — ${JSON.stringify(mentions.map((l) => l.th))}`);
         }
       }
     }

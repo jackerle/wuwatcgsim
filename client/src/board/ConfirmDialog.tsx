@@ -1,3 +1,5 @@
+import { useLang } from "../i18n/LanguageContext";
+
 /**
  * A plain yes/no stop before a move that cannot be taken back.
  *
@@ -12,8 +14,8 @@
 export function ConfirmDialog({
   prompt,
   detail,
-  confirmLabel = "ยืนยัน",
-  cancelLabel = "ยกเลิก",
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
 }: {
@@ -25,6 +27,7 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useLang();
   return (
     <div className="choice-backdrop" role="dialog" aria-modal="true">
       <div className="choice-dialog">
@@ -32,10 +35,10 @@ export function ConfirmDialog({
         {detail && <p className="choice-detail">{detail}</p>}
         <div className="choice-actions">
           <button type="button" className="choice-no" onClick={onCancel}>
-            {cancelLabel}
+            {cancelLabel ?? t("confirmDialog.cancel")}
           </button>
           <button type="button" className="choice-yes" onClick={onConfirm}>
-            {confirmLabel}
+            {confirmLabel ?? t("confirmDialog.confirm")}
           </button>
         </div>
       </div>

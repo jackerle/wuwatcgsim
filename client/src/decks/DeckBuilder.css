@@ -532,7 +532,8 @@
   gap: 8px;
 }
 
-.deck-dialog-actions button {
+.deck-dialog-actions button,
+.deck-dialog-actions a {
   padding: 6px 16px;
   border-radius: 6px;
   border: 1px solid #3a3f4d;
@@ -540,9 +541,13 @@
   color: #e6e8ef;
   font-size: 0.72rem;
   cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }
 
-.deck-dialog-actions button.primary {
+.deck-dialog-actions button.primary,
+.deck-dialog-actions a.primary {
   background: #3f6ae0;
   border-color: #4d79ef;
 }
@@ -550,6 +555,35 @@
 .deck-dialog-actions button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* --- Share-as-image dialog ------------------------------------------------ */
+
+.share-deck-dialog {
+  width: min(92%, 680px);
+}
+
+.share-deck-preview {
+  max-height: 70vh;
+  overflow: auto;
+  border-radius: 8px;
+  border: 1px solid #2c2f3a;
+  background: #0d1017;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.share-deck-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.share-deck-preview .deck-dialog-hint {
+  padding: 40px 0;
 }
 
 /* --- Saved deck list ---------------------------------------------------- */

@@ -1,15 +1,17 @@
 // The turn, laid out as the five steps a player thinks in — and the control
 // that drives it.
 //
-// This used to be a read-only track beside a row of verb buttons ("เริ่มเทิร์น",
-// "เปิดการ์ด", "จบเทิร์น"), which said the same thing twice: the button named a
-// move, the track named the phase that move leaves. Now pressing the step IS
-// the move, so where the turn is and what to do about it are one thing.
+// This used to be a read-only track beside a row of verb buttons ("Start
+// Turn", "Reveal", "End Turn"), which said the same thing twice: the button
+// named a move, the track named the phase that move leaves. Now pressing the
+// step IS the move, so where the turn is and what to do about it are one
+// thing.
 //
 // The engine still decides what is legal. A step is pressable only when the
 // caller hands it an action, and the caller asks legalIntents().
 
 import type { TurnPhase } from "@wuwatcg/shared";
+import { useLang, type StringKey } from "../i18n/LanguageContext";
 
 export type PhaseStepKey = "draw" | "main" | "battle" | "judgement" | "end";
 
@@ -18,8 +20,8 @@ interface Step {
   label: string;
   /** Engine phases that light this step up. */
   phases: TurnPhase[];
-  /** The Thai name, for the tooltip — the label itself stays short. */
-  title: string;
+  /** The i18n key for the tooltip — the label itself stays short. */
+  titleKey: StringKey;
 }
 
 /**
@@ -33,21 +35,11 @@ interface Step {
  * one box is what made the turn hard to follow.
  */
 const STEPS: Step[] = [
-  { key: "draw", label: "Draw", phases: ["draw"], title: "เฟสจั่ว — กดเพื่อจั่วการ์ด" },
-  {
-    key: "main",
-    label: "Main",
-    phases: ["action"],
-    title: "เฟสหลัก — ชาร์จ เลเวลอัป สลับ Leader (อย่างละครั้ง)",
-  },
-  { key: "battle", label: "Battle", phases: ["counter"], title: "เฟสประลอง — ลงการ์ดคว่ำ" },
-  {
-    key: "judgement",
-    label: "Judgement",
-    phases: ["combo"],
-    title: "เฟสตัดสิน — เปิดการ์ด ตัดสินผล และโจมตีต่อเนื่อง",
-  },
-  { key: "end", label: "End", phases: ["end"], title: "เฟสจบเทิร์น" },
+  { key: "draw", label: "Draw", phases: ["draw"], titleKey: "phaseTrack.draw" },
+  { key: "main", label: "Main", phases: ["action"], titleKey: "phaseTrack.main" },
+  { key: "battle", label: "Battle", phases: ["counter"], titleKey: "phaseTrack.battle" },
+  { key: "judgement", label: "Judgement", phases: ["combo"], titleKey: "phaseTrack.judgement" },
+  { key: "end", label: "End", phases: ["end"], titleKey: "phaseTrack.end" },
 ];
 
 /** A step this client may press, and what pressing it means. */
@@ -72,12 +64,14 @@ export function PhaseTrack({
    */
   waiting?: Partial<Record<PhaseStepKey, string>>;
 }) {
+  const { t } = useLang();
   return (
-    <ol className="phase-track" aria-label="ลำดับเฟสในเทิร์น">
+    <ol className="phase-track" aria-label={t("phaseTrack.ariaLabel")}>
       {STEPS.map((step, index) => {
         const active = step.phases.includes(phase);
         const action = actions[step.key];
         const why = waiting[step.key];
+        const stepTitle = t(step.titleKey);
         const className = `phase-track-step ${active ? "active" : ""} ${
           action ? "pressable" : ""
         } ${why ? "waiting" : ""}`;
@@ -92,7 +86,7 @@ export function PhaseTrack({
               <button
                 type="button"
                 className={className}
-                title={action.title ?? step.title}
+                title={action.title ?? stepTitle}
                 aria-current={active ? "step" : undefined}
                 onClick={action.onPick}
               >
@@ -101,7 +95,7 @@ export function PhaseTrack({
             ) : (
               <span
                 className={className}
-                title={why ? `${step.title} — ${why}` : step.title}
+                title={why ? `${stepTitle} — ${why}` : stepTitle}
                 aria-current={active ? "step" : undefined}
               >
                 {step.label}

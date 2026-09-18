@@ -13,6 +13,7 @@ import type { ActionCardDef, CardDef } from "./cardDef";
 import { cardsFor, toActionCard, toCharacterCard } from "./decks";
 import { CHARACTERS_IN_PLAY, type ActionCard, type CharacterCard } from "./game";
 import { ACTION_DECK_SIZE } from "./rules";
+import type { Lang } from "./cards";
 
 /**
  * How many copies of one printed card a deck may hold.
@@ -79,20 +80,33 @@ export function deckSize(deck: DeckList): number {
 /**
  * Why this deck cannot be played yet, in the order a builder should fix them.
  * An empty list means it is legal.
+ *
+ * `lang` defaults to Thai — the server calls this with no language to pick
+ * (it has no player preference to hand, and this path is a rare fallback
+ * since the client already filters to playable decks before submitting
+ * one), and shared/scripts/test-decklist.ts asserts against the Thai
+ * wording, so that default has to stay byte-for-byte what it always was.
  */
-export function deckIssues(deck: DeckList): string[] {
+export function deckIssues(deck: DeckList, lang: Lang = "th"): string[] {
   const issues: string[] = [];
+  const say = (th: string, en: string) => issues.push(lang === "en" ? en : th);
 
   if (deck.characters.length !== CHARACTERS_IN_PLAY) {
-    issues.push(`ต้องเลือกตัวละคร ${CHARACTERS_IN_PLAY} ตัว (เลือกแล้ว ${deck.characters.length})`);
+    say(
+      `ต้องเลือกตัวละคร ${CHARACTERS_IN_PLAY} ตัว (เลือกแล้ว ${deck.characters.length})`,
+      `Pick ${CHARACTERS_IN_PLAY} characters (you've picked ${deck.characters.length})`
+    );
   }
   if (new Set(deck.characters).size !== deck.characters.length) {
-    issues.push("เลือกตัวละครซ้ำกัน");
+    say("เลือกตัวละครซ้ำกัน", "The same character is picked more than once");
   }
 
   const size = deckSize(deck);
   if (size !== ACTION_DECK_SIZE) {
-    issues.push(`Action Deck ต้องมี ${ACTION_DECK_SIZE} ใบพอดี (ตอนนี้ ${size})`);
+    say(
+      `Action Deck ต้องมี ${ACTION_DECK_SIZE} ใบพอดี (ตอนนี้ ${size})`,
+      `The Action Deck needs exactly ${ACTION_DECK_SIZE} cards (currently ${size})`
+    );
   }
 
   const allowed = new Set(cardPoolFor(deck.characters).map((card) => card.id));
@@ -100,10 +114,16 @@ export function deckIssues(deck: DeckList): string[] {
     if (copies <= 0) continue;
     if (!allowed.has(id)) {
       const card = getCard(id);
-      issues.push(`${card?.name ?? id} (${id}) ไม่ได้อยู่ในตัวละครที่เลือก`);
+      say(
+        `${card?.name ?? id} (${id}) ไม่ได้อยู่ในตัวละครที่เลือก`,
+        `${card?.name ?? id} (${id}) isn't from the characters you picked`
+      );
     }
     if (copies > MAX_COPIES_PER_CARD) {
-      issues.push(`${getCard(id)?.name ?? id} เกิน ${MAX_COPIES_PER_CARD} ใบ (มี ${copies})`);
+      say(
+        `${getCard(id)?.name ?? id} เกิน ${MAX_COPIES_PER_CARD} ใบ (มี ${copies})`,
+        `${getCard(id)?.name ?? id} is over the ${MAX_COPIES_PER_CARD}-copy limit (you have ${copies})`
+      );
     }
   }
 

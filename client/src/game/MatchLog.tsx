@@ -4,9 +4,10 @@
 // never silently dropped — it surfaces here with its printed text, so the
 // players can apply it themselves and the game keeps moving.
 
-import { getCard, type ResolvedEffect } from "@wuwatcg/shared";
+import { getCard, localize, type LogLine, type ResolvedEffect } from "@wuwatcg/shared";
 import { CardImage } from "../board/CardImage";
 import { EffectText } from "../board/EffectText";
+import { useLang } from "../i18n/LanguageContext";
 
 /**
  * Puts player names into a log line.
@@ -72,33 +73,36 @@ export function MatchLog({
   manual,
   names,
 }: {
-  log: string[];
+  log: LogLine[];
   manual: ResolvedEffect[];
   names: Record<string, string>;
 }) {
+  const { t, lang } = useLang();
   return (
     <div className="side-panel battlelog-panel">
       <div className="side-panel-header">Battle Log</div>
       <div className="side-panel-body">
         {manual.length > 0 && (
           <div className="manual-effects">
-            <h4>ต้องทำเอง</h4>
+            <h4>{t("matchLog.manualHeading")}</h4>
             <ul>
               {manual.map((entry, index) => (
                 <li key={`${entry.cardId}-${index}`}>
-                  <strong>{entry.cardId}</strong> <EffectText effect={entry.effect} />
+                  <strong>{entry.cardId}</strong> <EffectText effect={entry.effect} lang={lang} />
                 </li>
               ))}
             </ul>
           </div>
         )}
 
+        {/* The log lines come from the shared engine (see shared/src/log.ts)
+            already in both languages — localize() picks the one showing. */}
         {log.length === 0 ? (
-          <p className="placeholder">ยังไม่มีบันทึกการต่อสู้</p>
+          <p className="placeholder">{t("matchLog.empty")}</p>
         ) : (
           <ol className="log-lines">
-            {log.map((line, index) => {
-              const { text, card } = readLine(line);
+            {log.map((entry, index) => {
+              const { text, card } = readLine(localize(entry, lang));
               return (
                 <li key={index}>
                   {/* The slot is there whether or not a card fills it, so

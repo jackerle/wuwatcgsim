@@ -38,7 +38,7 @@ import {
 } from "./cardDef";
 import type { CardKeyword, ContinuousKeyword, EffectTrigger } from "./cards";
 import { getCard } from "./cardDb";
-import { LOG, PROMPT } from "./log";
+import { LOG, PROMPT, type LogLine } from "./log";
 import { recordCharacterPlayed, recycleTrash, takeFromDeck } from "./rules";
 import { characterStack, nextRandom, shuffleWithState } from "./game";
 import type {
@@ -112,7 +112,7 @@ export interface ResolvedEffect {
   status: EffectStatus;
   /** Why it needs a human, why it did not apply, or what went wrong. */
   reason?: string;
-  log: string[];
+  log: LogLine[];
 }
 
 export interface TriggerResult {
@@ -150,7 +150,7 @@ function createContext(
   state: MatchState,
   card: CardDef,
   controllerId: string,
-  log: string[],
+  log: LogLine[],
   /** Set while recomputing continuous effects — see recomputeContinuous. */
   derived = false,
   cursor: AnswerCursor = { answers: [], next: 0 },
@@ -752,7 +752,7 @@ function createContext(
       });
       log.push(LOG.damageTakenChange(target, amount, duration));
     },
-    log: (message) => log.push(message),
+    log: (message) => log.push({ th: message, en: message }),
 
     confirm(prompt, playerId) {
       return Boolean(
@@ -868,7 +868,7 @@ function fireHere(
   controllerId: string,
   zone: EffectZone,
   cursor: AnswerCursor,
-  log: string[]
+  log: LogLine[]
 ): void {
   const definition = getCard(card.id);
   if (!definition) return;
@@ -957,7 +957,7 @@ function runEffect(
     controllerId: source.controllerId,
     effect,
   };
-  const log: string[] = [];
+  const log: LogLine[] = [];
   const before = structuredClone(state);
   const ctx = createContext(state, source.card, source.controllerId, log, derived, cursor, effect);
 
@@ -1083,7 +1083,7 @@ export function resolveTriggerWith(
 export interface ContinuousResult {
   state: MatchState;
   manual: ResolvedEffect[];
-  log: string[];
+  log: LogLine[];
 }
 
 /**
@@ -1103,7 +1103,7 @@ export function recomputeContinuous(
   working.zoneLimits = working.zoneLimits.filter((limit) => !limit.derived);
 
   const manual: ResolvedEffect[] = [];
-  const log: string[] = [];
+  const log: LogLine[] = [];
 
   for (const [playerId, board] of Object.entries(working.boards)) {
     // Action cards carry passives too — "〈Echo〉 is capped at 1 on the Action

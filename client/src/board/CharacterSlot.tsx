@@ -3,6 +3,7 @@ import { characterStack, type CharacterCard, type CharacterInstance } from "@wuw
 import { CardImage } from "./CardImage";
 import { CardMenu, useDismiss, type CardMenuItem } from "./CardMenu";
 import { usePileModal } from "./PileModalContext";
+import { useLang } from "../i18n/LanguageContext";
 
 /** What this character can be told to do, worked out by the engine. */
 export interface SlotActions {
@@ -32,7 +33,7 @@ const previewOf = (card: CharacterCard) => ({
  *
  * Levelling up does not swap the card out, it plays a new one on top, so the
  * lower levels stay underneath. Only a strip of each one shows, so the menu's
- * "ดู" opens the same expanded view the Pool and Trash piles use — that is
+ * "View" opens the same expanded view the Pool and Trash piles use — that is
  * where you read the abilities of the levels a character was built through,
  * which still matter for what the character is.
  *
@@ -53,6 +54,7 @@ export function CharacterSlot({
   /** Omitted for a character nobody at this screen may move right now. */
   actions?: SlotActions;
 }) {
+  const { t } = useLang();
   const { setOpenPile } = usePileModal();
   const [menu, setMenu] = useState<"root" | "level" | "switch" | null>(null);
   const rootRef = useDismiss(menu !== null, () => setMenu(null));
@@ -91,13 +93,18 @@ export function CharacterSlot({
   };
 
   const root: CardMenuItem[] = [
-    { key: "view", label: "ดู", hint: `กองการ์ดทั้งหมด (${pile.length} ใบ)`, onPick: view },
+    {
+      key: "view",
+      label: t("characterSlot.view"),
+      hint: t("characterSlot.wholePileHint", pile.length),
+      onPick: view,
+    },
   ];
   if (levelOptions.length > 0) {
     root.push({
       key: "level",
-      label: "เลเวลอัป",
-      hint: `${levelOptions.length} ใบที่ลงได้`,
+      label: t("characterSlot.levelUp"),
+      hint: t("characterSlot.playableHint", levelOptions.length),
       // One legal card is not a choice — go straight to paying for it.
       onPick: () => (levelOptions.length === 1 ? levelUp(levelOptions[0]) : setMenu("level")),
     });
@@ -105,9 +112,11 @@ export function CharacterSlot({
   if (switchOptions.length > 0) {
     root.push({
       key: "switch",
-      label: "สลับ",
+      label: t("characterSlot.switch"),
       hint:
-        slot.position === "leader" ? "เอาตัวหลังขึ้นมาเป็น Leader" : "ขึ้นมาเป็น Leader",
+        slot.position === "leader"
+          ? t("characterSlot.switchFromLeaderHint")
+          : t("characterSlot.switchFromBackHint"),
       onPick: () =>
         switchOptions.length === 1
           ? doSwitch(switchOptions[0].card.id)
@@ -123,8 +132,8 @@ export function CharacterSlot({
         role="button"
         title={
           root.length > 1
-            ? `${slot.card.name} — ดู / เลเวลอัป / สลับ`
-            : `ดูการ์ดทั้งกองของ ${slot.card.name} (${pile.length} ใบ)`
+            ? t("characterSlot.multiActionTitle", slot.card.name)
+            : t("characterSlot.viewOnlyTitle", slot.card.name, pile.length)
         }
       >
         {pile.map((card, index) => (
@@ -146,11 +155,11 @@ export function CharacterSlot({
 
       {menu === "level" && (
         <CardMenu
-          head="เลเวลอัปด้วยใบไหน"
+          head={t("characterSlot.levelUpMenuHead")}
           items={levelOptions.map((card) => ({
             key: card.id,
             label: `${card.name} Lv.${card.level}`,
-            hint: `(${card.id}) — ทิ้ง ${card.level} ใบ`,
+            hint: t("characterSlot.levelUpItemHint", card.id, card.level),
             card: previewOf(card),
             onPick: () => levelUp(card),
           }))}
@@ -159,7 +168,7 @@ export function CharacterSlot({
 
       {menu === "switch" && (
         <CardMenu
-          head="สลับเป็นใคร"
+          head={t("characterSlot.switchMenuHead")}
           items={switchOptions.map((option) => ({
             key: option.card.id,
             label: option.card.name,

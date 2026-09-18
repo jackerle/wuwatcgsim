@@ -1,15 +1,22 @@
 import { getCard, subtypeLabel } from "@wuwatcg/shared";
 import { EffectText } from "./EffectText";
 import { useHoverPreview } from "./HoverPreviewContext";
+import { useLang, type StringKey } from "../i18n/LanguageContext";
 
-const COLOR_TH: Record<string, string> = { red: "แดง", green: "เขียว", blue: "น้ำเงิน" };
+const COLOR_KEY: Record<string, StringKey> = {
+  red: "detailPanel.colorRed",
+  green: "detailPanel.colorGreen",
+  blue: "detailPanel.colorBlue",
+};
 
 /**
  * Shows the stats and printed ability of whatever card is hovered. The
- * ability text comes straight from the card database, keyword tags and all,
- * so it reads the way it does on the card.
+ * ability text comes straight from the card database, keyword tags and all
+ * — and, like the rest of that data, is Thai-only for almost every card
+ * (see strings.ts's header comment), so it stays Thai even in English mode.
  */
 export function DetailPanel() {
+  const { t, lang } = useLang();
   const { hovered } = useHoverPreview();
   const definition = hovered?.cardId ? getCard(hovered.cardId) : undefined;
 
@@ -17,7 +24,7 @@ export function DetailPanel() {
     return (
       <div className="side-panel detail-panel">
         <div className="side-panel-header">Detail</div>
-        <div className="side-panel-body placeholder">ชี้เมาส์ที่การ์ดเพื่อดูรายละเอียด</div>
+        <div className="side-panel-body placeholder">{t("detailPanel.placeholder")}</div>
       </div>
     );
   }
@@ -62,7 +69,7 @@ export function DetailPanel() {
             <dd>{hovered.cost}</dd>
             <dt>Color</dt>
             <dd className={`color-${hovered.color}`}>
-              {hovered.color ? COLOR_TH[hovered.color] : "-"}
+              {hovered.color ? t(COLOR_KEY[hovered.color]) : "-"}
             </dd>
             <dt>Damage</dt>
             <dd>{hovered.damage}</dd>
@@ -75,13 +82,13 @@ export function DetailPanel() {
           <ul className="detail-effects">
             {definition.effects.map((effect, index) => (
               <li key={index} className={effect.resolve ? "" : "manual"}>
-                <EffectText effect={effect} />
-                {!effect.resolve && <span className="manual-tag">ผู้เล่นทำเอง</span>}
+                <EffectText effect={effect} lang={lang} />
+                {!effect.resolve && <span className="manual-tag">{t("detailPanel.manualTag")}</span>}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="detail-note">การ์ดใบนี้ไม่มีเอฟเฟค</p>
+          <p className="detail-note">{t("detailPanel.noEffect")}</p>
         )}
       </div>
     </div>

@@ -1,5 +1,6 @@
 import type { ActionCard, CharacterCard } from "@wuwatcg/shared";
 import { CardArt } from "./CardImage";
+import { useLang } from "../i18n/LanguageContext";
 
 /**
  * The last look before a Level Up goes through: what is being played, and
@@ -21,11 +22,12 @@ export function LevelUpConfirm({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useLang();
   return (
     <div className="choice-backdrop" role="dialog" aria-modal="true">
       <div className="choice-dialog">
         <p className="choice-prompt">
-          เลเวลอัป {card.name} เป็น Lv.{card.level} โดยทิ้งการ์ด {discarding.length} ใบ?
+          {t("levelUpConfirm.prompt", card.name, card.level, discarding.length)}
         </p>
 
         <div className="levelup-confirm">
@@ -61,10 +63,10 @@ export function LevelUpConfirm({
 
         <div className="choice-actions">
           <button type="button" className="choice-no" onClick={onCancel}>
-            ยกเลิก
+            {t("common.cancel")}
           </button>
           <button type="button" className="choice-yes" onClick={onConfirm}>
-            ยืนยัน
+            {t("common.confirm")}
           </button>
         </div>
       </div>

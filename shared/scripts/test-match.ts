@@ -23,6 +23,7 @@ import {
 import type { ActionCard, CharacterCard, MatchState } from "../src/game";
 import { CHARGE_PER_TURN, HAND_LIMIT, HIDDEN_CARD_ID, INITIAL_HAND_SIZE } from "../src/game";
 import { ACTION_DECK_SIZE } from "../src/rules";
+import type { LogLine } from "../src/log";
 
 let pass = 0;
 let fail = 0;
@@ -209,8 +210,8 @@ function drive(
   check("จั่วได้ตามปกติ", s.boards.p1.hand.length === inHand + 1, `${s.boards.p1.hand.length}`);
   check(
     "log บอกว่าสับกองทิ้งกลับเป็นเด็ค",
-    out.log.some((line) => line.includes("สับเป็นเด็คใหม่")),
-    out.log.join(" | ")
+    out.log.some((line) => line.th.includes("สับเป็นเด็คใหม่")),
+    out.log.map((l) => l.th).join(" | ")
   );
 }
 
@@ -256,8 +257,8 @@ function drive(
   check("แต่ยังเดินเกมต่อได้", s.phase === "action", s.phase);
   check(
     "log บอกว่าเด็คหมด",
-    out.log.some((line) => line.includes("หมดแล้ว")),
-    out.log.join(" | ")
+    out.log.some((line) => line.th.includes("หมดแล้ว")),
+    out.log.map((l) => l.th).join(" | ")
   );
 }
 
@@ -432,8 +433,8 @@ let game = newMatch();
   );
   check(
     "บันทึกการจ่ายลงล็อก",
-    result.log.some((line) => line.includes("จ่าย 2")),
-    result.log.filter((l) => l.includes("จ่าย")).join(" | ")
+    result.log.some((line) => line.th.includes("จ่าย 2")),
+    result.log.filter((l) => l.th.includes("จ่าย")).map((l) => l.th).join(" | ")
   );
 
   // Paying is exact: a cost 1 card takes one of the two and leaves one.
@@ -946,12 +947,12 @@ let game = newMatch();
   const { result } = drive(c2.state, "p1", { kind: "resolveCounter" });
 
   const lines = result.log;
-  const judgementAt = lines.findIndex((line) => line.includes("ชนะการปะทะ"));
-  const damageAt = lines.findIndex((line) => line.includes("เสีย "));
+  const judgementAt = lines.findIndex((line) => line.th.includes("ชนะการปะทะ"));
+  const damageAt = lines.findIndex((line) => line.th.includes("เสีย "));
   check(
     "ตัดสินผลแพ้ชนะก่อน แล้วค่อยลงดาเมจ",
     judgementAt >= 0 && damageAt > judgementAt,
-    lines.join(" | ")
+    lines.map((l) => l.th).join(" | ")
   );
   check("ดาเมจเข้าจริงหลังจากนั้น", result.state.boards.p2.life === 17, `${result.state.boards.p2.life}`);
 }
@@ -1122,11 +1123,11 @@ let game = newMatch();
   // The fix must not have silenced these abilities instead — they still have
   // to fire once, through their own trigger. Two separate hits land here: the
   // [Counter] ability, then the clash itself.
-  const hits = result.log.filter((line) => line.includes("p2 เสีย"));
+  const hits = result.log.filter((line) => line.th.includes("p2 เสีย"));
   check(
     "เอฟเฟค [Counter] ยังทำงานตอนเทรกเกอร์จริง ไม่ได้ถูกปิดไปด้วย",
     hits.length === 2,
-    hits.join(" | ")
+    hits.map((l) => l.th).join(" | ")
   );
 }
 
@@ -1186,8 +1187,8 @@ let game = newMatch();
   s = first.state;
   check(
     "counter ด้วยแดงเอง -> เอฟเฟคทำงาน",
-    first.log.some((line) => line.includes("p2 เสีย 1 จาก Jinshi")),
-    first.log.filter((line) => line.includes("เสีย")).join(" | ")
+    first.log.some((line) => line.th.includes("p2 เสีย 1 จาก Jinshi")),
+    first.log.filter((line) => line.th.includes("เสีย")).map((l) => l.th).join(" | ")
   );
 
   // Round two: p1 lays nothing down, p2 counters with red. p1's Jinshi must
@@ -1203,8 +1204,10 @@ let game = newMatch();
   const second = drive(s, "p2", { kind: "resolveCounter" }).result;
   check(
     "ไม่ได้ลงการ์ด แต่อีกฝ่ายลงแดง -> Jinshi ของเราต้องไม่ทำงาน",
-    !second.log.some((line) => line.includes("from Jinshi")),
-    second.log.filter((line) => line.includes("เสีย")).join(" | ")
+    // Was checking the English phrase against Thai-only log text, so this
+    // always passed regardless — .th is the substring that's actually there.
+    !second.log.some((line) => line.th.includes("จาก Jinshi")),
+    second.log.filter((line) => line.th.includes("เสีย")).map((l) => l.th).join(" | ")
   );
   check(
     "และอีกฝ่ายต้องไม่เสียเลือดจากเอฟเฟคของเรา",
@@ -1232,22 +1235,23 @@ let game = newMatch();
   s = step(s, "p2", { kind: "commit", cardId: "BP01-052" }).state;
   const out = drive(s, "p1", { kind: "resolveCounter" }).result;
 
-  const hits = out.log.filter((line) => line.includes(" เสีย "));
-  check("มีบรรทัดดาเมจอย่างน้อย 2 บรรทัด", hits.length >= 2, hits.join(" | "));
+  const hits = out.log.filter((line) => line.th.includes(" เสีย "));
+  const hitTexts = hits.map((l) => l.th);
+  check("มีบรรทัดดาเมจอย่างน้อย 2 บรรทัด", hits.length >= 2, hitTexts.join(" | "));
   check(
     "ทุกบรรทัดบอกว่ามาจากการ์ดใบไหน",
-    hits.every((line) => / จาก .+ \[[A-Z]{2}\d{2}-\d{3}\] /.test(line)),
-    hits.join(" | ")
+    hitTexts.every((text) => / จาก .+ \[[A-Z]{2}\d{2}-\d{3}\] /.test(text)),
+    hitTexts.join(" | ")
   );
   check(
     "ดาเมจจากเอฟเฟคบอกชื่อตัวละคร",
-    hits.some((line) => line.includes("จาก Jinshi [BP01-030]")),
-    hits.join(" | ")
+    hitTexts.some((text) => text.includes("จาก Jinshi [BP01-030]")),
+    hitTexts.join(" | ")
   );
   check(
     "ดาเมจจากการปะทะบอกชื่อการ์ดที่ชนะ",
-    hits.some((line) => /จาก .+ \[BP01-0(44|52)\]/.test(line)),
-    hits.join(" | ")
+    hitTexts.some((text) => /จาก .+ \[BP01-0(44|52)\]/.test(text)),
+    hitTexts.join(" | ")
   );
 }
 
@@ -1387,8 +1391,8 @@ let game = newMatch();
     s = drive(s, "p2", { kind: "commit", cardId: p2Card }).result.state;
     return drive(s, "p1", { kind: "resolveCounter" }).result;
   };
-  const clashLine = (log: string[]) =>
-    log.find((line) => line.includes("การปะทะ")) ?? "(no clash line)";
+  const clashLine = (log: LogLine[]) =>
+    log.find((line) => line.th.includes("การปะทะ"))?.th ?? "(no clash line)";
 
   // BP01-045 is blue, BP01-044 red: blue beats red, whatever the attack says.
   const byColor = clashLine(clash("BP01-045", "BP01-044").log);
@@ -1435,7 +1439,7 @@ let game = newMatch();
   s = drive(s, "p2", { kind: "commit", cardId: "BP01-044" }).result.state;
   const out = drive(s, "p1", { kind: "resolveCounter" }).result;
 
-  const credited = out.log.filter((line) => /\[[A-Z]{2}\d{2}-\d{3}/.test(line));
+  const credited = out.log.filter((line) => /\[[A-Z]{2}\d{2}-\d{3}/.test(line.th)).map((l) => l.th);
   check(
     "บรรทัดที่มีการ์ดเป็นต้นเหตุ ระบุเลขการ์ดไว้ให้รูปขึ้นได้",
     credited.some((line) => line.includes("จ่าย")) &&
@@ -1449,8 +1453,8 @@ let game = newMatch();
   );
   check(
     "เปิดการ์ดแยกบรรทัดต่อฝั่ง จะได้ติดรูปของตัวเองได้",
-    out.log.filter((line) => line.includes("เปิด ")).length === 2,
-    out.log.filter((line) => line.includes("เปิด ")).join(" | ")
+    out.log.filter((line) => line.th.includes("เปิด ")).length === 2,
+    out.log.filter((line) => line.th.includes("เปิด ")).map((l) => l.th).join(" | ")
   );
 }
 

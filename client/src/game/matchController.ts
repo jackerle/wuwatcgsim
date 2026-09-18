@@ -8,12 +8,14 @@
 import type {
   ChatMessage,
   ChoiceAnswer,
+  LogLine,
   MatchIntent,
   MatchState,
   PendingChoice,
   ResolvedEffect,
   Seat,
 } from "@wuwatcg/shared";
+import { STRINGS, type Lang } from "../i18n/strings";
 
 export interface MatchController {
   /** The board as the current viewer is allowed to see it. */
@@ -24,7 +26,7 @@ export interface MatchController {
   askingSeat: string | null;
   /** Effects with no code written — the players apply these themselves. */
   manual: ResolvedEffect[];
-  log: string[];
+  log: LogLine[];
   error: string | null;
 
   names: Record<string, string>;
@@ -63,7 +65,8 @@ export interface MatchController {
   sendChat: (text: string) => void;
 }
 
-export const SEAT_FALLBACK_NAMES: Record<string, string> = {
-  p1: "ผู้เล่น 1",
-  p2: "ผู้เล่น 2",
-};
+/** "Player 1"/"Player 2", before the server or session has sent real names. */
+export function seatFallbackNames(lang: Lang): Record<string, string> {
+  const player = STRINGS["matchController.player"][lang] as (seat: number) => string;
+  return { p1: player(1), p2: player(2) };
+}

@@ -7,6 +7,7 @@ import type { ChoiceAnswer, PendingChoice } from "./cardDef";
 import type { DeckList } from "./deckList";
 import type { ResolvedEffect } from "./effects";
 import type { MatchIntent } from "./match";
+import type { LogLine } from "./log";
 
 /**
  * Which side of the table a player sits on. These double as the engine's
@@ -100,7 +101,7 @@ export interface MatchUpdate {
   actorSeat: Seat | null;
   /** Effects with no code written — the players apply these themselves. */
   manual: ResolvedEffect[];
-  log: string[];
+  log: LogLine[];
   /** Why this player's own last move was refused, if it was. */
   error: string | null;
 }

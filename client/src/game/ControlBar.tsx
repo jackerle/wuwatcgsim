@@ -7,6 +7,7 @@
 import { useState, type ReactNode } from "react";
 import { PhaseTrack, type PhaseAction, type PhaseStepKey } from "./PhaseTrack";
 import { ConfirmDialog } from "../board/ConfirmDialog";
+import { useLang } from "../i18n/LanguageContext";
 import {
   canCommit,
   canCommitAnything,
@@ -81,6 +82,7 @@ export function ControlBar({
   children,
   levelUp,
 }: ControlBarProps) {
+  const { t } = useLang();
   /**
    * A move waiting on a yes/no. Held here rather than sent straight off,
    * because leaving the Main Phase and declining the clash both throw
@@ -121,7 +123,7 @@ export function ControlBar({
   if (allowed.includes("startTurn")) {
     phaseActions.draw = {
       onPick: () => act({ kind: "startTurn" }),
-      title: "จั่วการ์ดของเทิร์นนี้ — เข้าเฟสหลักต่อเอง",
+      title: t("controlBar.drawTitle"),
     };
   }
 
@@ -129,25 +131,22 @@ export function ControlBar({
     phaseActions.battle = {
       onPick: () =>
         setConfirming({
-          prompt: "ไปเฟสประลองเลยไหม",
-          detail:
-            actionsLeft > 0
-              ? `ยังเหลือแอ็กชันของเทิร์นนี้อีก ${actionsLeft} อย่าง (ชาร์จ / เลเวลอัป / สลับ) — ออกจากเฟสหลักแล้วย้อนกลับมาไม่ได้`
-              : undefined,
-          confirmLabel: "ไปเฟสประลอง",
+          prompt: t("controlBar.toBattlePrompt"),
+          detail: actionsLeft > 0 ? t("controlBar.toBattleDetail", actionsLeft) : undefined,
+          confirmLabel: t("controlBar.toBattleConfirm"),
           onYes: () => act({ kind: "toBattle" }),
         }),
-      title: "ปิดเฟสหลัก แล้วเปิดเฟสประลอง",
+      title: t("controlBar.toBattleTitle"),
     };
   }
 
   if (allowed.includes("resolveCounter")) {
     phaseActions.judgement = {
       onPick: () => act({ kind: "resolveCounter" }),
-      title: "เปิดการ์ดทั้งสองฝ่าย ตัดสินผล แล้วเข้าการโจมตีต่อเนื่อง",
+      title: t("controlBar.judgementTitle"),
     };
   } else if (state.phase === "counter" && mine) {
-    phaseWaiting.judgement = "ต้องเลือกให้ครบทั้งสองฝ่ายก่อน";
+    phaseWaiting.judgement = t("controlBar.judgementWaiting");
   }
 
   // End carries two meanings, and the phase says which: in the Battle Phase
@@ -158,17 +157,17 @@ export function ControlBar({
     phaseActions.end = {
       onPick: () =>
         setConfirming({
-          prompt: "ไม่ลงการ์ดในการปะทะนี้ไหม",
+          prompt: t("controlBar.passPrompt"),
           detail: canCommitAnything(state, viewer)
-            ? "ยอมแพ้การปะทะรอบนี้ แต่ไม่เสียการ์ด — อีกฝ่ายยังลงการ์ดของเขาได้"
-            : "ไม่มีการ์ดในมือที่จ่ายไหว",
-          confirmLabel: "ไม่ลงการ์ด",
+            ? t("controlBar.passDetailCan")
+            : t("controlBar.passDetailCannot"),
+          confirmLabel: t("controlBar.pass"),
           onYes: () => {
             onSend(viewer, { kind: "pass" });
             onClearSelection();
           },
         }),
-      title: "ไม่ลงการ์ดในการปะทะนี้",
+      title: t("controlBar.passTitle"),
     };
   } else if (allowed.includes("endTurn")) {
     // Still holding follow-ups is the one case worth a second look; the
@@ -178,15 +177,15 @@ export function ControlBar({
       onPick: () =>
         holdingCombo
           ? setConfirming({
-              prompt: "จบการโจมตีต่อเนื่องและจบเทิร์นไหม",
+              prompt: t("controlBar.endComboPrompt"),
               detail: state.combo?.unlimited
-                ? "ยังต่อเนื่องได้ไม่จำกัด"
-                : `ยังเหลือสิทธิ์โจมตีต่อเนื่องอีก ${state.combo?.remaining ?? 0} ครั้ง`,
-              confirmLabel: "จบเทิร์น",
+                ? t("controlBar.endComboDetailUnlimited")
+                : t("controlBar.endComboDetailRemaining", state.combo?.remaining ?? 0),
+              confirmLabel: t("controlBar.endTurn"),
               onYes: () => act({ kind: "endTurn" }),
             })
           : act({ kind: "endTurn" }),
-      title: holdingCombo ? "จบการโจมตีต่อเนื่อง แล้วจบเทิร์น" : "จบเทิร์น",
+      title: holdingCombo ? t("controlBar.endComboThenTurnTitle") : t("controlBar.endTurn"),
     };
   }
 
@@ -194,7 +193,10 @@ export function ControlBar({
     return (
       <div className="control-bar">
         <span className="control-phase">
-          จบเกม — {state.winnerId === "draw" ? "เสมอ" : `${nameOf(state.winnerId)} ชนะ`}
+          {t(
+            "controlBar.gameOver",
+            state.winnerId === "draw" ? t("controlBar.draw") : t("controlBar.wins", nameOf(state.winnerId))
+          )}
         </span>
         <span className="control-spacer" />
         {children}
@@ -211,35 +213,31 @@ export function ControlBar({
     const waitingFor = Object.keys(state.boards).filter((id) => !state.mulliganDone[id]);
     return (
       <div className="control-bar">
-        <span className="control-phase">
-          เปลี่ยนการ์ดในมือ · {nameOf(state.startingPlayerId)} เริ่มก่อน
-        </span>
+        <span className="control-phase">{t("controlBar.mulliganHeading", nameOf(state.startingPlayerId))}</span>
         <span className="control-actions">
           {theirs && !chosen && mulligan && (
             <>
-              <span className="control-hint">
-                เลือกการ์ดที่ไม่ต้องการกี่ใบก็ได้ — คืนเข้ากอง สับ แล้วจั่วใหม่เท่าจำนวนที่คืน
-              </span>
+              <span className="control-hint">{t("controlBar.mulliganHint")}</span>
               {mulligan.picked > 0 && (
                 <button type="button" onClick={onClearSelection}>
-                  ล้างที่เลือก
+                  {t("controlBar.clearSelection")}
                 </button>
               )}
               <button type="button" className="primary" onClick={mulligan.onSubmit}>
-                {mulligan.picked > 0 ? `เปลี่ยน ${mulligan.picked} ใบ` : "เก็บมือนี้"}
+                {mulligan.picked > 0 ? t("controlBar.mulliganSubmit", mulligan.picked) : t("controlBar.keepHand")}
               </button>
             </>
           )}
           {theirs && chosen && (
             <span className="control-hint">
               {waitingFor.length > 0
-                ? `เลือกแล้ว — รอ ${waitingFor.map(nameOf).join(", ")}`
-                : "เลือกแล้ว"}
+                ? t("controlBar.chosenWaiting", waitingFor.map(nameOf).join(", "))
+                : t("controlBar.chosen")}
             </span>
           )}
           {!theirs && (
             <span className="control-hint">
-              {chosen ? `${nameOf(viewer)} เลือกแล้ว` : `รอ ${nameOf(viewer)} เลือกการ์ด`}
+              {chosen ? t("controlBar.theyChose", nameOf(viewer)) : t("controlBar.waitingToPick", nameOf(viewer))}
             </span>
           )}
           {error && <span className="control-error">{error}</span>}
@@ -256,17 +254,13 @@ export function ControlBar({
     const { card, picked, onCancel } = levelUp;
     return (
       <div className="control-bar">
-        <span className="control-phase">
-          เลเวลอัป {card.name} → Lv.{card.level}
-        </span>
+        <span className="control-phase">{t("controlBar.levelUpHeading", card.name, card.level)}</span>
         <span className="control-actions">
           {/* No confirm button: picking the last card opens the dialog, and
               that is where the move is agreed to. */}
-          <span className="control-hint">
-            เลือกการ์ดในมือเพื่อทิ้ง {picked}/{card.level} ใบ
-          </span>
+          <span className="control-hint">{t("controlBar.levelUpHint", picked, card.level)}</span>
           <button type="button" onClick={onCancel}>
-            ยกเลิก
+            {t("common.cancel")}
           </button>
           {error && <span className="control-error">{error}</span>}
         </span>
@@ -281,9 +275,7 @@ export function ControlBar({
           what puts the phase track on the centre line of the board however
           long the buttons on either side run. */}
       <span className="control-side">
-      <span className="control-phase">
-        เทิร์น {state.turnNumber} · {nameOf(me)}
-      </span>
+      <span className="control-phase">{t("controlBar.turnHeading", state.turnNumber, nameOf(me))}</span>
 
       {/* Scrolls sideways rather than wrapping: the board has an exact
           vertical budget, so this bar must stay one row high however many
@@ -297,66 +289,59 @@ export function ControlBar({
 
       {state.phase === "action" && mine && (
         <span className="control-hint">
-          {actionsLeft > 0
-            ? `เฟสหลัก — คลิกการ์ดหรือตัวละครเพื่อใช้แอ็กชัน (เหลือ ${actionsLeft} อย่าง) หรือกด Battle`
-            : "ใช้แอ็กชันครบแล้ว"}
+          {actionsLeft > 0 ? t("controlBar.mainPhaseHint", actionsLeft) : t("controlBar.noActionsLeft")}
         </span>
       )}
 
       {waitingToCommit && (
         <span className="control-hint">
-          {canCommitAnything(state, viewer)
-            ? "คลิกการ์ดในมือเพื่อลงคว่ำ หรือกด End เพื่อไม่ลงการ์ด"
-            : "ไม่มีการ์ดที่จ่ายไหว — กด End เพื่อไม่ลงการ์ด"}
+          {canCommitAnything(state, viewer) ? t("controlBar.canCommitHint") : t("controlBar.cannotCommitHint")}
         </span>
       )}
       {/* The other side has no move yet: the turn player opens the Counter
           Phase. Without a word here their hand simply offers nothing and the
           screen looks stuck. */}
       {state.phase === "action" && viewer !== state.turnPlayerId && controls.includes(viewer) && (
-        <span className="control-hint">
-          รอ {nameOf(state.turnPlayerId)} เล่นเมนเฟสให้จบก่อน แล้วจึงลงการ์ดคว่ำได้
-        </span>
+        <span className="control-hint">{t("controlBar.waitOtherMainPhase", nameOf(state.turnPlayerId))}</span>
       )}
       {state.phase === "counter" &&
         state.committed[viewer] &&
         !allowed.includes("resolveCounter") && (
           <span className="control-hint">
-            {state.facedown[viewer] ? "ลงคว่ำแล้ว" : "ไม่ลงการ์ด"} — รออีกฝ่ายเลือก
+            {t(
+              "controlBar.waitingOtherSide",
+              state.facedown[viewer] ? t("controlBar.committed") : t("controlBar.passed")
+            )}
           </span>
         )}
       {/* Like committing, the combo prompt follows the viewer: the hand you
           can actually click is the face-up one, not the turn player's. */}
       {state.phase === "combo" && state.combo?.playerId === viewer && (
         <span className="control-hint">
-          คลิกการ์ดในมือเพื่อคอมโบ
-          {state.combo.unlimited ? " (ไม่จำกัด)" : ` (เหลือ ${state.combo.remaining})`}
+          {t("controlBar.comboOwnHint")}
+          {state.combo.unlimited ? t("controlBar.comboUnlimited") : t("controlBar.comboRemaining", state.combo.remaining)}
         </span>
       )}
       {state.phase === "combo" && state.combo && state.combo.playerId !== viewer && (
         <span className="control-hint">
           {controls.includes(state.combo.playerId)
-            ? `สลับมุมมองไป ${nameOf(state.combo.playerId)} เพื่อคอมโบ`
-            : `รอ ${nameOf(state.combo.playerId)} คอมโบ`}
+            ? t("controlBar.switchToCombo", nameOf(state.combo.playerId))
+            : t("controlBar.waitingToCombo", nameOf(state.combo.playerId))}
         </span>
       )}
 
       {!mine && !waitingToCommit && state.phase !== "combo" && (
-        <span className="control-hint">รอ {nameOf(me)} เล่น...</span>
+        <span className="control-hint">{t("controlBar.waitingToPlay", nameOf(me))}</span>
       )}
       {waitingOn && (
         <>
-          <span className="control-hint">รอ {nameOf(waitingOn)} ตอบคำถาม...</span>
+          <span className="control-hint">{t("controlBar.waitingToAnswer", nameOf(waitingOn))}</span>
           {/* The move is ours, so dropping it is ours to do. Without this a
               question put to a player who never answers leaves both sides
               unable to do anything at all. */}
           {onCancelChoice && (
-            <button
-              type="button"
-              title="ยกเลิกการสั่งที่ค้างอยู่ แล้วกลับไปที่กระดานเดิม"
-              onClick={onCancelChoice}
-            >
-              ยกเลิกการสั่ง
+            <button type="button" title={t("controlBar.cancelQuestionTitle")} onClick={onCancelChoice}>
+              {t("common.cancelQuestion")}
             </button>
           )}
         </>
@@ -374,13 +359,13 @@ export function ControlBar({
         <button
           type="button"
           className="danger"
-          title={`${nameOf(viewer)} ยอมแพ้ทันที`}
+          title={t("controlBar.concedeTitle", nameOf(viewer))}
           onClick={() => {
             onSend(viewer, { kind: "concede" });
             onClearSelection();
           }}
         >
-          ยอมแพ้
+          {t("controlBar.concede")}
         </button>
         {children}
       </span>
