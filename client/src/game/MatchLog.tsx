@@ -5,7 +5,7 @@
 // players can apply it themselves and the game keeps moving.
 
 import { getCard, type ResolvedEffect } from "@wuwatcg/shared";
-import { CardArt } from "../board/CardImage";
+import { CardImage } from "../board/CardImage";
 import { EffectText } from "../board/EffectText";
 
 /**
@@ -45,12 +45,23 @@ function readLine(line: string) {
   return {
     // The number goes with the picture, so it is not also spelled out.
     text: line.replace(match[0], "").replace(/\s{2,}/g, " ").trim(),
+    // The stats travel with it, not just the art: hovering a log thumbnail
+    // feeds the same Preview and Detail panels as hovering the card on the
+    // board, and those read cost/colour/damage/speed off the hovered card.
     card: definition
       ? {
           cardId: definition.id,
           imageId: definition.imageId,
           name: definition.name,
-          kind: definition.type === "leader" ? ("character" as const) : ("action" as const),
+          ...(definition.type === "leader"
+            ? { kind: "character" as const, level: definition.level }
+            : {
+                kind: "action" as const,
+                cost: definition.cost,
+                color: definition.color,
+                damage: definition.attack,
+                speed: definition.speed ?? 0,
+              }),
         }
       : null,
   };
@@ -96,7 +107,7 @@ export function MatchLog({
                     className={`log-thumb ${card ? "" : "empty"}`}
                     title={card ? `${card.name} (${card.cardId})` : undefined}
                   >
-                    {card && <CardArt card={card} />}
+                    {card && <CardImage card={card} />}
                   </span>
                   <span className="log-text">{withNames(text, names)}</span>
                 </li>

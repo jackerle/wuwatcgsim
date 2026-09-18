@@ -36,6 +36,7 @@ const TURN_PLAYER_ONLY: MatchIntent["kind"][] = [
   "charge",
   "levelUp",
   "switch",
+  "toBattle",
   "resolveCounter",
   "endTurn",
 ];

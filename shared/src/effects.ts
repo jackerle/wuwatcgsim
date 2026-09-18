@@ -595,19 +595,22 @@ function createContext(
       }
 
       const [picked] = board.characterPool.splice(chosen.index, 1);
-      const covered = slot.card;
       slot.under.push(slot.card);
       slot.card = picked;
+      const beneath = [...slot.under];
       adoptState(state, recordCharacterPlayed(state, board.playerId, picked.id));
       log.push(LOG.levelsUp(board.playerId, characterName, picked.level));
 
-      // The same two triggers the Action Phase move raises, for the same two
-      // cards: [Enter] for the one arriving, [Level up] for the one it was
-      // played over. See levelUp() in match.ts. Without them an ability that
-      // levels a character up quietly swallows both.
+      // The same triggers the Action Phase move raises: [Enter] for the one
+      // arriving, [Level up] for every card it was played over — the whole
+      // pile, not just the card directly beneath, because the lower levels
+      // keep their skills. See levelUp() in match.ts. Without them an ability
+      // that levels a character up quietly swallows both.
       const zone: EffectZone = slot.position === "leader" ? "leader" : "back";
       fireHere(state, "enter", picked, board.playerId, zone, cursor, log);
-      fireHere(state, "levelUp", covered, board.playerId, zone, cursor, log);
+      for (const card of beneath) {
+        fireHere(state, "levelUp", card, board.playerId, zone, cursor, log);
+      }
       return true;
     },
     switchLeaderTo(characterName, playerId) {
@@ -1205,7 +1208,15 @@ export function expireModifiers(state: MatchState, moment: "battle" | "turn"): M
   const inPlay = new Set<string>();
   for (const board of Object.values(state.boards)) {
     for (const slot of [board.leader, ...board.back]) {
-      if (slot) inPlay.add(slot.card.id);
+      if (!slot) continue;
+      // EVERY level in the pile counts as in play, not just the top card.
+      // Levelling a character up covers the lower level, it does not take it
+      // off the field — so a whileActive modifier or granted effect sourced
+      // from a covered Level 1 card must survive being levelled up to Level
+      // 2. Reading only slot.card.id here expired those the moment the
+      // character levelled, which killed the lower level's ability. This
+      // matches how recomputeContinuous and sourcesInPlay walk the stack.
+      for (const inPile of characterStack(slot)) inPlay.add(inPile.id);
     }
   }
 

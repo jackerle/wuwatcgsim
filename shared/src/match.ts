@@ -77,6 +77,7 @@ import {
   checkWinner,
   drawCount,
   levelUpCost,
+  MAX_ACTIONS_PER_TURN,
   recordCardPlayed,
   recordCharacterPlayed,
   recordDamage,
@@ -226,6 +227,18 @@ export type MatchIntent =
   | { kind: "levelUp"; characterId: string; discardIds: string[] }
   /** Action Phase: swap the Leader with one of the back characters. */
   | { kind: "switch"; toCardId: string }
+  /**
+   * Close the Action Phase and open the Counter Phase.
+   *
+   * The turn player's alone, and the ONLY way in by hand — laying a card out
+   * no longer opens the phase. The two used to be the same move, which meant
+   * the player who laid the first card decided when everybody's Action Phase
+   * ended, and on the other side of the table that ended it early.
+   *
+   * The engine also opens the phase itself once all three Action Phase moves
+   * are spent, since nothing is left to do there.
+   */
+  | { kind: "toBattle" }
   /** Commit a card face-down for the clash. Both sides must choose. */
   | { kind: "commit"; cardId: string }
   /** Counter Phase: choose to play nothing — an empty hand, or by choice. */
@@ -590,6 +603,8 @@ function apply(run: Run, playerId: string, intent: MatchIntent): void {
       return levelUp(run, playerId, intent.characterId, intent.discardIds);
     case "switch":
       return switchLeader(run, playerId, intent.toCardId);
+    case "toBattle":
+      return toBattle(run, playerId);
     case "commit":
       return commit(run, playerId, intent.cardId);
     case "pass":
@@ -700,6 +715,7 @@ function charge(run: Run, playerId: string, cardIds: string[]): void {
   board.competitionArea.push(board.hand.splice(index, 1)[0]);
   run.note(LOG.charges(playerId, board.competitionArea.length));
   run.settle();
+  advanceIfActionsSpent(run, playerId);
 }
 
 function levelUp(run: Run, playerId: string, characterId: string, discardIds: string[]): void {
@@ -735,28 +751,43 @@ function levelUp(run: Run, playerId: string, characterId: string, discardIds: st
   // the card it was played over stays underneath it, so the slot reads as the
   // pile it is on the table.
   board.characterPool.splice(poolIndex, 1);
-  const covered = target.card;
   target.under.push(target.card);
   target.card = incoming;
+  // Captured before settle(), which may hand back a fresh state object and
+  // leave `target` pointing at the old one. Ids are all the firing needs.
+  const beneath = target.under.map((card) => card);
   const zone = target.position === "leader" ? "leader" : "back";
   run.state = recordCharacterPlayed(run.state, playerId, incoming.id);
   run.note(LOG.levelsUp(playerId, incoming.name, incoming.level), incoming.id);
 
   run.settle();
-  // Two different cards react, and they are not the same card.
+  // Two different sets of cards react, and the arriving card is not one of
+  // them.
   //
   // [Enter] belongs to the card arriving: levelling up is how a Level 1 or 2
   // card gets onto the field, which is why so many of them read
   // "[Enter] / [Level up]".
   //
-  // [Level up] belongs to the card being covered — "when THIS character is
-  // levelled up" is something that happens TO the card already in play, not
-  // to the one being played. Firing it on the arriving card instead made
-  // BP01-001 ("return this card to the Character Deck") bounce itself
-  // straight back off the field the moment it was played.
+  // [Level up] belongs to the cards already in play — "when THIS character is
+  // levelled up" is something that happens TO them, not to the one being
+  // played. Firing it on the arriving card instead made BP01-001 ("return
+  // this card to the Character Deck") bounce itself straight back off the
+  // field the moment it was played.
+  //
+  // EVERY card under the new one answers, not just the one directly beneath.
+  // The rules stack the pile face-up precisely because the lower levels keep
+  // their skills, so a card two levels down is as much "this character" as
+  // the one on top. Firing only on the covered card meant Shorekeeper's
+  // BP01-009 ([Enter]/[Level up]) went quiet as soon as a second Level 2 was
+  // played over the Level 2 that had covered it: 010 > 009 > 007 > 006 fired
+  // 009 on the third step and never again.
   run.fireOn("enter", sourceForCharacter(incoming, playerId, zone));
-  run.fireOn("levelUp", sourceForCharacter(covered, playerId, zone));
+  run.fireOn(
+    "levelUp",
+    beneath.flatMap((card) => sourceForCharacter(card, playerId, zone))
+  );
   run.settle();
+  advanceIfActionsSpent(run, playerId);
 }
 
 function switchLeader(run: Run, playerId: string, toCardId: string): void {
@@ -780,6 +811,7 @@ function switchLeader(run: Run, playerId: string, toCardId: string): void {
 
   run.fire("switch");
   run.settle();
+  advanceIfActionsSpent(run, playerId);
 }
 
 function isRestricted(state: MatchState, playerId: string, flag: string): boolean {
@@ -788,8 +820,51 @@ function isRestricted(state: MatchState, playerId: string, flag: string): boolea
 
 // --- Counter Phase ---------------------------------------------------------
 
+/**
+ * Leaves the Action Phase and opens the Counter Phase.
+ *
+ * The rules make the Counter Phase the turn player's to open: they decide
+ * whether it happens at all, and cards go down starting with them. So this is
+ * their move, and nobody else's — and it is separate from laying a card down
+ * on purpose, so that the player who lays the first card is not also the one
+ * deciding when the Action Phase ended.
+ */
+function toBattle(run: Run, playerId: string): void {
+  if (run.state.phase !== "action") run.reject("The Action Phase is not running");
+  if (playerId !== run.state.turnPlayerId) run.reject("It is not your turn");
+  openCounterPhase(run);
+}
+
+/**
+ * Moves the board into the Counter Phase and raises the trigger that goes
+ * with it. One place, because it happens three ways: the turn player calling
+ * it, the engine closing a spent Action Phase, and the opening of a turn
+ * where nothing is left to do.
+ */
+function openCounterPhase(run: Run): void {
+  run.state.phase = "counter";
+  run.note(LOG.battlePhase(run.state.turnPlayerId));
+  run.fire("counterPhaseStart");
+  run.settle();
+}
+
+/**
+ * Closes the Action Phase once all three of its moves are spent.
+ *
+ * Charge, Level Up and Switch are once each per turn, so after the third
+ * there is nothing left the phase can be used for and sitting in it is just
+ * a click the player has to make for no reason.
+ */
+function advanceIfActionsSpent(run: Run, playerId: string): void {
+  if (run.state.phase !== "action") return;
+  if (run.board(playerId).actionsTakenThisTurn.length < MAX_ACTIONS_PER_TURN) return;
+  openCounterPhase(run);
+}
+
 function commit(run: Run, playerId: string, cardId: string): void {
-  if (run.state.phase !== "action" && run.state.phase !== "counter") {
+  // Only in the Counter Phase now. Committing used to be allowed during the
+  // Action Phase as well, where it doubled as the way into this phase.
+  if (run.state.phase !== "counter") {
     run.reject("Cards are committed in the Counter Phase");
   }
   if (run.state.facedown[playerId]) run.reject("You have already committed a card");
@@ -808,10 +883,7 @@ function commit(run: Run, playerId: string, cardId: string): void {
   board.hand.splice(index, 1);
   run.state.facedown[playerId] = card;
   run.state.committed[playerId] = true;
-  const opening = run.state.phase !== "counter";
-  run.state.phase = "counter";
   run.note(LOG.commits(playerId));
-  if (opening) run.fire("counterPhaseStart");
   noteWhenBothReady(run);
 }
 
@@ -824,17 +896,14 @@ function commit(run: Run, playerId: string, cardId: string): void {
  * card.
  */
 function passCounter(run: Run, playerId: string): void {
-  if (run.state.phase !== "action" && run.state.phase !== "counter") {
+  if (run.state.phase !== "counter") {
     run.reject("There is no Counter Phase running");
   }
   if (run.state.committed[playerId]) run.reject("You have already chosen");
 
   run.state.facedown[playerId] = null;
   run.state.committed[playerId] = true;
-  const opening = run.state.phase !== "counter";
-  run.state.phase = "counter";
   run.note(LOG.playsNothing(playerId));
-  if (opening) run.fire("counterPhaseStart");
   noteWhenBothReady(run);
 }
 
@@ -1235,7 +1304,9 @@ export function legalIntents(state: MatchState, playerId: string): MatchIntent["
     case "draw":
       return ["startTurn"];
     case "action": {
-      const kinds: MatchIntent["kind"][] = ["commit", "pass"];
+      // Laying a card down is no longer one of these: it belongs to the
+      // Counter Phase, and "toBattle" is how this phase is left.
+      const kinds: MatchIntent["kind"][] = ["toBattle"];
       for (const kind of ["charge", "levelUp", "switch"] as const) {
         if (canTakeAction(board, kind).ok) kinds.push(kind);
       }
@@ -1280,7 +1351,9 @@ export function canMulligan(state: MatchState, playerId: string): boolean {
  */
 export function canCommit(state: MatchState, playerId: string): boolean {
   if (state.winnerId) return false;
-  if (state.phase !== "action" && state.phase !== "counter") return false;
+  // Only once the Counter Phase is open. During the Action Phase there is
+  // nothing to answer yet, on either side of the table.
+  if (state.phase !== "counter") return false;
   if (state.facedown[playerId]) return false;
   return Boolean(state.boards[playerId]);
 }

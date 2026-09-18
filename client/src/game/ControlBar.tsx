@@ -4,12 +4,14 @@
 // second copy of the rules written out in the UI. If the two ever disagree,
 // the engine wins: a button the engine rejects just shows its reason.
 
-import type { ReactNode } from "react";
-import { PhaseTrack } from "./PhaseTrack";
+import { useState, type ReactNode } from "react";
+import { PhaseTrack, type PhaseAction, type PhaseStepKey } from "./PhaseTrack";
+import { ConfirmDialog } from "../board/ConfirmDialog";
 import {
   canCommit,
   canCommitAnything,
   legalIntents,
+  MAX_ACTIONS_PER_TURN,
   type CharacterCard,
   type MatchIntent,
   type MatchState,
@@ -79,6 +81,17 @@ export function ControlBar({
   children,
   levelUp,
 }: ControlBarProps) {
+  /**
+   * A move waiting on a yes/no. Held here rather than sent straight off,
+   * because leaving the Main Phase and declining the clash both throw
+   * something away that cannot be got back.
+   */
+  const [confirming, setConfirming] = useState<{
+    prompt: string;
+    detail?: string;
+    confirmLabel: string;
+    onYes: () => void;
+  } | null>(null);
   const nameOf = (playerId: string): string => names[playerId] ?? playerId;
   const me = state.turnPlayerId;
   // Whether the turn is this client's to drive. Over the network the other
@@ -95,6 +108,87 @@ export function ControlBar({
     onSend(me, intent);
     onClearSelection();
   };
+
+  // --- The phase track, as the turn's controls -----------------------------
+  //
+  // Each step is pressable only when the engine says its move is legal, so
+  // this is a rendering of legalIntents() rather than a second rulebook.
+  const actionsLeft =
+    MAX_ACTIONS_PER_TURN - (state.boards[me]?.actionsTakenThisTurn.length ?? 0);
+  const phaseActions: Partial<Record<PhaseStepKey, PhaseAction>> = {};
+  const phaseWaiting: Partial<Record<PhaseStepKey, string>> = {};
+
+  if (allowed.includes("startTurn")) {
+    phaseActions.draw = {
+      onPick: () => act({ kind: "startTurn" }),
+      title: "จั่วการ์ดของเทิร์นนี้ — เข้าเฟสหลักต่อเอง",
+    };
+  }
+
+  if (allowed.includes("toBattle")) {
+    phaseActions.battle = {
+      onPick: () =>
+        setConfirming({
+          prompt: "ไปเฟสประลองเลยไหม",
+          detail:
+            actionsLeft > 0
+              ? `ยังเหลือแอ็กชันของเทิร์นนี้อีก ${actionsLeft} อย่าง (ชาร์จ / เลเวลอัป / สลับ) — ออกจากเฟสหลักแล้วย้อนกลับมาไม่ได้`
+              : undefined,
+          confirmLabel: "ไปเฟสประลอง",
+          onYes: () => act({ kind: "toBattle" }),
+        }),
+      title: "ปิดเฟสหลัก แล้วเปิดเฟสประลอง",
+    };
+  }
+
+  if (allowed.includes("resolveCounter")) {
+    phaseActions.judgement = {
+      onPick: () => act({ kind: "resolveCounter" }),
+      title: "เปิดการ์ดทั้งสองฝ่าย ตัดสินผล แล้วเข้าการโจมตีต่อเนื่อง",
+    };
+  } else if (state.phase === "counter" && mine) {
+    phaseWaiting.judgement = "ต้องเลือกให้ครบทั้งสองฝ่ายก่อน";
+  }
+
+  // End carries two meanings, and the phase says which: in the Battle Phase
+  // it is "I lay nothing down", and after that it is the turn finishing.
+  // Both are the same instinct — I am done here — so they share the step
+  // rather than adding a sixth box that is only ever true once.
+  if (waitingToCommit) {
+    phaseActions.end = {
+      onPick: () =>
+        setConfirming({
+          prompt: "ไม่ลงการ์ดในการปะทะนี้ไหม",
+          detail: canCommitAnything(state, viewer)
+            ? "ยอมแพ้การปะทะรอบนี้ แต่ไม่เสียการ์ด — อีกฝ่ายยังลงการ์ดของเขาได้"
+            : "ไม่มีการ์ดในมือที่จ่ายไหว",
+          confirmLabel: "ไม่ลงการ์ด",
+          onYes: () => {
+            onSend(viewer, { kind: "pass" });
+            onClearSelection();
+          },
+        }),
+      title: "ไม่ลงการ์ดในการปะทะนี้",
+    };
+  } else if (allowed.includes("endTurn")) {
+    // Still holding follow-ups is the one case worth a second look; the
+    // plain End Phase has nothing left to spend.
+    const holdingCombo = state.phase === "combo" && state.combo?.playerId === me;
+    phaseActions.end = {
+      onPick: () =>
+        holdingCombo
+          ? setConfirming({
+              prompt: "จบการโจมตีต่อเนื่องและจบเทิร์นไหม",
+              detail: state.combo?.unlimited
+                ? "ยังต่อเนื่องได้ไม่จำกัด"
+                : `ยังเหลือสิทธิ์โจมตีต่อเนื่องอีก ${state.combo?.remaining ?? 0} ครั้ง`,
+              confirmLabel: "จบเทิร์น",
+              onYes: () => act({ kind: "endTurn" }),
+            })
+          : act({ kind: "endTurn" }),
+      title: holdingCombo ? "จบการโจมตีต่อเนื่อง แล้วจบเทิร์น" : "จบเทิร์น",
+    };
+  }
 
   if (state.winnerId) {
     return (
@@ -195,65 +289,42 @@ export function ControlBar({
           vertical budget, so this bar must stay one row high however many
           moves are on offer. */}
       <span className="control-actions">
-      {allowed.includes("startTurn") && (
-        <button type="button" onClick={() => act({ kind: "startTurn" })}>
-          เริ่มเทิร์น
-        </button>
-      )}
+      {/* Every move about the turn is now a step in the track below: Draw,
+          Battle, Judgement, End. Charge, Level Up, Switch and laying a card
+          face-down are moves about one particular card, so each is asked of
+          that card — click it on the board. See CardMenu. What is left in
+          this row is what the board cannot say by itself. */}
 
-      {/* Charge, Level Up, Switch and laying a card face-down are all moves
-          about one particular card, so each is asked of that card — click it
-          on the board. See CardMenu. What is left here is the moves that are
-          about the turn itself, which is all this one row can hold. */}
-
-      {/* A player with an empty hand, or nothing they can pay for, has no
-          legal card to lay down — without this the phase could never end. */}
-      {waitingToCommit && (
-        <button
-          type="button"
-          className={canCommitAnything(state, viewer) ? "" : "primary"}
-          title={
-            canCommitAnything(state, viewer)
-              ? "ยอมแพ้การปะทะรอบนี้ แต่ไม่เสียการ์ด"
-              : "ไม่มีการ์ดที่ลงได้"
-          }
-          onClick={() => {
-            onSend(viewer, { kind: "pass" });
-            onClearSelection();
-          }}
-        >
-          ไม่ลงการ์ด
-        </button>
-      )}
-
-      {allowed.includes("resolveCounter") && (
-        <button type="button" className="primary" onClick={() => act({ kind: "resolveCounter" })}>
-          เปิดการ์ด
-        </button>
-      )}
-
-      {allowed.includes("passCombo") && (
-        <button type="button" onClick={() => act({ kind: "passCombo" })}>
-          จบคอมโบ
-        </button>
-      )}
-
-      {allowed.includes("endTurn") && (
-        <button type="button" className="primary" onClick={() => act({ kind: "endTurn" })}>
-          จบเทิร์น
-        </button>
+      {state.phase === "action" && mine && (
+        <span className="control-hint">
+          {actionsLeft > 0
+            ? `เฟสหลัก — คลิกการ์ดหรือตัวละครเพื่อใช้แอ็กชัน (เหลือ ${actionsLeft} อย่าง) หรือกด Battle`
+            : "ใช้แอ็กชันครบแล้ว"}
+        </span>
       )}
 
       {waitingToCommit && (
         <span className="control-hint">
           {canCommitAnything(state, viewer)
-            ? "คลิกการ์ดในมือเพื่อเลือกว่าจะทำอะไรกับมัน"
-            : "ไม่มีการ์ดที่ลงได้ — กดไม่ลงการ์ดเพื่อไปต่อ"}
+            ? "คลิกการ์ดในมือเพื่อลงคว่ำ หรือกด End เพื่อไม่ลงการ์ด"
+            : "ไม่มีการ์ดที่จ่ายไหว — กด End เพื่อไม่ลงการ์ด"}
         </span>
       )}
-      {state.phase === "counter" && state.facedown[viewer] && !allowed.includes("resolveCounter") && (
-        <span className="control-hint">ลงคว่ำแล้ว — รออีกฝ่ายลงการ์ด</span>
+      {/* The other side has no move yet: the turn player opens the Counter
+          Phase. Without a word here their hand simply offers nothing and the
+          screen looks stuck. */}
+      {state.phase === "action" && viewer !== state.turnPlayerId && controls.includes(viewer) && (
+        <span className="control-hint">
+          รอ {nameOf(state.turnPlayerId)} เล่นเมนเฟสให้จบก่อน แล้วจึงลงการ์ดคว่ำได้
+        </span>
       )}
+      {state.phase === "counter" &&
+        state.committed[viewer] &&
+        !allowed.includes("resolveCounter") && (
+          <span className="control-hint">
+            {state.facedown[viewer] ? "ลงคว่ำแล้ว" : "ไม่ลงการ์ด"} — รออีกฝ่ายเลือก
+          </span>
+        )}
       {/* Like committing, the combo prompt follows the viewer: the hand you
           can actually click is the face-up one, not the turn player's. */}
       {state.phase === "combo" && state.combo?.playerId === viewer && (
@@ -295,10 +366,9 @@ export function ControlBar({
       </span>
       </span>
 
-      {/* Where the turn is right now. The phase name used to sit in the line
-          above as a word among others; as a track it also says what comes
-          next, which is the part a player new to the game is missing. */}
-      <PhaseTrack phase={state.phase} />
+      {/* Where the turn is, and how it is moved on. A step is a button only
+          when its move is this client's to make right now. */}
+      <PhaseTrack phase={state.phase} actions={phaseActions} waiting={phaseWaiting} />
 
       <span className="control-side control-side-end">
         <button
@@ -314,6 +384,20 @@ export function ControlBar({
         </button>
         {children}
       </span>
+
+      {confirming && (
+        <ConfirmDialog
+          prompt={confirming.prompt}
+          detail={confirming.detail}
+          confirmLabel={confirming.confirmLabel}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            const go = confirming.onYes;
+            setConfirming(null);
+            go();
+          }}
+        />
+      )}
     </div>
   );
 }

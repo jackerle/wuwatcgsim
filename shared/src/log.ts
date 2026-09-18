@@ -110,6 +110,7 @@ export const LOG = {
   notOnField: (card: string) => `${card} ไม่ได้อยู่ในสนาม — ไม่มีอะไรให้เอากลับ`,
 
   // --- the clash ---
+  battlePhase: (player: string) => `${player} เข้าเฟสประลอง — ลงการ์ดคว่ำได้ทั้งสองฝ่าย`,
   commits: (player: string) => `${player} ลงการ์ดคว่ำ`,
   playsNothing: (player: string) => `${player} ไม่ลงการ์ดในการปะทะนี้`,
   bothReady: () => "ทั้งสองฝ่ายเลือกแล้ว — เปิดการ์ดได้",

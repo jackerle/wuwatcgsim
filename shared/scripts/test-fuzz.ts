@@ -46,7 +46,9 @@ for (let g = 0; g < 25; g += 1) {
         }
         break;
       case "draw": s.apply(turn, { kind: "startTurn" }); break;
-      case "action":
+      // Laying a card down no longer opens the Counter Phase — the turn
+      // player does, on purpose. So the two phases are two moves now.
+      case "action": s.apply(turn, { kind: "toBattle" }); break;
       case "counter":
         if (!s.state.facedown[turn] && !s.state.committed[turn]) {
           const card = s.state.boards[turn].hand[0];

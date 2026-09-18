@@ -163,8 +163,31 @@ const ENCORE = ["BP01-015", "BP01-013", "BP01-030", "BP01-033"].map(character);
     "ไม่ใช่เทิร์นตัวเอง: จบเทิร์นให้อีกฝ่ายไม่ได้",
     !session.apply("p2", { kind: "endTurn" })
   );
+  // Cards go down in the Counter Phase, which the turn player opens on
+  // purpose. Until they do, nobody lays anything out — that is what keeps
+  // the other side from ending the turn player's Action Phase for them.
   check(
-    "แต่ลงการ์ดคว่ำในเทิร์นอีกฝ่ายได้",
+    "เฟสแอ็กชันของอีกฝ่าย: ลงการ์ดคว่ำยังไม่ได้",
+    !session.apply("p2", { kind: "commit", cardId: session.state.boards.p2.hand[0].id })
+  );
+  check(
+    "และบอกเหตุผลว่าต้องอยู่ในเฟสประลอง",
+    session.errorFor("p2") === "Cards are committed in the Counter Phase",
+    session.errorFor("p2") ?? ""
+  );
+  check("เมนเฟสของเจ้าของเทิร์นยังอยู่", session.state.phase === "action", session.state.phase);
+  check("อีกฝ่ายเปิดเฟสประลองเองไม่ได้", !session.apply("p2", { kind: "toBattle" }));
+  check(
+    "และบอกว่าไม่ใช่เทิร์นของเขา",
+    session.errorFor("p2") === "It is not your turn",
+    session.errorFor("p2") ?? ""
+  );
+
+  // Once the turn player opens it, the phase belongs to both of them.
+  check("เจ้าของเทิร์นกด Battle ได้", session.apply("p1", { kind: "toBattle" }));
+  check("เข้าเฟสประลอง", session.state.phase === "counter", session.state.phase);
+  check(
+    "เปิดแล้ว -> อีกฝ่ายลงการ์ดคว่ำในเทิร์นอีกฝ่ายได้",
     session.apply("p2", { kind: "commit", cardId: session.state.boards.p2.hand[0].id }),
     session.errorFor("p2") ?? ""
   );
@@ -175,6 +198,7 @@ const ENCORE = ["BP01-015", "BP01-013", "BP01-030", "BP01-033"].map(character);
 {
   const session = fresh();
   session.apply("p1", { kind: "startTurn" });
+  session.apply("p1", { kind: "toBattle" });
   session.apply("p1", { kind: "commit", cardId: session.state.boards.p1.hand[0].id });
   session.apply("p2", { kind: "commit", cardId: session.state.boards.p2.hand[0].id });
   check("เปิดการ์ด: อีกฝ่ายสั่งไม่ได้", !session.apply("p2", { kind: "resolveCounter" }));

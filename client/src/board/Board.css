@@ -800,6 +800,15 @@
   line-height: 1.5;
 }
 
+/* The consequence under the question — what leaving this phase throws away.
+   Quieter than the prompt: it is there to be read once, not to compete. */
+.choice-detail {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #9aa1b4;
+}
+
 /* Laid out like the Pool/Trash viewer, because it is the same job: a wall of
    cards to look through. The cards themselves are sized by the grid and
    cropped to a card shape — without that the art renders at its natural size

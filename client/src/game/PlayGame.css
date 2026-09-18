@@ -81,11 +81,42 @@
   transition: color 120ms ease, background 120ms ease;
 }
 
+/* A step is a <button> only when its move is available, so the affordance is
+   carried by this class rather than by the element: the track has to read as
+   one row of steps whether or not any of them can be pressed. */
+.phase-track-step.pressable {
+  cursor: pointer;
+  color: #cdd3e4;
+  background: #2a2f3d;
+  border-color: #4b5164;
+  font-family: inherit;
+}
+
+.phase-track-step.pressable:hover {
+  color: #fff;
+  background: #3a4256;
+  border-color: #6b90f5;
+}
+
+/* The next step, but not ready yet — both players have not chosen. Dimmer
+   than an ordinary step so it reads as a wait rather than as a move. */
+.phase-track-step.waiting {
+  color: #565c6e;
+  border-color: #343a49;
+  border-style: dashed;
+}
+
 .phase-track-step.active {
   color: #fff;
   background: #3f6ae0;
   border-color: #6b90f5;
   box-shadow: 0 0 0 3px rgba(63, 106, 224, 0.2);
+}
+
+/* The step the turn is ON and which is also pressable — the common case for
+   Battle and End. Keeps the active fill, gains the pointer. */
+.phase-track-step.active.pressable:hover {
+  background: #4d78ec;
 }
 
 .control-hint {

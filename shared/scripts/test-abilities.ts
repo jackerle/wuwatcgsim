@@ -565,7 +565,10 @@ const check = (name: string, ok: boolean, detail = "") => {
   state.boards.p1.hand = [card("SD02-013")]; // blue Dodge
   state.boards.p2.hand = [card("BP01-044")]; // red — blue beats red
 
-  let s = step(state, "p1", { kind: "commit", cardId: "SD02-013" }).state;
+  // The turn player opens the Counter Phase before either side lays a card
+  // down; committing no longer does it for them.
+  let s = step(state, "p1", { kind: "toBattle" }).state;
+  s = step(s, "p1", { kind: "commit", cardId: "SD02-013" }).state;
   s = step(s, "p2", { kind: "commit", cardId: "BP01-044" }).state;
   const out = step(s, "p1", { kind: "resolveCounter" });
   check("ชนะด้วย SD02-013 -> เปิดหน้าต่างคอมโบให้ p1", out.state.combo?.playerId === "p1", out.error ?? "");

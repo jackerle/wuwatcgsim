@@ -107,15 +107,37 @@ function drive(
   reply: (choice: NonNullable<StepResult["pending"]>) => ChoiceAnswer = (choice) =>
     choice.kind === "confirm" ? true : choice.options[0]?.value ?? ""
 ): { result: StepResult; asked: string[] } {
-  const answers: ChoiceAnswer[] = [];
   const asked: string[] = [];
-  for (let guard = 0; guard < 20; guard += 1) {
-    const result = step(state, playerId, intent, answers);
-    if (!result.pending) return { result, asked };
-    asked.push(result.pending.cardId);
-    answers.push(reply(result.pending));
+  const play = (
+    from: MatchState,
+    actor: string,
+    what: MatchIntent,
+    record: string[]
+  ): StepResult => {
+    const answers: ChoiceAnswer[] = [];
+    for (let guard = 0; guard < 20; guard += 1) {
+      const result = step(from, actor, what, answers);
+      if (!result.pending) return result;
+      record.push(result.pending.cardId);
+      answers.push(reply(result.pending));
+    }
+    throw new Error("a step kept asking questions — it is not replaying deterministically");
+  };
+
+  // Cards are laid down in the Counter Phase, and the turn player opens that
+  // phase with `toBattle` — committing no longer does it for them. Almost
+  // every case below is about what the clash DOES rather than about how the
+  // phase was opened, so the harness walks through the door on their behalf.
+  // The cases that are about the door itself call toBattle themselves, and
+  // if it ever stops working these all fail with it.
+  //
+  // Questions raised by opening the phase are answered but kept out of
+  // `asked`, which belongs to the intent the caller actually asked about.
+  let from = state;
+  if ((intent.kind === "commit" || intent.kind === "pass") && from.phase === "action") {
+    from = play(from, from.turnPlayerId, { kind: "toBattle" }, []).state;
   }
-  throw new Error("a step kept asking questions — it is not replaying deterministically");
+  return { result: play(from, playerId, intent, asked), asked };
 }
 
 // --- Setup -----------------------------------------------------------------
@@ -692,6 +714,32 @@ let game = newMatch();
   check("ยอมแพ้แล้วเล่นต่อไม่ได้", after.error === "The match is already over", after.error ?? "");
 }
 
+// --- The Action Phase closes itself once its three moves are spent ---------
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  s = drive(s, "p1", { kind: "charge", cardIds: [s.boards.p1.hand[0].id] }).result.state;
+  check("ชาร์จแล้ว ยังอยู่เฟสหลัก", s.phase === "action", s.phase);
+
+  s = drive(s, "p1", {
+    kind: "levelUp",
+    characterId: "BP01-003",
+    discardIds: [s.boards.p1.hand[0].id],
+  }).result.state;
+  check("เลเวลอัปแล้ว ยังอยู่เฟสหลัก", s.phase === "action", s.phase);
+
+  // The third one leaves nothing the phase can still be used for, so the
+  // engine moves on rather than making the player click past an empty phase.
+  const spent = drive(s, "p1", { kind: "switch", toCardId: s.boards.p1.back[0].card.id }).result
+    .state;
+  check("ใช้แอ็กชันครบ 3 อย่าง -> เข้าเฟสประลองเอง", spent.phase === "counter", spent.phase);
+  check(
+    "และยังไม่มีใครลงการ์ดหรือเลือกอะไร",
+    !spent.facedown.p1 && !spent.facedown.p2 && !spent.committed.p1 && !spent.committed.p2
+  );
+  check("ทั้งสองฝ่ายลงคว่ำได้แล้ว", canCommit(spent, "p1") && canCommit(spent, "p2"));
+}
+
 // --- The clash -------------------------------------------------------------
 
 {
@@ -700,8 +748,13 @@ let game = newMatch();
   s.boards.p1.hand = [action("BP01-044")]; // red, atk 1
   s.boards.p2.hand = [action("BP01-045")]; // blue, atk 3
 
-  const c1 = step(s, "p1", { kind: "commit", cardId: "BP01-044" });
-  check("ลงการ์ดคว่ำ -> เข้าเฟส counter", c1.state.phase === "counter" && c1.error === null);
+  // The turn player opens the Counter Phase on purpose; cards go down only
+  // once it is open. Committing no longer doubles as the way in.
+  const opened = step(s, "p1", { kind: "toBattle" });
+  check("กด Battle -> เข้าเฟส counter", opened.state.phase === "counter" && opened.error === null, opened.error ?? opened.state.phase);
+
+  const c1 = step(opened.state, "p1", { kind: "commit", cardId: "BP01-044" });
+  check("ลงการ์ดคว่ำ -> ยังอยู่เฟส counter", c1.state.phase === "counter" && c1.error === null, c1.error ?? "");
   check("การ์ดคว่ำออกจากมือ", c1.state.boards.p1.hand.length === 0);
 
   const early = step(c1.state, "p1", { kind: "resolveCounter" });
@@ -976,6 +1029,7 @@ let game = newMatch();
   let s = newMatch();
   s = step(s, "p1", { kind: "startTurn" }).state;
   const committed = s.boards.p1.hand[0];
+  s = step(s, "p1", { kind: "toBattle" }).state;
   s = step(s, "p1", { kind: "commit", cardId: committed.id }).state;
 
   const mine = viewFor(s, "p1");
@@ -998,10 +1052,11 @@ let game = newMatch();
   const started = drive(s, "p1", { kind: "startTurn" }).result.state;
   const kinds = legalIntents(started, "p1");
   check(
-    "เฟสแอ็กชัน: ลงการ์ดได้ และเหลือแอ็กชันครบ 3 แบบ",
-    kinds.includes("commit") && kinds.includes("charge") && kinds.includes("levelUp") && kinds.includes("switch"),
+    "เฟสแอ็กชัน: ไปเฟสประลองได้ และเหลือแอ็กชันครบ 3 แบบ",
+    kinds.includes("toBattle") && kinds.includes("charge") && kinds.includes("levelUp") && kinds.includes("switch"),
     kinds.join(",")
   );
+  check("เฟสแอ็กชัน: ยังลงการ์ดคว่ำไม่ได้", !kinds.includes("commit"), kinds.join(","));
 }
 
 // --- Continuous effects must not DO anything --------------------------------
@@ -1267,18 +1322,39 @@ let game = newMatch();
   stopped.turnLog.flags.p1 = ["noLeaderSwitch"];
   check("โดนห้ามสลับในเทิร์นนี้ -> ไม่เสนอ", !canSwitchLeader(stopped, "p1"));
 
-  // Committing is the one move the player whose turn it is NOT also makes,
-  // so the menu on their hand cannot ask legalIntents about it.
-  check("ลงคว่ำได้ทั้งสองฝ่าย ไม่ใช่แค่เจ้าของเทิร์น", canCommit(s, "p1") && canCommit(s, "p2"));
+  // Laying a card down belongs to the Counter Phase, and nobody can lay one
+  // while the Action Phase is still running — not even the turn player. That
+  // is what keeps the player who lays the first card from deciding when
+  // everybody's Action Phase ended.
+  check("เฟสแอ็กชัน: ยังลงคว่ำไม่ได้ทั้งสองฝ่าย", !canCommit(s, "p1") && !canCommit(s, "p2"));
+  const earlyP2 = step(s, "p2", { kind: "commit", cardId: s.boards.p2.hand[0].id }, []);
+  check("เฟสแอ็กชัน: ฝ่ายรับฝืนลงคว่ำ -> ถูกปฏิเสธ", earlyP2.error !== null, earlyP2.error ?? "(ไม่ปฏิเสธ)");
+  check("และเมนเฟสไม่ถูกข้าม", earlyP2.state.phase === "action", earlyP2.state.phase);
+  const earlyPass = step(s, "p2", { kind: "pass" }, []);
+  check("ฝ่ายรับกดไม่ลงการ์ดเพื่อปิดเมนเฟสก็ไม่ได้", earlyPass.error !== null, earlyPass.error ?? "(ไม่ปฏิเสธ)");
   check(
     "ฝ่ายที่ไม่ใช่เจ้าของเทิร์นไม่มีสิทธิ์อื่นเลย",
     legalIntents(s, "p2").length === 0,
     legalIntents(s, "p2").join()
   );
-  const laid = drive(s, "p1", { kind: "commit", cardId: s.boards.p1.hand[0].id }).result.state;
-  check("ลงคว่ำแล้ว -> เข้าเฟสประลองทันที", laid.phase === "counter", laid.phase);
+
+  // The turn player opens it on purpose, and only they may.
+  check("เฟสแอ็กชัน: เจ้าของเทิร์นมีสิทธิ์ไปเฟสประลอง", legalIntents(s, "p1").includes("toBattle"));
+  const p2Opens = step(s, "p2", { kind: "toBattle" }, []);
+  check("ฝ่ายรับเปิดเฟสประลองเองไม่ได้", p2Opens.error !== null, p2Opens.error ?? "(ไม่ปฏิเสธ)");
+  const opened = drive(s, "p1", { kind: "toBattle" }).result.state;
+  check("เจ้าของเทิร์นกด Battle -> เข้าเฟสประลอง", opened.phase === "counter", opened.phase);
+  check("เปิดแล้ว -> ลงคว่ำได้ทั้งสองฝ่าย", canCommit(opened, "p1") && canCommit(opened, "p2"));
+
+  const laid = drive(opened, "p1", { kind: "commit", cardId: opened.boards.p1.hand[0].id }).result
+    .state;
+  check("ลงคว่ำแล้ว -> ยังอยู่เฟสประลอง", laid.phase === "counter", laid.phase);
   check("ลงคว่ำไปแล้ว -> ลงซ้ำไม่ได้", !canCommit(laid, "p1"));
   check("อีกฝ่ายยังลงได้อยู่", canCommit(laid, "p2"));
+  check(
+    "และเอนจินรับจริง",
+    drive(laid, "p2", { kind: "commit", cardId: laid.boards.p2.hand[0].id }).result.error === null
+  );
   check(
     "และเอนจินปฏิเสธจริงถ้าฝืนลงซ้ำ",
     drive(laid, "p1", { kind: "commit", cardId: laid.boards.p1.hand[0].id }).result.error !== null
@@ -1435,6 +1511,44 @@ let game = newMatch();
     onCovered.result.state.boards.p1.leader?.under.map((c) => c.id).join()
   );
 
+  // A second Level 2 (BP01-006) goes over the first, leaving BP01-009 two
+  // levels down. It is still in play and still "this character", so its
+  // [Level up] fires again — the rules stack the pile face-up precisely
+  // because the lower levels keep their skills. Firing only on the card
+  // directly beneath made BP01-009 go silent from here on.
+  let deeper = onCovered.result.state;
+  deeper.boards.p1.actionsTakenThisTurn = [];
+  deeper.boards.p1.trash = [action("BP01-063")];
+  // A second Level 2 for the same character — legal, a card of the level they
+  // are already at counts. The fixture's pool only stocks the first ladder.
+  deeper.boards.p1.characterPool = [character("BP01-006")];
+  const twoDown = drive(deeper, "p1", {
+    kind: "levelUp",
+    characterId: "BP01-006",
+    discardIds: deeper.boards.p1.hand.slice(0, 2).map((c) => c.id),
+  });
+  check(
+    "ใบที่อยู่ลึกลงไป 2 ชั้น -> [Level up] ยังทำงาน",
+    twoDown.asked.includes("BP01-009"),
+    twoDown.asked.join() || "(ไม่มีอะไรถาม)"
+  );
+  check(
+    "และหยิบการ์ดจากกองทิ้งได้จริง",
+    twoDown.result.state.boards.p1.trash.every((c) => c.id !== "BP01-063"),
+    twoDown.result.state.boards.p1.trash.map((c) => c.id).join() || "(กองทิ้งว่าง)"
+  );
+  check(
+    "กองลึก 4 ใบ เรียงตามที่ลงไว้",
+    [
+      ...(twoDown.result.state.boards.p1.leader?.under ?? []).map((c) => c.id),
+      twoDown.result.state.boards.p1.leader?.card.id,
+    ].join() === "BP01-010,BP01-009,BP01-007,BP01-006",
+    [
+      ...(twoDown.result.state.boards.p1.leader?.under ?? []).map((c) => c.id),
+      twoDown.result.state.boards.p1.leader?.card.id,
+    ].join()
+  );
+
   // BP01-001 is "[Level up] return this card to the Character Deck". Fired on
   // the card arriving, it bounced itself off the field the moment it landed.
   let camellya = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
@@ -1467,20 +1581,29 @@ let game = newMatch();
   s.boards.p1.hand = [action("BP01-044"), action("BP01-044")];
   s.boards.p1.competitionArea = [action("BP01-044")];
 
-  const committed = drive(s, "p1", { kind: "commit", cardId: "BP01-044" }).result.state;
-  check("เข้าเฟสประลอง", committed.phase === "counter", committed.phase);
+  // Opening the phase is its own move now, so "at the start" is literally at
+  // the start: the draw happens before anybody has laid a card down.
+  const opened = drive(s, "p1", { kind: "toBattle" }).result.state;
+  check("เข้าเฟสประลอง", opened.phase === "counter", opened.phase);
   check(
     "จั่วให้ครบ 5 ตั้งแต่เฟสประลองเริ่ม ไม่ใช่ตอนเปิดการ์ด",
-    committed.boards.p1.hand.length === 5,
+    opened.boards.p1.hand.length === 5,
+    `${opened.boards.p1.hand.length}`
+  );
+
+  const committed = drive(opened, "p1", { kind: "commit", cardId: "BP01-044" }).result.state;
+  check(
+    "ลงคว่ำหลังจากนั้น -> มือลดลง 1 ใบ ไม่จั่วเพิ่ม",
+    committed.boards.p1.hand.length === 4,
     `${committed.boards.p1.hand.length}`
   );
 
-  // And exactly once — the second player committing does not open the phase
+  // And exactly once — the second player choosing does not open the phase
   // again.
   const both = drive(committed, "p2", { kind: "pass" }).result.state;
   check(
     "อีกฝ่ายลงตาม -> ไม่ได้จั่วซ้ำ",
-    both.boards.p1.hand.length === 5,
+    both.boards.p1.hand.length === 4,
     `${both.boards.p1.hand.length}`
   );
 }

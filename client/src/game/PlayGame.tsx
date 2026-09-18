@@ -256,8 +256,14 @@ export function PlayGame({ match, children }: { match: MatchController; children
               selectedHand={selected}
               handSelectionMeans={mulliganing ? "return" : "pick"}
               onHandCardClick={(card, index) => handleHandClick(bottom, card, index)}
+              /* Affordability only decides anything once a card could
+                 actually be laid down. In the Main Phase every card is a
+                 legal Charge whatever it costs, so dimming the expensive
+                 ones there says something untrue. */
               unplayable={
-                levelUp || mulliganing ? undefined : (card) => whyUnplayable(state, card, bottom)
+                levelUp || mulliganing || !(state.phase === "counter" || state.phase === "combo")
+                  ? undefined
+                  : (card) => whyUnplayable(state, card, bottom)
               }
               actionsFor={actionsFor}
               handMenuFor={handMenuFor}
