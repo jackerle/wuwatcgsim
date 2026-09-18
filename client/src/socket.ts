@@ -31,6 +31,10 @@ function resolveServerUrl(): string {
   const configured = import.meta.env.VITE_SERVER_URL;
   if (configured) return configured;
 
+  // Behind a reverse proxy (standard 80/443) the server is reached on the same
+  // origin via /socket.io, not on a separate port.
+  if (!window.location.port) return window.location.origin;
+
   const port = import.meta.env.VITE_SERVER_PORT || DEFAULT_SERVER_PORT;
   return `${window.location.protocol}//${window.location.hostname}:${port}`;
 }
