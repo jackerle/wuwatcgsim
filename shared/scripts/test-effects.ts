@@ -157,14 +157,14 @@ function check(name: string, pass: boolean, detail = "") {
     },
   ]);
   const lost = freshState();
-  lost.advantageId = "p2";
+  lost.advantageIds = ["p2"];
   const won = freshState();
-  won.advantageId = "p1";
+  won.advantageIds = ["p1"];
   // Winning THIS turn's clash is not Advantage yet: lastBattleWinnerId is
   // already p1 by the time [Judgement] runs, and the gate must not read it.
   const justWon = freshState();
   justWon.lastBattleWinnerId = "p1";
-  justWon.advantageId = null;
+  justWon.advantageIds = [];
 
   const blocked = resolveTrigger(lost, "judgement", [source(def)]);
   const allowed = resolveTrigger(won, "judgement", [source(def)]);
@@ -417,6 +417,25 @@ function check(name: string, pass: boolean, detail = "") {
     { condition: ["advantage"], text: { th: "ไม่มี trigger" }, resolve: (ctx) => ctx.draw(1) },
   ]);
   const vanilla = action("V-005", []);
+  // The BP01-058 bug: printed "[Advantage] [Judgement]" but only `judgement`
+  // in the condition, so the ability ran on every judgement instead of only
+  // while holding Advantage. Invisible on screen — the text still reads
+  // [Advantage] — which is why the validator has to be the one to see it.
+  const tagNotInCondition = action("V-006", [
+    {
+      condition: ["judgement"],
+      text: { th: "[Advantage] [Judgement] หากแพ้ ทำอะไรหน่อย" },
+      resolve: (ctx) => ctx.draw(1),
+    },
+  ]);
+  // A tag mid-sentence is prose about the effect, not a condition on it.
+  const tagInProse = action("V-007", [
+    {
+      condition: ["judgement"],
+      text: { th: "[Judgement] หากชนะ ได้รับ [Advantage] เทิร์นหน้า" },
+      resolve: (ctx) => ctx.draw(1),
+    },
+  ]);
 
   check(
     "ฟ้าที่ใส่ speed -> จับได้ (ฟ้าไม่มี speed)",
@@ -435,6 +454,16 @@ function check(name: string, pass: boolean, detail = "") {
     JSON.stringify(validateCard(unreachable))
   );
   check("การ์ดที่ไม่มี effect เลย -> ผ่าน", validateCard(vanilla).length === 0);
+  check(
+    "ป้าย [Advantage] พิมพ์ไว้แต่ไม่ใส่ใน condition -> จับได้",
+    validateCard(tagNotInCondition).some((i) => i.field.endsWith("condition")),
+    JSON.stringify(validateCard(tagNotInCondition))
+  );
+  check(
+    "ป้ายกลางประโยค -> ไม่นับเป็นเงื่อนไข",
+    validateCard(tagInProse).length === 0,
+    JSON.stringify(validateCard(tagInProse))
+  );
 }
 
 // 13. helpers -------------------------------------------------------------------

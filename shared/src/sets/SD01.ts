@@ -54,16 +54,24 @@ export const SD01: CardDef[] = [
         },
         resolve: (ctx) => {
           if (!(ctx.lastPlayedColor() === "green")) return;
+          // "UP TO 2" is a number the player picks, not a yes/no on both: the
+          // rules answer "can I reveal only 1?" with yes. A confirm could only
+          // offer 2-or-nothing, so this asks how many.
           const revealed = ctx.revealTop(2);
           if (revealed.length === 0) return;
-          if (
-            ctx.confirm({
-              th: "แสดงการ์ด 2 ใบบนสุดของเด็ค นำขึ้นมือไหม",
-              en: "Reveal 2 from the top of your deck and take them?",
-            })
-          ) {
-            ctx.deckToHand(2);
-          }
+          const howMany = ctx.chooseOption(
+            { th: "แสดงการ์ดบนสุดของเด็คกี่ใบ แล้วนำขึ้นมือ", en: "Reveal and take how many?" },
+            [
+              // Only offer 2 when there are 2 to take.
+              ...(revealed.length >= 2
+                ? [{ value: "2", label: { th: "2 ใบ", en: "2 cards" } }]
+                : []),
+              { value: "1", label: { th: "1 ใบ", en: "1 card" } },
+              { value: "0", label: { th: "ไม่นำขึ้นมือ", en: "None" } },
+            ]
+          );
+          const count = Number(howMany);
+          if (count > 0) ctx.deckToHand(count);
         },
       },
     ],

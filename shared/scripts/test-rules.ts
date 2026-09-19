@@ -33,7 +33,9 @@ function board(playerId: string, handSize = 5): PlayerBoard {
     leader: { position: "leader", card: chara("Jiyan", 0), under: [] },
     back: [],
     characterPool: [],
-    actionDeck: [],
+    // A deck, because "no deck AND no trash" is now a loss condition on its own
+    // — a fixture with both empty would start every case already decided.
+    actionDeck: Array.from({ length: 10 }, (_, i) => card(`${playerId}-d${i}`)),
     hand: Array.from({ length: handSize }, (_, i) => card(`${playerId}-h${i}`)),
     competitionArea: [],
     trash: [],
@@ -182,6 +184,48 @@ const check = (name: string, pass: boolean, detail = "") => results.push({ name,
   both.boards.p1.life = 0;
   both.boards.p2.life = 0;
   check("ศูนย์พร้อมกัน -> เสมอ", checkWinner(both) === "draw", String(checkWinner(both)));
+
+  // The second loss condition: nothing left to draw from AND nothing left to
+  // rebuild from. An empty deck on its own is not it — the trash is shuffled
+  // back in first.
+  const deckOut = state();
+  deckOut.boards.p2.actionDeck = [];
+  check(
+    "เด็คหมดแต่กองทิ้งยังมี -> ยังไม่แพ้",
+    ((deckOut.boards.p2.trash = [card("t1")]), checkWinner(deckOut) === null),
+    String(checkWinner(deckOut))
+  );
+
+  const outOfCards = state();
+  outOfCards.boards.p2.actionDeck = [];
+  outOfCards.boards.p2.trash = [];
+  check(
+    "เด็คหมดและกองทิ้งว่าง -> แพ้",
+    checkWinner(outOfCards) === "p1",
+    String(checkWinner(outOfCards))
+  );
+
+  const bothOut = state();
+  for (const id of ["p1", "p2"] as const) {
+    bothOut.boards[id].actionDeck = [];
+    bothOut.boards[id].trash = [];
+  }
+  check("หมดการ์ดทั้งคู่ -> เสมอ", checkWinner(bothOut) === "draw", String(checkWinner(bothOut)));
+}
+
+// end phase: the hand limit is the turn player's alone
+{
+  const s = state(11);
+  const forEveryone = applyEndPhase(s, "p1", undefined, { discardToLimit: false });
+  check(
+    "ฝ่ายที่ไม่ใช่เจ้าของเทิร์น มือเกิน 8 ก็ไม่ต้องทิ้ง",
+    forEveryone.boards.p1.hand.length === 11,
+    `hand=${forEveryone.boards.p1.hand.length}`
+  );
+  check(
+    "แต่ Action Area ยังโดนล้างตามกติกา",
+    forEveryone.actionZone.p1.length === 0
+  );
 }
 
 // turn log lifecycle

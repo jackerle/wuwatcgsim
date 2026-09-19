@@ -225,13 +225,26 @@ export interface MatchState {
    * Who holds [Advantage] for the turn now being played.
    *
    * Winning a battle does not hand you Advantage in the same turn — you have
-   * it from the NEXT turn onwards. So this is a snapshot of
-   * `lastBattleWinnerId` taken when the turn opened and left alone for the
-   * rest of it, rather than the live value: this turn's clash overwrites
-   * `lastBattleWinnerId` before [Judgement] and the Combo Step run, and
-   * reading that would switch Advantage on mid-turn for whoever just won.
+   * it from the NEXT turn onwards. So this is a snapshot taken when the turn
+   * opened and left alone for the rest of it, rather than a live reading of
+   * `lastBattleWinnerId`: this turn's clash overwrites that before [Judgement]
+   * and the Combo Step run, and reading it would switch Advantage on mid-turn
+   * for whoever just won.
+   *
+   * A LIST, because two things grant it and both can land at once: "you won the
+   * previous clash, OR your opponent skipped the Battle Phase". If neither side
+   * laid a card down, nobody won and each side's opponent skipped — so both
+   * hold Advantage on the following turn.
    */
-  advantageId: string | null;
+  advantageIds: string[];
+  /**
+   * Who will hold [Advantage] next turn, booked when the clash resolves.
+   *
+   * Kept apart from `advantageIds` for the same reason `pendingFlags` is kept
+   * apart from `turnLog.flags`: the thing is decided this turn and starts
+   * applying on the next one, and the two must never be read as one.
+   */
+  pendingAdvantageIds: string[];
   /**
    * The detail of that battle, which a lot of printed abilities ask about:
    * "if you won with a green card", "if you lost to a red card". null on a
@@ -361,7 +374,8 @@ export function emptyMatchState(matchId: string, playerIds: string[]): MatchStat
     actionZone: byPlayer<ActionCard[]>(() => []),
     combo: null,
     lastBattleWinnerId: null,
-    advantageId: null,
+    advantageIds: [],
+    pendingAdvantageIds: [],
     lastBattle: null,
     statModifiers: [],
     turnLog: emptyTurnLog(),

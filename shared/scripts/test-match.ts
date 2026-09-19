@@ -11,6 +11,7 @@ import { effectiveCost, recomputeContinuous, resolveTrigger, sourcesInPlay } fro
 import {
   canCommit,
   canCommitAnything,
+  canPassCounter,
   canSwitchLeader,
   createMatch,
   legalIntents,
@@ -693,9 +694,12 @@ let game = newMatch();
   );
   check("Action Area ของฝ่ายที่ไม่ลงว่างเปล่า", result.state.actionZone.p2.length === 0);
 
-  // Neither side plays: nothing happens at all.
+  // Neither side plays: nothing happens at all. The turn player may only skip
+  // with nothing playable in hand, so p1's hand is emptied rather than simply
+  // declining — see the rule-9 block further down.
   let quiet = newMatch();
   quiet.phase = "counter";
+  quiet.boards.p1.hand = [];
   const q1 = step(quiet, "p1", { kind: "pass" });
   const q2 = step(q1.state, "p2", { kind: "pass" });
   const both = drive(q2.state, "p1", { kind: "resolveCounter" }).result;
@@ -1749,6 +1753,9 @@ let game = newMatch();
 
   // And the record is cleared with the rest of the turn log — which means
   // playing the turn out to its end, not just asking for one.
+  // Emptied so the turn player is ALLOWED to skip the clash (rule: they must
+  // lay a card down while they hold one they can play).
+  landed.boards.p1.hand = [];
   let nextTurn = drive(landed, "p1", { kind: "pass" }).result.state;
   nextTurn = drive(nextTurn, "p2", { kind: "pass" }).result.state;
   nextTurn = drive(nextTurn, "p1", { kind: "resolveCounter" }).result.state;
@@ -1800,6 +1807,9 @@ let game = newMatch();
   let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
   s.boards.p2.hand = [action("BP01-044"), action("BP01-062")];
   s.boards.p2.competitionArea = Array.from({ length: 4 }, () => action("BP01-044"));
+  // Empty, because the turn player may only skip the clash with nothing
+  // playable in hand.
+  s.boards.p1.hand = [];
 
   s = drive(s, "p1", { kind: "pass" }).result.state;
   s = drive(s, "p2", { kind: "commit", cardId: "BP01-044" }).result.state;
@@ -1829,7 +1839,16 @@ let game = newMatch();
   s = drive(s, "p1", { kind: "resolveCounter" }).result.state;
   const liberation = action("BP01-062");
   check("p1 ชนะการตัดสิน", s.lastBattleWinnerId === "p1", s.lastBattleWinnerId ?? "-");
-  check("เทิร์นที่ชนะ: ยังไม่มี Advantage", s.advantageId === null, s.advantageId ?? "-");
+  check(
+    "เทิร์นที่ชนะ: ยังไม่มี Advantage",
+    s.advantageIds.length === 0,
+    s.advantageIds.join(",")
+  );
+  check(
+    "แต่จอง Advantage เทิร์นหน้าไว้ให้ p1 แล้ว",
+    s.pendingAdvantageIds.join(",") === "p1",
+    s.pendingAdvantageIds.join(",")
+  );
   check(
     "เทิร์นที่ชนะ: cost ของ BP01-062 ยังเป็น 2",
     effectiveCost(s, liberation, "p1") === 2,
@@ -1838,11 +1857,172 @@ let game = newMatch();
 
   s = drive(s, "p1", { kind: "endTurn" }).result.state;
   s = drive(s, "p2", { kind: "startTurn" }).result.state;
-  check("เทิร์นถัดไป: Advantage เป็นของ p1", s.advantageId === "p1", s.advantageId ?? "-");
+  check(
+    "เทิร์นถัดไป: Advantage เป็นของ p1",
+    s.advantageIds.join(",") === "p1",
+    s.advantageIds.join(",")
+  );
   check(
     "เทิร์นถัดไป: cost ของ BP01-062 ลดเหลือ 1",
     effectiveCost(s, liberation, "p1") === 1,
     `${effectiveCost(s, liberation, "p1")}`
+  );
+}
+
+// --- Rule: the turn player must lay a card down ------------------------------
+//
+// The non-turn player may always decline the clash. The turn player declared
+// the phase and may only skip when nothing in hand is playable — and skipping
+// then shows their hand, which is how the rules make them prove it.
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  s = drive(s, "p1", { kind: "toBattle" }).result.state;
+  s.boards.p1.hand = [action("BP01-049")]; // cost 2
+  s.boards.p1.competitionArea = [action("BP01-044"), action("BP01-044")];
+
+  check("มีใบที่ลงได้ -> canPassCounter ปิดสิทธิ์ pass ของเจ้าของเทิร์น", !canPassCounter(s, "p1"));
+  check(
+    "และ legalIntents ก็ไม่เสนอ pass",
+    !legalIntents(s, "p1").includes("pass"),
+    legalIntents(s, "p1").join(",")
+  );
+  const refused = drive(s, "p1", { kind: "pass" }).result;
+  check("ฝืน pass -> เอนจินปฏิเสธ", Boolean(refused.error), refused.error ?? "ไม่ปฏิเสธ");
+
+  // The other side is not bound by this, even with a card it could play.
+  check("ฝ่ายที่ไม่ใช่เจ้าของเทิร์น pass ได้เสมอ", canPassCounter(s, "p2"));
+
+  // Nothing affordable: now the skip is legal, and the hand goes face-up.
+  const broke = structuredClone(s);
+  broke.boards.p1.competitionArea = [];
+  check("จ่ายค่าการ์ดไม่ไหว -> pass ได้", canPassCounter(broke, "p1"));
+  const passed = drive(broke, "p1", { kind: "pass" }).result;
+  check("และ pass ผ่านจริง", !passed.error, passed.error ?? "");
+  check(
+    "เจ้าของเทิร์นที่ข้าม -> เปิดมือให้อีกฝ่ายดู",
+    passed.state.revealedHands.includes("p1"),
+    JSON.stringify(passed.state.revealedHands)
+  );
+}
+
+// --- Rule: rebuilding a spent deck ------------------------------------------
+//
+// Drawing tops the deck up part-way through; everything else takes what is
+// there and the rebuild waits for the end of the step.
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  s.boards.p1.trash = s.boards.p1.actionDeck.splice(0, 8);
+  s.boards.p1.actionDeck = s.boards.p1.actionDeck.slice(0, 1);
+  s.lastBattleWinnerId = "p1"; // BP01-028 only fires on a win
+  s.boards.p1.leader = { position: "leader", card: character("BP01-028"), under: [] };
+  // Reveal 5 off a 1-card deck: 1 card, not a fresh shuffle and 5.
+  const top = resolveTrigger(s, "judgement", [
+    { card: requireCard("BP01-028"), controllerId: "p1", zone: "leader" },
+  ]);
+  check(
+    "เปิด 5 ใบจากเด็คที่เหลือ 1 ใบ -> ได้แค่ 1 ใบ ไม่สร้างเด็คใหม่กลางทาง",
+    top.state.boards.p1.actionDeck.length === 0,
+    `deck=${top.state.boards.p1.actionDeck.length} trash=${top.state.boards.p1.trash.length}`
+  );
+}
+
+// --- Rule: the Action Phase has two exits -----------------------------------
+//
+// Leaving the Action Phase, the turn player declares either the Counter Phase or
+// the End Phase. Skipping the Counter Phase is not the same as laying nothing
+// down inside it: no clash happens at all, and it is the only thing that
+// satisfies the second half of [Advantage].
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  check(
+    "เฟสหลักเสนอทั้ง toBattle และ skipCounter",
+    legalIntents(s, "p1").includes("toBattle") && legalIntents(s, "p1").includes("skipCounter"),
+    legalIntents(s, "p1").join(",")
+  );
+  const skipped = drive(s, "p1", { kind: "skipCounter" }).result;
+  check("skipCounter -> กระโดดไปเฟสจบเทิร์น", skipped.state.phase === "end", skipped.state.phase);
+  check("ไม่เกิดการปะทะ -> ไม่มีผู้ชนะ", skipped.state.lastBattleWinnerId === null);
+  check(
+    "อีกฝ่ายจะได้ Advantage เทิร์นหน้า",
+    skipped.state.pendingAdvantageIds.join(",") === "p2",
+    skipped.state.pendingAdvantageIds.join(",")
+  );
+
+  s = drive(skipped.state, "p1", { kind: "endTurn" }).result.state;
+  s = drive(s, "p2", { kind: "startTurn" }).result.state;
+  check(
+    "เปิดเทิร์นใหม่ -> p2 ถือ Advantage ทั้งที่ไม่ได้ชนะการปะทะ",
+    s.advantageIds.join(",") === "p2",
+    s.advantageIds.join(",")
+  );
+  // Only the turn player's call.
+  const notYours = drive(s, "p1", { kind: "skipCounter" }).result;
+  check("ฝ่ายที่ไม่ใช่เจ้าของเทิร์นข้ามไม่ได้", Boolean(notYours.error), notYours.error ?? "");
+}
+
+// --- Rule: a character's pile stops at 5 ------------------------------------
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  // Camellya 0 > 1 > 2 > 2 > 2 is five cards, the ceiling.
+  const leader = s.boards.p1.leader!;
+  s.boards.p1.leader = {
+    ...leader,
+    card: character("BP01-001"),
+    under: [character("BP01-005"), character("BP01-003"), character("BP01-001"), character("BP01-001")],
+  };
+  s.boards.p1.characterPool = [character("BP01-001")];
+  check(
+    "กองสูง 5 ใบ -> เมนูไม่เสนออะไรเลย",
+    levelUpOptions(s, "p1", s.boards.p1.leader!.card.id).length === 0,
+    `${levelUpOptions(s, "p1", s.boards.p1.leader!.card.id).length}`
+  );
+  const refused = drive(s, "p1", {
+    kind: "levelUp",
+    characterId: "BP01-001",
+    discardIds: s.boards.p1.hand.slice(0, 2).map((c) => c.id),
+  }).result;
+  check("ฝืนสั่ง -> เอนจินปฏิเสธ", Boolean(refused.error), refused.error ?? "ไม่ปฏิเสธ");
+}
+
+// --- Rule: [Switch] belongs to the two characters that moved -----------------
+//
+// "Triggers when the character carrying it IS switched", and a character is
+// switched only when its own position changed. Raising it board-wide fired it on
+// the character that stayed in the back — and on the opponent's board.
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  // BP01-008 is Shorekeeper Lv.2 with [Switch] "you may draw 1, then discard 1".
+  // Parked in a BACK slot that is NOT the one being switched in, so if it fires
+  // at all, it fired for a character that never moved.
+  s.boards.p1.back = [
+    { position: "back", card: character("BP01-024"), under: [] },
+    { position: "back", card: character("BP01-008"), under: [] },
+  ];
+  const handBefore = s.boards.p1.hand.length;
+  const out = drive(s, "p1", { kind: "switch", toCardId: "BP01-024" });
+  check("สลับตัวสำเร็จ", !out.result.error, out.result.error ?? "");
+  check(
+    "[Switch] ของตัวที่ไม่ได้สลับ -> ไม่ทำงาน",
+    out.asked.length === 0 && out.result.state.boards.p1.hand.length === handBefore,
+    `asked=${out.asked.join(",")} hand=${out.result.state.boards.p1.hand.length} (ก่อน ${handBefore})`
+  );
+
+  // And it DOES fire for a character that was switched.
+  let t = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  t.boards.p1.back = [
+    { position: "back", card: character("BP01-008"), under: [] },
+    { position: "back", card: character("BP01-024"), under: [] },
+  ];
+  const moved = drive(t, "p1", { kind: "switch", toCardId: "BP01-008" });
+  check(
+    "[Switch] ของตัวที่สลับขึ้นมา -> ทำงาน",
+    moved.asked.includes("BP01-008"),
+    moved.asked.join(",") || "ไม่ถูกถาม"
   );
 }
 

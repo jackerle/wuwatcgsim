@@ -16,14 +16,15 @@ import { ACTION_DECK_SIZE } from "./rules";
 import type { Lang } from "./cards";
 
 /**
- * How many copies of one printed card a deck may hold.
+ * How many copies of one printed card an Action Deck may hold.
  *
- * Three characters bring 19-27 action cards between them, plus the 10
- * Echoes everyone can use — nowhere near 40 on their own, so a deck is
- * always built out of copies and this is what stops it being four cards
- * ten times over.
+ * Three, per the construction rules ("at most 3 action cards of the same card
+ * number"). Three characters bring 19-27 action cards between them, plus the 10
+ * Echoes everyone can use — nowhere near 40 on their own, so a deck is always
+ * built out of copies, and this is what stops it being a handful of cards over
+ * and over.
  */
-export const MAX_COPIES_PER_CARD = 4;
+export const MAX_COPIES_PER_CARD = 3;
 
 /** Three characters, and how many copies of each action card. */
 export interface DeckList {

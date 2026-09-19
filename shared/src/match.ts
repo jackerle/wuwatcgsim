@@ -73,6 +73,7 @@ import {
 import {
   applyEndPhase,
   canLevelUpOnto,
+  canStackOnto,
   canTakeAction,
   checkWinner,
   drawCount,
@@ -81,6 +82,7 @@ import {
   recordCardPlayed,
   recordCharacterPlayed,
   recordDamage,
+  rebuildEmptyDecks,
   resetTurnLog,
   takeFromDeck,
   validateDecks,
@@ -243,6 +245,11 @@ export type MatchIntent =
   | { kind: "commit"; cardId: string }
   /** Counter Phase: choose to play nothing — an empty hand, or by choice. */
   | { kind: "pass" }
+  /**
+   * Skip the Counter Phase outright and go to the End Phase. The turn player's
+   * alternative to `toBattle` when they leave the Action Phase.
+   */
+  | { kind: "skipCounter" }
   /** Give up. The other player wins immediately. */
   | { kind: "concede" }
   /** Turn both cards up and play the clash out to its damage. */
@@ -379,6 +386,11 @@ class Run {
    * switch, the turn passing.
    */
   settle(): void {
+    // A deck that ran out is rebuilt from the trash HERE rather than inside the
+    // effect that emptied it: the rules defer the rebuild until every skill has
+    // finished resolving, and settle() is exactly the boundary between steps.
+    // Drawing is the one exception and handles itself (see takeFromDeck).
+    rebuildEmptyDecks(this.state, this.log);
     const result = recomputeContinuous(this.state);
     this.state = result.state;
     this.collectManual(result.manual);
@@ -585,7 +597,9 @@ export function step(
     throw error;
   }
 
-  // A step can only ever end the game by taking someone to zero.
+  // Checked once per step, after the rebuild sweep in settle() has had its go:
+  // an empty deck is only a loss when the trash was empty too, so asking before
+  // the rebuild would kill a player who still had cards to shuffle back.
   const winner = checkWinner(run.state);
   if (winner && !run.state.winnerId) {
     run.state.winnerId = winner;
@@ -620,6 +634,9 @@ function apply(run: Run, playerId: string, intent: MatchIntent): void {
       return toBattle(run, playerId);
     case "commit":
       return commit(run, playerId, intent.cardId);
+    case "skipCounter":
+      skipCounter(run, playerId);
+      break;
     case "pass":
       return passCounter(run, playerId);
     case "concede":
@@ -687,12 +704,13 @@ function startTurn(run: Run): void {
 
   const turnPlayer = run.state.turnPlayerId;
   run.state = resetTurnLog(run.state);
-  // [Advantage] changes hands here and nowhere else. The battle that decided
-  // it was fought last turn, and winning it did NOT grant Advantage for the
-  // rest of that turn — this is the turn it starts counting. Snapshotting it
-  // is what keeps it still for the whole turn: this turn's clash overwrites
-  // lastBattleWinnerId before [Judgement] and the Combo Step run.
-  run.state.advantageId = run.state.lastBattleWinnerId;
+  // [Advantage] changes hands here and nowhere else. It was decided by last
+  // turn's clash, and winning did NOT grant it for the rest of that turn — this
+  // is the turn it starts counting. Promoting it once, here, is also what keeps
+  // it still for the whole turn: this turn's clash books the next holders into
+  // pendingAdvantageIds without disturbing these.
+  run.state.advantageIds = run.state.pendingAdvantageIds;
+  run.state.pendingAdvantageIds = [];
   for (const board of Object.values(run.state.boards)) {
     board.actionsTakenThisTurn = [];
   }
@@ -753,6 +771,8 @@ function levelUp(run: Run, playerId: string, characterId: string, discardIds: st
   if (isAbilityOnly(incoming.id)) {
     run.reject(`${incoming.name} Lv.${incoming.level} can only be put into play by an ability`);
   }
+  const stack = canStackOnto(target);
+  if (!stack.ok) run.reject(stack.reason ?? "Cannot level up");
   const check = canLevelUpOnto(target.card, incoming, board);
   if (!check.ok) run.reject(check.reason ?? "Cannot level up");
 
@@ -828,7 +848,14 @@ function switchLeader(run: Run, playerId: string, toCardId: string): void {
   else board.back.splice(index, 1);
   run.note(LOG.switchesLeader(playerId, incoming.card.name), incoming.card.id);
 
-  run.fire("switch");
+  // Only the two characters that changed places are "switched" — [Switch] reads
+  // "when THIS character is switched", and a board-wide raise fired it on every
+  // character in play, including the one that never moved and the opponent's.
+  // Their new positions, not their old ones: the incoming card is the Leader now.
+  run.fireOn("switch", [
+    ...sourcesForSlot({ ...incoming, position: "leader" }, playerId),
+    ...(outgoing ? sourcesForSlot({ ...outgoing, position: "back" }, playerId) : []),
+  ]);
   run.settle();
   advanceIfActionsSpent(run, playerId);
 }
@@ -852,6 +879,31 @@ function toBattle(run: Run, playerId: string): void {
   if (run.state.phase !== "action") run.reject("The Action Phase is not running");
   if (playerId !== run.state.turnPlayerId) run.reject("It is not your turn");
   openCounterPhase(run);
+}
+
+/**
+ * Leaves the Action Phase for the End Phase, skipping the clash entirely.
+ *
+ * The turn player's other exit: closing the Action Phase, they declare either
+ * the Counter Phase or the End Phase. It is not the same as laying nothing down
+ * — that happens INSIDE the Counter Phase and loses the clash. This never opens
+ * the phase at all, so no [Counter] or [Judgement] skill fires on either side,
+ * nobody takes damage, and there is nothing to combo from.
+ *
+ * It is also the only way the opponent's half of [Advantage] is ever satisfied:
+ * "you won the previous clash, OR your opponent skipped the Counter Phase".
+ */
+function skipCounter(run: Run, playerId: string): void {
+  if (run.state.phase !== "action") run.reject("The Action Phase is not running");
+  if (playerId !== run.state.turnPlayerId) run.reject("It is not your turn");
+
+  const other = opponentOf(run.state, playerId);
+  // Booked for next turn like every other Advantage, so the player who was
+  // skipped on does not gain it in the middle of the turn it happened.
+  run.state.pendingAdvantageIds = other ? [other] : [];
+  run.state.phase = "end";
+  run.note(LOG.skipsCounterPhase(playerId));
+  run.settle();
 }
 
 /**
@@ -909,16 +961,31 @@ function commit(run: Run, playerId: string, cardId: string): void {
 /**
  * Plays nothing this Counter Phase.
  *
- * A player with an empty hand, or with nothing they can pay for, has no legal
- * card to put down — without this the phase could never finish. It is also
- * allowed as a choice: laying nothing out concedes the clash but costs no
- * card.
+ * The two sides of the table do NOT have the same right here.
+ *
+ * The turn player declared this phase, so they must lay a card down. They may
+ * skip only when nothing in their hand can legally be played — and the rules
+ * make them prove it by showing their hand to the opponent, which is why this
+ * reveals it rather than just letting the move through.
+ *
+ * The non-turn player may always decline: laying nothing out concedes the
+ * clash but costs no card.
  */
 function passCounter(run: Run, playerId: string): void {
   if (run.state.phase !== "counter") {
     run.reject("There is no Counter Phase running");
   }
   if (run.state.committed[playerId]) run.reject("You have already chosen");
+
+  if (playerId === run.state.turnPlayerId) {
+    if (canCommitAnything(run.state, playerId)) {
+      run.reject("The turn player must lay a card down when they have one they can play");
+    }
+    if (!run.state.revealedHands.includes(playerId)) {
+      run.state.revealedHands.push(playerId);
+    }
+    run.note(LOG.showsHandToSkip(playerId));
+  }
 
   run.state.facedown[playerId] = null;
   run.state.committed[playerId] = true;
@@ -991,6 +1058,13 @@ function resolveCounter(run: Run): void {
   const result = unopposedOrClash(run, turnPlayer, mine, opponent, theirs);
 
   run.state.lastBattleWinnerId = result.winnerId;
+  // Who holds [Advantage] next turn. The rule has two halves — "you won the
+  // previous clash, OR your opponent skipped the Counter Phase" — and only the
+  // first can be decided here: skipping the phase means never reaching this
+  // function at all, and skipCounter() books that case itself. Laying no card
+  // down is NOT skipping the phase; it loses the clash, and the winner is
+  // already covered.
+  run.state.pendingAdvantageIds = result.winnerId ? [result.winnerId] : [];
   run.state.lastBattle =
     mine || theirs
       ? {
@@ -1050,7 +1124,11 @@ function resolveCounter(run: Run): void {
   run.state = expireModifiers(run.state, "battle");
   run.fire("counterPhaseEnd");
   run.settle();
-  run.state.phase = "combo";
+  // A drawn clash ends the Counter Phase outright: there is no winner, so there
+  // is no Combo Step to enter. Sitting in "combo" with no window was harmless in
+  // play — nothing could be comboed — but it told the phase track the turn was
+  // somewhere it was not.
+  run.state.phase = result.winnerId ? "combo" : "end";
 }
 
 // --- Combo Step ------------------------------------------------------------
@@ -1263,9 +1341,14 @@ function endTurn(run: Run, playerId: string): void {
 
   run.fire("endTurn");
 
+  // Every player's Action Area is emptied; only the TURN player discards down to
+  // the hand limit. Applying the limit to both sides took cards off a player on
+  // a turn that was not theirs.
   for (const id of Object.keys(run.state.boards)) {
     const before = run.board(id).hand.length;
-    run.state = applyEndPhase(run.state, id);
+    run.state = applyEndPhase(run.state, id, undefined, {
+      discardToLimit: id === run.state.turnPlayerId,
+    });
     const after = run.board(id).hand.length;
     if (after < before) run.note(LOG.discardsToLimit(id, HAND_LIMIT));
   }
@@ -1370,7 +1453,8 @@ export function legalIntents(state: MatchState, playerId: string): MatchIntent["
     case "action": {
       // Laying a card down is no longer one of these: it belongs to the
       // Counter Phase, and "toBattle" is how this phase is left.
-      const kinds: MatchIntent["kind"][] = ["toBattle"];
+      // Both exits from the Action Phase: into the clash, or straight past it.
+      const kinds: MatchIntent["kind"][] = ["toBattle", "skipCounter"];
       for (const kind of ["charge", "levelUp", "switch"] as const) {
         if (canTakeAction(board, kind).ok) kinds.push(kind);
       }
@@ -1381,7 +1465,10 @@ export function legalIntents(state: MatchState, playerId: string): MatchIntent["
       // still be thinking — offering it earlier only produces a rejection.
       const everyoneChose = Object.keys(state.boards).every((id) => state.committed[id]);
       if (everyoneChose) return ["resolveCounter"];
-      return state.committed[playerId] ? [] : ["commit", "pass"];
+      if (state.committed[playerId]) return [];
+      // This branch only ever answers for the turn player (see the guard at the
+      // top), and they may not decline while they hold something playable.
+      return canPassCounter(state, playerId) ? ["commit", "pass"] : ["commit"];
     }
     case "end":
       return ["endTurn"];
@@ -1429,6 +1516,23 @@ export function canCommitAnything(state: MatchState, playerId: string): boolean 
 }
 
 /**
+ * Whether this player may decline the clash.
+ *
+ * Not symmetric, and that is the rule rather than an oversight: the turn player
+ * declared this phase and has to lay a card down, so they may only skip when
+ * nothing in hand is playable (and passing then shows their hand, see
+ * passCounter). The non-turn player may always decline.
+ *
+ * Exported so the UI hides the button instead of offering a move the engine
+ * will refuse — the two must agree, so they read the same function.
+ */
+export function canPassCounter(state: MatchState, playerId: string): boolean {
+  if (!canCommit(state, playerId) || state.committed[playerId]) return false;
+  if (playerId !== state.turnPlayerId) return true;
+  return !canCommitAnything(state, playerId);
+}
+
+/**
  * The Character Deck cards that may legally be played onto one character in
  * play, right now.
  *
@@ -1448,6 +1552,7 @@ export function levelUpOptions(
   if (!legalIntents(state, playerId).includes("levelUp")) return [];
   const slot = [board.leader, ...board.back].find((entry) => entry?.card.id === characterCardId);
   if (!slot) return [];
+  if (!canStackOnto(slot).ok) return [];
   return board.characterPool.filter(
     (card) => !isAbilityOnly(card.id) && canLevelUpOnto(slot.card, card, board).ok
   );

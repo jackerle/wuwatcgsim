@@ -147,6 +147,18 @@ export const LOG = {
     line(`${player} เข้าเฟสประลอง — ลงการ์ดคว่ำได้ทั้งสองฝ่าย`, `${player} opens the Battle Phase — both sides may commit a card`),
   commits: (player: string) => line(`${player} ลงการ์ดคว่ำ`, `${player} commits a card face-down`),
   playsNothing: (player: string) => line(`${player} ไม่ลงการ์ดในการปะทะนี้`, `${player} passes on this clash`),
+  // The turn player may only skip laying a card when they genuinely cannot, and
+  // the rules make them prove it by showing their hand.
+  showsHandToSkip: (player: string) =>
+    line(
+      `${player} เปิดการ์ดในมือให้ดู — ไม่มีใบที่ลงได้ จึงข้ามการลงการ์ด`,
+      `${player} shows their hand — nothing in it can be played, so they skip laying a card`
+    ),
+  skipsCounterPhase: (player: string) =>
+    line(
+      `${player} ข้ามเฟสประลองทั้งเฟส — ไปเฟสจบเทิร์นเลย`,
+      `${player} skips the Battle Phase entirely and goes to the End Phase`
+    ),
   bothReady: () => line("ทั้งสองฝ่ายเลือกแล้ว — เปิดการ์ดได้", "Both sides are ready — cards are revealed"),
   reveals: (player: string, card: string | null) =>
     card ? line(`${player} เปิด ${card}`, `${player} reveals ${card}`) : line(`${player} ไม่ได้ลงการ์ด`, `${player} committed nothing`),
@@ -205,6 +217,11 @@ export const LOG = {
   shuffles: (player: string) => line(`${player} สับเด็ค`, `${player} shuffles their deck`),
   revealsHand: (player: string) => line(`${player} เปิดการ์ดในมือให้ดู`, `${player} reveals their hand`),
   returnsToHand: (card: string) => line(`${card} กลับขึ้นมือ`, `${card} returns to hand`),
+  cannotStackHigher: (name: string) =>
+    line(
+      `${name} ซ้อนกันสูงสุดแล้ว — เลเวลอัปต่อไม่ได้`,
+      `${name}'s pile is already at its maximum height — no further Level Up`
+    ),
   notInActionArea: (card: string) => line(`${card} ไม่ได้อยู่ใน Action Area`, `${card} is not in the Action Area`),
 
   // --- modifiers and restrictions ---

@@ -70,6 +70,27 @@
   white-space: nowrap;
 }
 
+/* The Action Phase's second exit sits to the LEFT of the primary button, quieter
+   than it: skipping the clash is a real move but rarely the one you want, so it
+   reads as an alternative rather than competing with Go Battle. */
+.control-bar button.control-secondary-move {
+  margin-left: 10px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid #3a3f4d;
+  background: transparent;
+  color: #8d93a5;
+  font-size: calc(var(--board-text) * 1.02);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.control-bar button.control-secondary-move:hover:not(:disabled) {
+  background: #262a34;
+  border-color: #4b5164;
+  color: #cdd3e4;
+}
+
 .control-bar button.control-primary-move:hover:not(:disabled) {
   background: #4162c4;
   border-color: #8aa8ff;

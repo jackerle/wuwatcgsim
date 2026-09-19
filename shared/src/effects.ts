@@ -39,7 +39,7 @@ import {
 import type { CardKeyword, ContinuousKeyword, EffectTrigger } from "./cards";
 import { getCard } from "./cardDb";
 import { LOG, PROMPT, type LogLine } from "./log";
-import { recordCharacterPlayed, recycleTrash, takeFromDeck } from "./rules";
+import { canStackOnto, recordCharacterPlayed, takeFromDeck } from "./rules";
 import { characterStack, nextRandom, shuffleWithState } from "./game";
 import type {
   ActionCard,
@@ -247,10 +247,16 @@ function createContext(
     state,
 
     wonLastBattle: () => state.lastBattleWinnerId === controllerId,
-    hasAdvantage: () => state.advantageId === controllerId,
+    hasAdvantage: () => state.advantageIds.includes(controllerId),
     wonWith: (color) =>
       state.lastBattle?.winnerId === controllerId &&
       state.lastBattle.colorByPlayer[controllerId] === color,
+    wonWithThisCard: () =>
+      state.lastBattle?.winnerId === controllerId &&
+      // The card this player revealed IS the card that deals the clash damage,
+      // so "this card dealt the damage" is the same question as "this card is
+      // the one I countered with".
+      state.lastBattle.cardIdByPlayer[controllerId] === card.id,
     lostTo: (color) => {
       const battle = state.lastBattle;
       if (!battle || battle.loserId !== controllerId || !battle.winnerId) return false;
@@ -318,7 +324,9 @@ function createContext(
 
     draw(count, playerId) {
       const board = boardOf(playerId);
-      const drawn = takeFromDeck(state, board, count, log);
+      // The one operation that rebuilds mid-count: "draw 2" off a 1-card deck
+      // draws it, rebuilds from the trash, and draws the second.
+      const drawn = takeFromDeck(state, board, count, log, { recycle: true });
       board.hand.push(...drawn);
       log.push(LOG.draws(board.playerId, drawn.length));
     },
@@ -409,30 +417,34 @@ function createContext(
     },
     revealTop(count, playerId) {
       const board = boardOf(playerId);
-      // Peeking, not taking — but an empty deck still has to be refilled
-      // first, or there is nothing to show and the card that follows this
-      // ("...then take it") finds the deck empty too.
-      recycleTrash(state, board, log);
+      // Whatever is actually on top, however few. Revealing is not drawing, so
+      // a short deck is not topped up first: "reveal the top 5" off a 2-card
+      // deck shows 2, and the rebuild happens once the skill has finished
+      // (rebuildEmptyDecks). Rebuilding here would hand the card three extra
+      // cards and empty the trash mid-effect.
       const revealed = board.actionDeck.slice(0, count);
       log.push(LOG.revealsTop(board.playerId, revealed.length));
       return revealed;
     },
     topToConcerto(count, playerId) {
       const board = boardOf(playerId);
-      const moved = takeFromDeck(state, board, count, log);
+      const moved = takeFromDeck(state, board, count, log, { recycle: false });
       board.competitionArea.push(...moved);
       log.push(LOG.deckToConcerto(board.playerId, moved.length));
     },
     deckToHand(count, playerId) {
       const board = boardOf(playerId);
-      const moved = takeFromDeck(state, board, count, log);
+      // Not a draw: "take the top N to hand" is printed on cards that reveal
+      // first, and those take what is there. ctx.draw is the one that tops the
+      // deck up mid-count.
+      const moved = takeFromDeck(state, board, count, log, { recycle: false });
       board.hand.push(...moved);
       log.push(LOG.deckToHand(board.playerId, moved.length));
       return moved;
     },
     deckToTrash(count, playerId) {
       const board = boardOf(playerId);
-      const moved = takeFromDeck(state, board, count, log);
+      const moved = takeFromDeck(state, board, count, log, { recycle: false });
       board.trash.push(...moved);
       log.push(LOG.deckToTrash(board.playerId, moved.length));
       return moved;
@@ -548,6 +560,14 @@ function createContext(
       );
       if (!slot) {
         log.push(LOG.notInPlay(characterName));
+        return false;
+      }
+      // "By whatever means" — the 5-card ceiling binds an ability-driven level
+      // up exactly as it binds the Action Phase one, so a card that says "level
+      // this character up" cannot push a full pile past it either.
+      const room = canStackOnto(slot);
+      if (!room.ok) {
+        log.push(LOG.cannotStackHigher(characterName));
         return false;
       }
       // A card that names the level it puts into play says exactly which

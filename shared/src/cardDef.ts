@@ -74,6 +74,16 @@ export interface EffectContext {
    * Printed all over the place as "if you won with a green card".
    */
   wonWith(color: CardColor): boolean;
+  /**
+   * Did THIS card win the last battle — is it the one dealing the damage?
+   *
+   * What "when this card deals damage" means, and it is narrower than
+   * wonLastBattle(). The rules are explicit: an ability reading "when you deal
+   * damage, ..." belongs to the card it is printed on, so another card of yours
+   * winning the clash does not set it off, even while this one sits in the
+   * Action Area beside it.
+   */
+  wonWithThisCard(): boolean;
   /** Did the controller LOSE the last battle to a card of this colour? */
   lostTo(color: CardColor): boolean;
   /**

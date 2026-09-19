@@ -6,7 +6,7 @@
 // this file is the rules-level stuff a type cannot see — a red card carrying
 // a Speed on a blue card, a Follow with no count, two cards sharing a number.
 
-import { localize } from "./cards";
+import { keywordForTag, localize, type CardKeyword, type Lang } from "./cards";
 import {
   isManual,
   keywordsOf,
@@ -31,6 +31,30 @@ export interface ValidationIssue {
  */
 export function isUnfilled(card: CardDef): boolean {
   return card.name === "";
+}
+
+/**
+ * The keywords named by the run of [Tag]s at the start of an effect's text.
+ *
+ * Leading only: a tag in the middle of a sentence is prose about another
+ * card's ability ("gains [Follow-up attack]"), not a condition on this one.
+ * Both languages are read, since a card may be tagged in only one of them, and
+ * a bracket the tag table does not know is ignored rather than reported —
+ * unknown tags are the importer's problem, not this check's.
+ */
+function printedLeadingKeywords(effect: CardEffect): CardKeyword[] {
+  const found = new Set<CardKeyword>();
+  for (const lang of ["th", "en"] as Lang[]) {
+    const text = effect.text[lang];
+    if (!text) continue;
+    const lead = /^(\s*\[[^\]]+\])+/.exec(text);
+    if (!lead) continue;
+    for (const raw of lead[0].match(/\[[^\]]+\]/g) ?? []) {
+      const keyword = keywordForTag(raw.slice(1, -1));
+      if (keyword) found.add(keyword);
+    }
+  }
+  return [...found];
 }
 
 function checkEffect(effect: CardEffect, cardId: string, index: number): ValidationIssue[] {
@@ -58,6 +82,25 @@ function checkEffect(effect: CardEffect, cardId: string, index: number): Validat
       field: `${where}.followCount`,
       message: "followCount set but the condition has no 'follow' keyword",
     });
+  }
+
+  // Every bracket tag printed at the FRONT of the text has to appear in the
+  // condition list, because the tags ARE the condition as a player reads them.
+  // Missing one means the ability runs in cases the card says it does not: an
+  // effect printed "[Advantage] [Judgement] ..." with only `judgement` in its
+  // list fires on every judgement, Advantage or no. That is invisible in
+  // review — the text on screen still says [Advantage] — so it is checked here.
+  for (const printed of printedLeadingKeywords(effect)) {
+    // Follow{x} is carried by followCount, checked above; it is a battle
+    // modifier rather than something conditionBlocking consults.
+    if (printed === "follow") continue;
+    if (!keywords.includes(printed)) {
+      issues.push({
+        cardId,
+        field: `${where}.condition`,
+        message: `printed text carries [${printed}] but the condition does not`,
+      });
+    }
   }
 
   // An effect the engine can never reach: no trigger, not continuous, and

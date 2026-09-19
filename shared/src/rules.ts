@@ -6,11 +6,13 @@
 
 import type { ActionCard, CharacterLevel } from "./game";
 import {
+  characterStack,
   emptyTurnLog,
   HAND_LIMIT,
   shuffleWithState,
   type ActionKind,
   type CharacterCard,
+  type CharacterInstance,
   type MatchState,
   type PlayerBoard,
   type TurnPhase,
@@ -22,6 +24,13 @@ import { LOG, type LogLine } from "./log";
 export const CHARACTER_DECK_MIN = 3;
 export const CHARACTER_DECK_MAX = 15;
 export const ACTION_DECK_SIZE = 40;
+/**
+ * How tall one character's pile may get. "Levelling up, by whatever means,
+ * cannot stack a character past 5 cards — a character already totalling 5
+ * cannot be an upgrade source", so this binds ability-driven level ups too, not
+ * only the once-a-turn Action Phase one.
+ */
+export const CHARACTER_STACK_MAX = 5;
 
 export interface DeckIssue {
   deck: "character" | "action";
@@ -116,30 +125,55 @@ export function recycleTrash(state: MatchState, board: PlayerBoard, log?: LogLin
 }
 
 /**
- * Takes `count` cards off the top of a deck, recycling the trash whenever it
- * runs dry — including part-way through the count, so drawing two with one
- * card left takes that card, recycles, and takes the second off the new deck.
+ * Rebuilds any deck that has run out, from that player's trash.
  *
- * Every path that moves cards off the top of a deck goes through here, which
- * is what keeps the recycle rule in one place instead of in the six separate
- * effects that draw, mill, reveal or charge from it.
+ * The rules rebuild a deck the moment it reaches 0 — but NOT in the middle of
+ * an effect: "if the deck becomes 0 for another reason while a skill is
+ * resolving, wait until every skill has finished resolving, then rebuild".
+ * Drawing is the one exception, handled inside takeFromDeck. So this is the
+ * sweep that runs between steps, and it is why an effect that reveals the top
+ * 5 of a 2-card deck sees 2 cards rather than a freshly shuffled deck.
+ */
+export function rebuildEmptyDecks(state: MatchState, log?: LogLine[]): void {
+  // recycleTrash is a no-op unless the deck is empty and the trash is not, so
+  // this is safe to call as often as we like.
+  for (const board of Object.values(state.boards)) recycleTrash(state, board, log);
+}
+
+/**
+ * Takes `count` cards off the top of a deck.
  *
- * Returns fewer cards than asked only when both piles are empty — the one
- * case where there is genuinely nothing left to give.
+ * `recycle` decides what happens when the deck runs dry part-way through, and
+ * the two behaviours are different RULES, not a convenience:
+ *
+ *   true  — DRAWING. "Draw 2" with one card left takes that card, rebuilds the
+ *           deck from the trash, and takes the second off the new deck, so the
+ *           draw always completes. This is the rule's explicit exception.
+ *   false — every other way cards leave the top: revealing, milling, charging
+ *           from the deck, taking the top N to hand. Those take what is
+ *           actually there and the rebuild waits for rebuildEmptyDecks(), per
+ *           the rule above. Revealing the top 5 of a 2-card deck reveals 2.
+ *
+ * Returns fewer cards than asked when the deck runs out — with `recycle`, only
+ * when both piles are empty.
  */
 export function takeFromDeck(
   state: MatchState,
   board: PlayerBoard,
   count: number,
-  log?: LogLine[]
+  log?: LogLine[],
+  { recycle = true }: { recycle?: boolean } = {}
 ): ActionCard[] {
   const taken: ActionCard[] = [];
   while (taken.length < count) {
-    if (board.actionDeck.length === 0 && !recycleTrash(state, board, log)) {
-      // Deck and trash both empty. Not a loss, but not something to pass
-      // over in silence either.
-      log?.push(LOG.deckEmpty(board.playerId));
-      break;
+    if (board.actionDeck.length === 0) {
+      if (!recycle || !recycleTrash(state, board, log)) {
+        // Nothing left to give: either the rebuild is not ours to do here, or
+        // deck and trash are both empty. Not a loss, but not something to pass
+        // over in silence either.
+        log?.push(LOG.deckEmpty(board.playerId));
+        break;
+      }
     }
     taken.push(board.actionDeck.shift()!);
   }
@@ -190,6 +224,24 @@ export function levelUpCost(targetLevel: CharacterLevel): number {
  * neither is going back down. Level 0 is a starting card only and is never
  * played on top of anything.
  */
+/**
+ * Whether anything more may be stacked on this character.
+ *
+ * Separate from canLevelUpOnto because it is about the PILE rather than the two
+ * cards, and because it binds both routes into play — the Action Phase rule and
+ * a card's own "level this character up" ability.
+ */
+export function canStackOnto(slot: CharacterInstance): RuleCheck {
+  const height = characterStack(slot).length;
+  if (height >= CHARACTER_STACK_MAX) {
+    return {
+      ok: false,
+      reason: `${slot.card.name} is already ${height} cards tall — a character cannot stack past ${CHARACTER_STACK_MAX}`,
+    };
+  }
+  return { ok: true };
+}
+
 export function canLevelUpOnto(
   current: CharacterCard,
   incoming: CharacterCard,
@@ -220,8 +272,13 @@ export function canLevelUpOnto(
 // --- End Phase -------------------------------------------------------------
 
 /**
- * End of turn: revealed cards in the Action Zone go to the trash, then the
- * turn player discards down to the hand limit. Returns a new state.
+ * End of turn for one player: their Action Area goes to the trash, and — only
+ * when `discardToLimit` is set — they discard down to the hand limit.
+ *
+ * The two halves are separate because the rules apply them to different people:
+ * EVERY player's Action Area is emptied, but only the TURN player discards to 8.
+ * Running the hand limit over both sides quietly took cards off a player on a
+ * turn that was never theirs.
  *
  * `discardChoice` picks which cards to throw away when over the limit; the
  * default keeps the cards on the left. The UI should ask the player instead.
@@ -229,7 +286,8 @@ export function canLevelUpOnto(
 export function applyEndPhase(
   state: MatchState,
   playerId: string,
-  discardChoice?: (hand: PlayerBoard["hand"], keep: number) => PlayerBoard["hand"]
+  discardChoice?: (hand: PlayerBoard["hand"], keep: number) => PlayerBoard["hand"],
+  { discardToLimit = true }: { discardToLimit?: boolean } = {}
 ): MatchState {
   const next = structuredClone(state);
   const board = next.boards[playerId];
@@ -240,8 +298,8 @@ export function applyEndPhase(
   board.trash.push(...revealed);
   next.actionZone[playerId] = [];
 
-  // Discard down to the hand limit.
-  if (board.hand.length > HAND_LIMIT) {
+  // Discard down to the hand limit — the turn player's obligation, nobody else's.
+  if (discardToLimit && board.hand.length > HAND_LIMIT) {
     const kept = discardChoice
       ? discardChoice(board.hand, HAND_LIMIT)
       : board.hand.slice(0, HAND_LIMIT);
@@ -319,7 +377,14 @@ export function recordDamage(state: MatchState, playerId: string, amount: number
  * both hit zero at once, or null while the game is still going.
  */
 export function checkWinner(state: MatchState): string | "draw" | null {
-  const dead = Object.values(state.boards).filter((board) => board.life <= 0);
+  // Two ways to lose, checked together because they can land at once and that
+  // is a draw: Life at 0, and — the one that is easy to forget — having neither
+  // a deck NOR a trash left. An empty deck on its own is not a loss: the trash
+  // is shuffled into a new deck first (see rebuildEmptyDecks). It is when there
+  // is nothing left to rebuild FROM that the player is out.
+  const dead = Object.values(state.boards).filter(
+    (board) => board.life <= 0 || (board.actionDeck.length === 0 && board.trash.length === 0)
+  );
   if (dead.length === 0) return null;
   if (dead.length > 1) return "draw";
 

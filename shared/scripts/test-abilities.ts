@@ -188,7 +188,7 @@ const check = (name: string, ok: boolean, detail = "") => {
     `${effectiveCost(sameTurn, encore, "p1")}`
   );
 
-  s.advantageId = "p1";
+  s.advantageIds = ["p1"];
   const live = recomputeContinuous(s).state;
   check("ชนะรอบที่แล้ว -> cost ลดเหลือ 1", effectiveCost(live, encore, "p1") === 1, `${effectiveCost(live, encore, "p1")}`);
 
@@ -365,10 +365,18 @@ const check = (name: string, ok: boolean, detail = "") => {
   // BP01-039 puts a random card from the opponent's hand under their deck.
   const make = () => {
     const s = state();
-    // Both halves of "[Advantage] if you deal damage": the Advantage brought
-    // into the turn, and the win that is being judged right now.
-    s.advantageId = "p1";
+    // All three parts of "[Advantage] when this card deals damage": the
+    // Advantage brought into the turn, the win being judged right now, and THIS
+    // card being the one that won it — another card of ours winning does not
+    // set it off.
+    s.advantageIds = ["p1"];
     s.lastBattleWinnerId = "p1";
+    s.lastBattle = {
+      winnerId: "p1",
+      loserId: "p2",
+      colorByPlayer: { p1: "red" },
+      cardIdByPlayer: { p1: "BP01-039" },
+    };
     s.boards.p2.hand = ["BP01-044", "BP01-045", "BP01-047", "BP01-049"].map(card);
     return s;
   };
@@ -384,6 +392,26 @@ const check = (name: string, ok: boolean, detail = "") => {
   lostIt.boards.p2.hand = [card("BP01-044")];
   const skipped = resolveTrigger(lostIt, "judgement", [src("BP01-039", "actionZone")]);
   check("ไม่ได้ชนะ -> ไม่เกิดอะไร", skipped.state.boards.p2.hand.length === 1);
+
+  // The rulebook case: this card is sitting in the Action Area, we won — but
+  // with a DIFFERENT card. "When you deal damage" is this card's damage, so
+  // nothing happens.
+  const otherCardWon = state();
+  otherCardWon.advantageIds = ["p1"];
+  otherCardWon.lastBattleWinnerId = "p1";
+  otherCardWon.lastBattle = {
+    winnerId: "p1",
+    loserId: "p2",
+    colorByPlayer: { p1: "red" },
+    cardIdByPlayer: { p1: "BP01-044" },
+  };
+  otherCardWon.boards.p2.hand = [card("BP01-044")];
+  const notMine = resolveTrigger(otherCardWon, "judgement", [src("BP01-039", "actionZone")]);
+  check(
+    "ชนะด้วยการ์ดใบอื่น -> BP01-039 ไม่ทำงาน",
+    notMine.state.boards.p2.hand.length === 1,
+    `hand=${notMine.state.boards.p2.hand.length}`
+  );
 }
 
 // --- revealing a hand -------------------------------------------------------

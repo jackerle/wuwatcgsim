@@ -196,6 +196,19 @@ export const STRINGS = {
     en: "Reveal both sides, settle the result, then go into the Combo",
   },
   "controlBar.judgementWaiting": { th: "ต้องเลือกให้ครบทั้งสองฝ่ายก่อน", en: "Both sides need to commit first" },
+  "controlBar.skipCounter": { th: "ข้ามเฟสประลอง", en: "Skip Battle" },
+  "controlBar.skipCounterTitle": {
+    th: "จบเฟสหลักแล้วข้ามเฟสประลองไปเลย — ไม่เปิดการ์ด ไม่มีใครเสียเลือด",
+    en: "End the Action Phase and skip the Battle Phase entirely — no cards revealed, no damage",
+  },
+  "controlBar.skipCounterPrompt": {
+    th: "ข้ามเฟสประลองทั้งเฟสไหม",
+    en: "Skip the Battle Phase entirely?",
+  },
+  "controlBar.skipCounterDetail": {
+    th: "จะไม่มีการปะทะเลย แต่ฝ่ายตรงข้ามจะได้ Advantage เทิร์นหน้า",
+    en: "No clash happens at all — but your opponent gains Advantage next turn",
+  },
   "controlBar.passPrompt": { th: "ไม่ลงการ์ดในการปะทะนี้ไหม", en: "Pass on this clash?" },
   "controlBar.passDetailCan": {
     th: "ยอมแพ้การปะทะนี้ แต่ไม่เสียการ์ด",

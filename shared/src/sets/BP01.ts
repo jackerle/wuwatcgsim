@@ -265,7 +265,9 @@ export const BP01: CardDef[] = [
         },
       },
       {
-        condition: ["judgement"],
+        // [Advantage] is printed on this one and was missing here, so the
+        // ability fired on any loss instead of only while holding Advantage.
+        condition: ["judgement", "advantage"],
         text: {
           th: "[Advantage] [Judgement] หากแพ้ด้วยการ์ดใบนี้ และหาก Leader เป็น Shorekeeper ในรอบนี้ ฝ่ายตรงข้ามไม่สามารถ Combo ได้",
           en: "[Advantage] [Judgement] If you lose with this card, and your Leader is Shorekeeper, your opponent cannot Combo this round",
@@ -973,6 +975,9 @@ export const BP01: CardDef[] = [
         },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
+            // Revealing, not drawing: with 2 cards left this sees 2, and the
+            // deck is rebuilt after the skill finishes rather than part-way
+            // through it — so a thin deck does not turn this into "take 5".
             const top = ctx.deckToHand(5);
             const others = top.filter((c) => ctx.countMatching([c], { character: "Jinshi" }) === 0);
             ctx.discardCards(others);
@@ -1108,7 +1113,9 @@ export const BP01: CardDef[] = [
           en: "[Advantage] If you deal damage to your opponent, for every 4 cards in their hand, they discard 1 card",
         },
         resolve: (ctx) => {
-            if (!ctx.wonLastBattle()) return;
+            // "when you deal damage" is THIS card's damage: another card of
+            // ours winning the clash does not set this off.
+            if (!ctx.wonWithThisCard()) return;
             ctx.discard(Math.floor(ctx.hand(ctx.opponentId).length / 4), ctx.opponentId);
           },
       },
@@ -1174,7 +1181,8 @@ export const BP01: CardDef[] = [
           en: "[Advantage] If you deal damage to your opponent, put 1 card from their Concerto Area into the trash",
         },
         resolve: (ctx) => {
-            if (ctx.wonLastBattle()) ctx.concertoToTrash(1, undefined, ctx.opponentId);
+            // "when you deal damage" is THIS card's damage, not any win.
+            if (ctx.wonWithThisCard()) ctx.concertoToTrash(1, undefined, ctx.opponentId);
           },
       },
     ],
@@ -1239,7 +1247,8 @@ export const BP01: CardDef[] = [
           en: "[Advantage] If you deal damage to your opponent, put 1 random card from their hand on the bottom of their Action deck",
         },
         resolve: (ctx) => {
-            if (!ctx.wonLastBattle()) return;
+            // "when you deal damage" is THIS card's damage, not any win.
+            if (!ctx.wonWithThisCard()) return;
             const picked = ctx.randomFromHand(ctx.opponentId);
             if (picked) ctx.toDeckBottom([picked], ctx.opponentId);
           },
@@ -1306,7 +1315,8 @@ export const BP01: CardDef[] = [
           en: "[Advantage] If you deal damage to your opponent, put the top 3 cards of their deck into the trash",
         },
         resolve: (ctx) => {
-            if (ctx.wonLastBattle()) ctx.deckToTrash(3, ctx.opponentId);
+            // "when you deal damage" is THIS card's damage, not any win.
+            if (ctx.wonWithThisCard()) ctx.deckToTrash(3, ctx.opponentId);
           },
       },
     ],
@@ -1371,7 +1381,8 @@ export const BP01: CardDef[] = [
           en: "[Advantage] If you deal damage to your opponent, put 2 cards from their trash on the bottom of their Action deck",
         },
         resolve: (ctx) => {
-            if (!ctx.wonLastBattle()) return;
+            // "when you deal damage" is THIS card's damage, not any win.
+            if (!ctx.wonWithThisCard()) return;
             ctx.toDeckBottom(ctx.board(ctx.opponentId).trash.slice(-2), ctx.opponentId);
           },
       },

@@ -232,7 +232,7 @@ export function PlayGame({
               facedown={state.facedown[top]}
               actionZone={state.actionZone[top]}
               committed={state.committed[top]}
-              advantage={state.advantageId === top}
+              advantage={state.advantageIds.includes(top)}
               dealKey={state.matchId}
             />
 
@@ -272,7 +272,7 @@ export function PlayGame({
               facedown={state.facedown[bottom]}
               actionZone={state.actionZone[bottom]}
               committed={state.committed[bottom]}
-              advantage={state.advantageId === bottom}
+              advantage={state.advantageIds.includes(bottom)}
               selectedHand={selected}
               handSelectionMeans={mulliganing ? "return" : "pick"}
               onHandCardClick={(card, index) => handleHandClick(bottom, card, index)}

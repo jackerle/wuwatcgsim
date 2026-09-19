@@ -16,8 +16,8 @@ import { PhaseTrack, type PhaseStepKey } from "./PhaseTrack";
 import { ConfirmDialog } from "../board/ConfirmDialog";
 import { useLang } from "../i18n/LanguageContext";
 import {
-  canCommit,
   canCommitAnything,
+  canPassCounter,
   legalIntents,
   MAX_ACTIONS_PER_TURN,
   type CharacterCard,
@@ -137,12 +137,6 @@ export function ControlBar({
   const phaseOwner = state.phase === "combo" && state.combo ? state.combo.playerId : me;
   const mine = controls.includes(phaseOwner);
   const allowed = mine ? legalIntents(state, phaseOwner) : [];
-  // `canCommit` deliberately does not ask whether this player has already
-  // passed — it only answers whether a card would otherwise be legal. The
-  // committed guard here makes End disappear after EITHER a card or a pass,
-  // which keeps a completed player's controls out of the Battle Phase.
-  const waitingToCommit =
-    canCommit(state, viewer) && controls.includes(viewer) && !state.committed[viewer];
   const act = (intent: MatchIntent) => {
     onSend(phaseOwner, intent);
     onClearSelection();
@@ -190,7 +184,10 @@ export function ControlBar({
    * follows `viewer` rather than `phaseOwner`, because laying a card down is
    * the one move both sides of the table make.
    */
-  const onPass = waitingToCommit
+  // canPassCounter, not waitingToCommit: the turn player may only decline the
+  // clash when nothing in hand is playable, so offering the button to them
+  // otherwise would only produce a rejection. The non-turn player always may.
+  const onPass = canPassCounter(state, viewer) && controls.includes(viewer)
     ? () =>
         setConfirming({
           prompt: t("controlBar.passPrompt"),
@@ -202,6 +199,22 @@ export function ControlBar({
             onSend(viewer, { kind: "pass" });
             onClearSelection();
           },
+        })
+    : null;
+
+  /**
+   * The Action Phase's other exit: past the clash entirely, straight to the End
+   * Phase. A move of its own rather than a variant of Go Battle — nothing is
+   * revealed, nobody takes damage, and the opponent picks up [Advantage] — so it
+   * gets its own (secondary) button rather than hiding inside the confirm.
+   */
+  const onSkipCounter = allowed.includes("skipCounter")
+    ? () =>
+        setConfirming({
+          prompt: t("controlBar.skipCounterPrompt"),
+          detail: t("controlBar.skipCounterDetail"),
+          confirmLabel: t("controlBar.skipCounter"),
+          onYes: () => act({ kind: "skipCounter" }),
         })
     : null;
 
@@ -383,6 +396,16 @@ export function ControlBar({
             button changing word — or going away in a phase with no move of
             this client's — never shifts the tabs. */}
         <span className="control-side control-side-end">
+          {onSkipCounter && (
+            <button
+              type="button"
+              className="control-secondary-move"
+              title={t("controlBar.skipCounterTitle")}
+              onClick={onSkipCounter}
+            >
+              {t("controlBar.skipCounter")}
+            </button>
+          )}
           {primary && (
             <button
               type="button"
