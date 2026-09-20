@@ -53,6 +53,7 @@ export function _resetRoomsForTests(): void {
   rooms.clear();
   playerRoom.clear();
   onForfeit = null;
+  onVacate = null;
 }
 
 /** A room plus everything the server keeps for it that players never see raw. */
@@ -93,6 +94,19 @@ export function onMatchForfeited(listener: ForfeitListener): void {
   onForfeit = listener;
 }
 
+/**
+ * Told about a room a player was pulled out of by opening or joining another
+ * one — a seat given up without anyone pressing "leave". Whoever is still
+ * sitting in that room has to hear about it exactly as they would hear about
+ * a deliberate exit, and only the socket server can tell them.
+ */
+type VacateListener = (record: RoomRecord) => void;
+let onVacate: VacateListener | null = null;
+
+export function onRoomVacated(listener: VacateListener): void {
+  onVacate = listener;
+}
+
 const rooms = new Map<string, RoomRecord>();
 /** Stable player id -> room code, so a reconnect finds its way home. */
 const playerRoom = new Map<string, string>();
@@ -121,11 +135,31 @@ function newRecord(room: Room): RoomRecord {
   };
 }
 
+/**
+ * Gives up whatever seat this player already holds, before they take another.
+ *
+ * `playerRoom` has room for exactly one room per player, so creating or
+ * joining a second room used to simply overwrite that entry — and the first
+ * room was left holding a player it still believed was connected. Nothing
+ * ever corrected that: `markPlayerDisconnected` looks the player up through
+ * `playerRoom`, which by then pointed at the newer room, so the abandoned one
+ * never saw its last player go, never started its empty-room countdown, and
+ * sat in the public list advertising "1/2" until the server restarted. Three
+ * impatient taps on "create room" left three of them.
+ */
+function vacatePreviousRoom(playerId: string, except?: RoomRecord): void {
+  const previous = getRoomForPlayer(playerId);
+  if (!previous || previous === except) return;
+  const left = leaveRoom(playerId);
+  if (left) onVacate?.(left);
+}
+
 export function createRoom(
   playerId: string,
   playerName: string,
   visibility: RoomVisibility = "public"
 ): RoomRecord {
+  vacatePreviousRoom(playerId);
   const code = generateRoomCode();
   const host: Player = {
     id: playerId,
@@ -178,6 +212,11 @@ export function joinRoom(
   const taken = new Set(room.players.map((p) => p.seat));
   const seat = SEATS.find((s) => !taken.has(s));
   if (!seat) return { error: "ห้องเต็มแล้ว" };
+
+  // Certain of a seat here now, so the old one can go. Done after the checks
+  // above rather than before them: someone who bounces off a full room should
+  // still be sitting where they were.
+  vacatePreviousRoom(playerId, record);
 
   room.players.push({ id: playerId, name: playerName, seat, isHost: false, connected: true });
   record.lastNames[seat] = playerName;
@@ -373,21 +412,59 @@ export function markPlayerDisconnected(playerId: string): RoomRecord | undefined
   if (!record) return undefined;
   const player = record.room.players.find((p) => p.id === playerId);
   if (player) player.connected = false;
+  seatWentQuiet(record, player?.seat);
+  return record;
+}
 
+/**
+ * What a room does once one of its seats stops answering — whether that was
+ * a socket closing or the sweep below noticing a seat nobody is attached to.
+ */
+function seatWentQuiet(record: RoomRecord, seat: Seat | undefined): void {
   if (record.room.players.every((p) => !p.connected)) {
     // Nobody is here to notice a forfeit — cancel one if the first of the
     // two had already started a countdown, or it would still fire later
     // and hand a "win" to a room with nobody left to see it. The empty-room
-    // reap below is what cleans this up instead.
+    // reap is what cleans this up instead.
     clearForfeitTimer(record);
     reapLater(record);
-  } else if (player) {
+  } else if (seat) {
     // Someone is still around, waiting on a match that just went quiet on
     // one side. Give the other seat a chance to reconnect before it ends
     // the match on their behalf.
-    scheduleForfeit(record, player.seat);
+    scheduleForfeit(record, seat);
   }
-  return record;
+}
+
+/**
+ * Drops rooms that nothing is really connected to any more.
+ *
+ * Every other path that marks a seat gone runs off a socket event, so a room
+ * whose player vanished in a way no event described — the bug
+ * `vacatePreviousRoom` now prevents, a handler that threw before it got
+ * there, anything of that shape still to come — stayed "connected" forever
+ * with no second chance to notice. This is the backstop: for every seat a
+ * room believes is live, it asks whether a socket is genuinely open for that
+ * player, and treats a "no" exactly like a disconnect. Nothing is deleted on
+ * the spot; the usual empty-room grace period still has to run out, so a
+ * match is never pulled out from under someone mid-reconnect.
+ *
+ * Returns the rooms it changed, so the caller can redraw them.
+ */
+export function sweepRooms(hasLiveSocket: (playerId: string) => boolean): RoomRecord[] {
+  const changed: RoomRecord[] = [];
+  for (const record of rooms.values()) {
+    const ghosts = record.room.players.filter((p) => p.connected && !hasLiveSocket(p.id));
+    if (ghosts.length === 0) continue;
+    for (const ghost of ghosts) ghost.connected = false;
+    // Marked every one of them before deciding what the room does about it:
+    // seatWentQuiet chooses between "empty now, start the reap" and "one seat
+    // left, start the other's forfeit clock", and taking that decision after
+    // only the first of two ghosts would pick the wrong one.
+    seatWentQuiet(record, ghosts[0].seat);
+    changed.push(record);
+  }
+  return changed;
 }
 
 /**

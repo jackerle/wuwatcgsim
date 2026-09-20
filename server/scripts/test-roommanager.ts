@@ -23,8 +23,11 @@ import {
   markPlayerDisconnected,
   nameOf,
   onMatchForfeited,
+  onRoomVacated,
+  publicRooms,
   startMatch,
   submitDeck,
+  sweepRooms,
 } from "../src/roomManager.js";
 
 let pass = 0;
@@ -190,6 +193,74 @@ async function run() {
     const after = leaveRoom("guest-6");
     check("ออกจากห้องก่อนเริ่มเกม ไม่พัง", after !== undefined && after.session === null);
     check("host เหลือคนเดียวในห้อง", after?.room.players.length === 1);
+  }
+
+  // --- One player cannot leave a trail of rooms behind them -----------------
+
+  {
+    _resetRoomsForTests();
+    let vacated: RoomRecord[] = [];
+    onRoomVacated((r) => vacated.push(r));
+
+    // An impatient triple-tap on "create room": three emits, one player.
+    createRoom("tapper", "jobcreep", "public");
+    createRoom("tapper", "jobcreep", "public");
+    const last = createRoom("tapper", "jobcreep", "public");
+
+    check(
+      "กดสร้างห้องรัวๆ -> เหลือห้องเดียว ไม่ค้างเป็นห้องร้าง",
+      publicRooms().length === 1 && publicRooms()[0].code === last.room.code,
+      publicRooms()
+        .map((r) => r.code)
+        .join(",")
+    );
+    check(
+      "ห้องเก่าถูกลบออกจริง",
+      vacated.length === 2 && getRoom(vacated[0].room.code) === undefined
+    );
+
+    // And the same on the way in to someone else's room.
+    vacated = [];
+    const other = createRoom("other-host", "Other", "public");
+    const joined = joinRoom(other.room.code, "tapper", "jobcreep");
+    check(
+      "เข้าห้องคนอื่น -> ห้องเดิมของตัวเองถูกปล่อย",
+      !("error" in joined) && vacated.length === 1
+    );
+    // other-host's room is full now, so an empty list is the whole story:
+    // the tapper's own room is gone rather than merely hidden.
+    check(
+      "ห้องเดิมหายไปจากลิสต์",
+      publicRooms().length === 0,
+      publicRooms()
+        .map((r) => `${r.code} ${r.players}/${r.maxPlayers}`)
+        .join(",")
+    );
+  }
+
+  // --- A seat nobody is attached to is found even with no event to say so ----
+
+  {
+    _resetRoomsForTests();
+    const ghost = createRoom("ghost-host", "Ghost", "public");
+    check("ห้องที่เพิ่งสร้างอยู่ในลิสต์สาธารณะ", publicRooms().length === 1);
+
+    // Nothing called markPlayerDisconnected — this is the state the old bug
+    // left behind, and anything else that loses a disconnect would too.
+    const swept = sweepRooms(() => false);
+    check("กวาดเจอที่นั่งที่ไม่มี socket จริง", swept.length === 1 && swept[0] === ghost);
+    check("แล้วห้องหายจากลิสต์ทันที", publicRooms().length === 0);
+
+    await sleep(EMPTY_ROOM_GRACE_MS + 40);
+    check("และถูกลบทิ้งตามเวลาผ่อนผันปกติ", getRoom(ghost.room.code) === undefined);
+
+    // A room whose players really are online is left exactly as it was.
+    const live = createRoom("live-host", "Live", "public");
+    check(
+      "ห้องที่ยังมีคนต่ออยู่ ไม่ถูกแตะ",
+      sweepRooms(() => true).length === 0 && publicRooms().length === 1
+    );
+    check("ยังอยู่ในลิสต์เหมือนเดิม", publicRooms()[0].code === live.room.code);
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);

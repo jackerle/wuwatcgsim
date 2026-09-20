@@ -19,11 +19,13 @@ import {
   leaveRoom,
   markPlayerDisconnected,
   onMatchForfeited,
+  onRoomVacated,
   publicRooms,
   seatInfo,
   seatOf,
   startMatch,
   submitDeck,
+  sweepRooms,
   type RoomRecord,
 } from "./roomManager.js";
 
@@ -146,6 +148,37 @@ onMatchForfeited((record) => {
   emitRoom(record);
 });
 
+// A player who opens or joins another room gives up the one they were in,
+// which for anybody left behind in it is no different from a deliberate
+// exit — and it happens deep inside createRoom/joinRoom, with no socket
+// event of its own to hang an update on. This is how that reaches them.
+onRoomVacated((record) => {
+  if (record.room.players.length > 0) {
+    emitMatch(record);
+    emitRoom(record);
+  }
+  emitRooms();
+});
+
+/**
+ * How often the rooms are checked against the sockets actually open.
+ *
+ * Frequent enough that a room nothing is attached to leaves the browser
+ * within a browsing player's patience, rare enough to be free: the work is
+ * one pass over a handful of rooms, and on a tidy server it changes nothing
+ * and sends nothing.
+ */
+const SWEEP_MS = 30_000;
+
+const sweeper = setInterval(() => {
+  const changed = sweepRooms((playerId) => socketsFor.has(playerId));
+  if (changed.length === 0) return;
+  for (const record of changed) emitRoom(record);
+  emitRooms();
+}, SWEEP_MS);
+// A cleanup timer is no reason to keep the process alive on its own.
+sweeper.unref?.();
+
 io.on("connection", (socket) => {
   socket.data.roomCode = null;
   socket.data.playerId = "";
@@ -172,6 +205,10 @@ io.on("connection", (socket) => {
 
   /** Joins the socket to its room channel and its own private channel. */
   function attach(record: RoomRecord, playerId: string): void {
+    // Moving rooms: stop listening to the old one, or this socket keeps
+    // receiving updates for a room it is no longer sitting in.
+    const previous = socket.data.roomCode;
+    if (previous && previous !== record.room.code) socket.leave(previous);
     socket.data.playerId = playerId;
     socket.data.roomCode = record.room.code;
     socket.join(record.room.code);
