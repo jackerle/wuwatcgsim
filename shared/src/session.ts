@@ -245,6 +245,22 @@ export class MatchSession {
     this.log = [...this.log, LOG.leftMatch(seat, other)].slice(-LOG_LIMIT);
   }
 
+  /**
+   * Ends an abandoned match fairly rather than assigning a loss to either
+   * player. The room manager invokes this only after its activity timer has
+   * observed five uninterrupted minutes without an accepted game operation.
+   *
+   * It mirrors forfeit's important safety property: any half-replayed card
+   * choice is dropped before the terminal result is broadcast, so neither
+   * client is left looking at a question that can no longer be answered.
+   */
+  expireForInactivity(): void {
+    if (this.state.winnerId) return;
+    this.question = null;
+    this.state.winnerId = "draw";
+    this.log = [...this.log, LOG.inactiveMatch()].slice(-LOG_LIMIT);
+  }
+
   private run(actor: Seat, intent: MatchIntent, answers: ChoiceAnswer[]): boolean {
     let result: StepResult;
     try {

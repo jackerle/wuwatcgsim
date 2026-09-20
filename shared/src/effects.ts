@@ -1014,7 +1014,12 @@ export function conditionBlocking(
   if (keywords.includes("leader")) {
     if (ctx.self.type === "leader") {
       if (zone !== "leader") return "Leader: this card is not the active leader";
-    } else if (ctx.self.character && ctx.leaderName() !== ctx.self.character) {
+    } else if (!ctx.self.character) {
+      // This should be rejected during card validation, but effects may be
+      // built in a test or by a future import path. Do not silently let a
+      // characterless action impersonate a Leader Skill.
+      return "Leader Skill: this action has no character owner";
+    } else if (ctx.leaderName() !== ctx.self.character) {
       return `Leader Skill: ${ctx.self.character} is not your active Leader`;
     }
   }

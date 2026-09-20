@@ -258,6 +258,11 @@ export const LOG = {
       : line(`${player} ยอมแพ้`, `${player} concedes`),
   wins: (player: string) => line(`${player} ชนะ`, `${player} wins`),
   matchDraw: () => line("เกมนี้เสมอกัน", "The match is a draw"),
+  inactiveMatch: () =>
+    line(
+      "ไม่มีการเล่นเกิน 5 นาที — เกมนี้จบเป็นเสมอ",
+      "No game activity for 5 minutes — the match ends in a draw"
+    ),
   leftMatch: (player: string, winner: string | null) =>
     winner
       ? line(`${player} ออกจากเกม — ${winner} ชนะ`, `${player} left the match — ${winner} wins`)

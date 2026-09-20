@@ -35,24 +35,40 @@ const EMPTY_ROOM_GRACE_MS_DEFAULT = 5 * 60_000;
  * board indefinitely because the other side simply walked away.
  */
 const DEFAULT_MATCH_FORFEIT_GRACE_MS = 90_000;
+
+/**
+ * A match that nobody has touched for this long is abandoned rather than
+ * merely slow. It ends as a draw so the final board remains visible, but is
+ * no longer counted by /health as an in-progress match blocking deploy.
+ */
+const DEFAULT_MATCH_INACTIVITY_MS = 5 * 60_000;
+
 let matchForfeitGraceMs = DEFAULT_MATCH_FORFEIT_GRACE_MS;
 let emptyRoomGraceMs = EMPTY_ROOM_GRACE_MS_DEFAULT;
+let matchInactivityMs = DEFAULT_MATCH_INACTIVITY_MS;
 
-/** Test-only: real timers at 90s and 5min are too slow to actually wait out. */
-export function _setGraceMsForTests(forfeit: number, emptyRoom: number): void {
+/** Test-only: production timers are too slow to actually wait out. */
+export function _setGraceMsForTests(
+  forfeit: number,
+  emptyRoom: number,
+  inactivity = DEFAULT_MATCH_INACTIVITY_MS
+): void {
   matchForfeitGraceMs = forfeit;
   emptyRoomGraceMs = emptyRoom;
+  matchInactivityMs = inactivity;
 }
 
 /** Test-only: drops every room and listener, for a clean slate between cases. */
 export function _resetRoomsForTests(): void {
   for (const record of rooms.values()) {
     clearForfeitTimer(record);
+    clearActivityTimer(record);
     keepAlive(record);
   }
   rooms.clear();
   playerRoom.clear();
   onForfeit = null;
+  onExpiry = null;
   onVacate = null;
 }
 
@@ -79,6 +95,8 @@ export interface RoomRecord {
   reapTimer: NodeJS.Timeout | null;
   /** Counting down a disconnected opponent to an automatic forfeit. */
   forfeitTimer: NodeJS.Timeout | null;
+  /** Five-minute countdown reset by accepted gameplay, not chat/reconnect. */
+  activityTimer: NodeJS.Timeout | null;
 }
 
 /**
@@ -92,6 +110,17 @@ let onForfeit: ForfeitListener | null = null;
 
 export function onMatchForfeited(listener: ForfeitListener): void {
   onForfeit = listener;
+}
+
+/**
+ * Told about a live match whose players stopped making game decisions. It is
+ * distinct from a forfeit: inactivity is a draw, not a loss for either seat.
+ */
+type ExpiryListener = (record: RoomRecord) => void;
+let onExpiry: ExpiryListener | null = null;
+
+export function onMatchExpired(listener: ExpiryListener): void {
+  onExpiry = listener;
 }
 
 /**
@@ -132,6 +161,7 @@ function newRecord(room: Room): RoomRecord {
     seed: Math.floor(Math.random() * 1e9),
     reapTimer: null,
     forfeitTimer: null,
+    activityTimer: null,
   };
 }
 
@@ -305,8 +335,10 @@ export function startMatch(record: RoomRecord): string | null {
     return error instanceof Error ? error.message : String(error);
   }
   clearForfeitTimer(record); // a fresh deal, so any stray countdown is stale
+  clearActivityTimer(record);
   room.inMatch = true;
   room.status = "playing";
+  refreshMatchActivity(record);
   return null;
 }
 
@@ -353,6 +385,7 @@ export function roomLoad(): { rooms: number; matches: number; players: number } 
 
 export function endMatch(record: RoomRecord): void {
   clearForfeitTimer(record);
+  clearActivityTimer(record);
   record.session = null;
   record.room.inMatch = false;
   record.room.status = record.room.players.length >= MAX_PLAYERS ? "playing" : "waiting";
@@ -382,6 +415,7 @@ function reapLater(record: RoomRecord): void {
   record.reapTimer = setTimeout(() => {
     // Check again on the way out: someone may have come back and left again.
     if (record.room.players.every((p) => !p.connected)) {
+      clearActivityTimer(record);
       for (const player of record.room.players) playerRoom.delete(player.id);
       rooms.delete(record.room.code);
     }
@@ -395,6 +429,40 @@ function clearForfeitTimer(record: RoomRecord): void {
     clearTimeout(record.forfeitTimer);
     record.forfeitTimer = null;
   }
+}
+
+function clearActivityTimer(record: RoomRecord): void {
+  if (record.activityTimer) {
+    clearTimeout(record.activityTimer);
+    record.activityTimer = null;
+  }
+}
+
+/**
+ * Records one accepted gameplay operation.
+ *
+ * Intent/answer/cancel handlers call this only after MatchSession reports
+ * success. Chat, reconnecting and invalid clicks deliberately do NOT extend
+ * the timer — otherwise an abandoned match could block deploy forever while
+ * somebody merely keeps a tab open or sends messages.
+ */
+export function refreshMatchActivity(record: RoomRecord): void {
+  clearActivityTimer(record);
+  if (!record.room.inMatch || !record.session || record.session.winnerId) return;
+
+  record.activityTimer = setTimeout(() => {
+    record.activityTimer = null;
+    // Timers are stale by nature: a restart, leave, forfeit, deletion or a
+    // later accepted move may have replaced this state before it fired.
+    if (rooms.get(record.room.code) !== record) return;
+    if (!record.room.inMatch || !record.session || record.session.winnerId) return;
+
+    clearForfeitTimer(record);
+    record.session.expireForInactivity();
+    onExpiry?.(record);
+  }, matchInactivityMs);
+  // An idle timer should never keep a server alive by itself.
+  record.activityTimer.unref?.();
 }
 
 /**
@@ -417,6 +485,7 @@ function scheduleForfeit(record: RoomRecord, seat: Seat): void {
     if (!record.room.inMatch || !record.session || record.session.winnerId) return;
 
     record.session.forfeit(seat);
+    clearActivityTimer(record);
     onForfeit?.(record);
   }, matchForfeitGraceMs);
   record.forfeitTimer.unref?.();
@@ -446,6 +515,7 @@ function seatWentQuiet(record: RoomRecord, seat: Seat | undefined): void {
     // and hand a "win" to a room with nobody left to see it. The empty-room
     // reap is what cleans this up instead.
     clearForfeitTimer(record);
+    clearActivityTimer(record);
     reapLater(record);
   } else if (seat) {
     // Someone is still around, waiting on a match that just went quiet on
@@ -502,11 +572,13 @@ export function leaveRoom(playerId: string): RoomRecord | undefined {
     record.session.forfeit(seat);
   }
   clearForfeitTimer(record);
+  clearActivityTimer(record);
 
   record.room.players = record.room.players.filter((p) => p.id !== playerId);
   playerRoom.delete(playerId);
 
   if (record.room.players.length === 0) {
+    clearActivityTimer(record);
     keepAlive(record);
     rooms.delete(record.room.code);
     return record;

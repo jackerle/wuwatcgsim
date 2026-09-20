@@ -7,11 +7,15 @@
   flex-direction: column;
   gap: 2px;
   padding: 6px 12px 5px;
-  background: #1b1d24;
-  border-top: 1px solid #2c2f3a;
-  /* The full-width edge below the secondary hint stays visible as structure,
-     but should not read like a primary divider. */
-  border-bottom: 1px solid rgba(177, 193, 232, 0.07);
+  /* Let the board gradient continue through the phase bar. The old solid
+     slate fill created the apparent lower divider even after border-bottom
+     was removed. The only intentional separator is control-status's line. */
+  background: transparent;
+  border-top: 0;
+  /* The only divider in this control is .control-status > border-top: it
+     separates the phase tabs from their hint. A second bottom rule turns the
+     hint into a boxed strip, so deliberately leave this edge borderless. */
+  border-bottom: 0;
   font-size: calc(var(--board-text) * 1.25);
 }
 

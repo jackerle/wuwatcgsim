@@ -63,7 +63,12 @@ export const CARD_KEYWORDS = [
   "counterPhaseEnd",
   /** Fires at the start of this player's own turn. */
   "turnStart",
-  /** [Counter] — applies when this card is played in the Counter Phase. */
+  /**
+   * [Counter] / UI [Battle] — applies to one of the two cards initially
+   * committed face-down and revealed for the determining clash. Follow-ups
+   * use the separate `combo` trigger, even though they happen later in the
+   * wider Battle phase.
+   */
   "counter",
   /** Fires when characters are switched and this card is involved. */
   "switch",

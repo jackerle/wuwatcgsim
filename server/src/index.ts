@@ -18,9 +18,11 @@ import {
   joinRoom,
   leaveRoom,
   markPlayerDisconnected,
+  onMatchExpired,
   onMatchForfeited,
   onRoomVacated,
   publicRooms,
+  refreshMatchActivity,
   roomLoad,
   seatInfo,
   seatOf,
@@ -148,6 +150,14 @@ function recordFor(socket: { data: SocketData }): RoomRecord | null {
 // countdown has finished handling. This is how that reaches the remaining
 // player — the timer itself has no socket to send anything with.
 onMatchForfeited((record) => {
+  emitMatch(record);
+  emitRoom(record);
+});
+
+// An inactive match is terminal too, but neither player forfeited: the timer
+// records a draw. Broadcast it from here because the timer has no socket
+// handler of its own to trigger a redraw.
+onMatchExpired((record) => {
   emitMatch(record);
   emitRoom(record);
 });
@@ -324,7 +334,10 @@ io.on("connection", (socket) => {
       const record = recordFor(socket);
       const seat = record && seatOf(record, socket.data.playerId);
       if (!record?.session || !seat) return;
-      record.session.apply(seat, intent);
+      const applied = record.session.apply(seat, intent);
+      // Refused/out-of-turn clicks are not activity: only a state-changing
+      // gameplay operation buys another five minutes.
+      if (applied) refreshMatchActivity(record);
       emitMatch(record);
     });
   });
@@ -334,7 +347,8 @@ io.on("connection", (socket) => {
       const record = recordFor(socket);
       const seat = record && seatOf(record, socket.data.playerId);
       if (!record?.session || !seat) return;
-      record.session.answer(seat, answer);
+      const answered = record.session.answer(seat, answer);
+      if (answered) refreshMatchActivity(record);
       emitMatch(record);
     });
   });
@@ -344,7 +358,8 @@ io.on("connection", (socket) => {
       const record = recordFor(socket);
       const seat = record && seatOf(record, socket.data.playerId);
       if (!record?.session || !seat) return;
-      record.session.cancel(seat);
+      const cancelled = record.session.cancel(seat);
+      if (cancelled) refreshMatchActivity(record);
       emitMatch(record);
     });
   });

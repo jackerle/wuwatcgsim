@@ -140,6 +140,13 @@ export function validateCard(card: CardDef): ValidationIssue[] {
     if (card.color !== "blue" && typeof card.speed !== "number") {
       issues.push({ cardId, field: "speed", message: `${card.color} cards need a Speed` });
     }
+    if (card.effects.some((effect) => keywordsOf(effect.condition).includes("leader")) && !card.character) {
+      issues.push({
+        cardId,
+        field: "character",
+        message: "a Leader Skill action needs a character owner",
+      });
+    }
   }
 
   return issues;

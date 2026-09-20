@@ -403,6 +403,13 @@ export const STRINGS = {
     en: (name: string, level: number, n: number) => `Level up ${name} to Lv.${level}, discarding ${n} card(s)?`,
   },
 
+  // --- ChargeArea.tsx -------------------------------------------------------
+  "chargeArea.label": { th: "協奏", en: "Concerto" },
+  "chargeArea.openTitle": {
+    th: (n: number) => `ดูการ์ดพลังงานทั้งหมด (${n} ใบ)`,
+    en: (n: number) => `View all ${n} Energy card(s)`,
+  },
+
   // --- PileModal.tsx --------------------------------------------------------
   "pileModal.empty": { th: "ไม่มีการ์ด", en: "No cards" },
 

@@ -457,6 +457,55 @@ let game = newMatch();
   check("มีแต่การ์ดที่จ่ายไม่ไหว -> ต้องกดไม่ลงการ์ด", canCommitAnything(noEnergy, "p1") === false);
 }
 
+// --- Leader Skill cards require their matching active Leader ----------------
+
+{
+  // BP01-048 is printed [Leader Skill] for Camellya. It must be rejected
+  // before commitment under another Leader, rather than landing as a blank
+  // attack and silently skipping its effect after reveal.
+  const wrongLeader = newMatch();
+  wrongLeader.phase = "counter";
+  wrongLeader.boards.p1.leader = {
+    position: "leader",
+    card: character("BP01-024"), // Yangyang
+    under: [],
+  };
+  wrongLeader.boards.p1.hand = [action("BP01-048")];
+  wrongLeader.boards.p1.competitionArea = [action("BP01-044")];
+  const blockedSkill = step(wrongLeader, "p1", { kind: "commit", cardId: "BP01-048" });
+  check(
+    "Leader Skill: Leader ไม่ตรง -> ลง BP01-048 ไม่ได้",
+    blockedSkill.error?.includes("requires Camellya as your active Leader") === true,
+    blockedSkill.error ?? ""
+  );
+  check("Leader Skill ที่ลงไม่ได้ไม่นับเป็นการ์ดที่เล่นได้", !canCommitAnything(wrongLeader, "p1"));
+
+  const matchingLeader = structuredClone(wrongLeader);
+  matchingLeader.boards.p1.leader = {
+    position: "leader",
+    card: character("BP01-005"), // Camellya
+    under: [],
+  };
+  const allowedSkill = step(matchingLeader, "p1", { kind: "commit", cardId: "BP01-048" });
+  check("Leader Skill: Camellya เป็น Leader -> ลง BP01-048 ได้", allowedSkill.error === null, allowedSkill.error ?? "");
+
+  // BP01-062 is Encore-branded but has no [Leader Skill] tag, so it remains
+  // an ordinary action card: another Leader cannot stop it being played.
+  const ordinary = structuredClone(wrongLeader);
+  ordinary.boards.p1.hand = [action("BP01-062")];
+  ordinary.boards.p1.competitionArea = [action("BP01-044"), action("BP01-044")];
+  const allowedOrdinary = step(ordinary, "p1", { kind: "commit", cardId: "BP01-062" });
+  check("ไม่มี Leader Skill: BP01-062 ลงได้กับ Leader คนอื่น", allowedOrdinary.error === null, allowedOrdinary.error ?? "");
+
+  // BP01-061 is likewise not printed [Leader Skill]. The cleanup removes its
+  // accidental leader condition, so it does not become unplayable here.
+  const unscoped = structuredClone(wrongLeader);
+  unscoped.boards.p1.hand = [action("BP01-061")];
+  unscoped.boards.p1.competitionArea = [];
+  const allowedUnscoped = step(unscoped, "p1", { kind: "commit", cardId: "BP01-061" });
+  check("ไม่มี Leader Skill: BP01-061 ไม่ถูกบล็อกด้วย Leader", allowedUnscoped.error === null, allowedUnscoped.error ?? "");
+}
+
 // --- Level Up, and a card that asks a question -----------------------------
 
 {
@@ -778,6 +827,56 @@ let game = newMatch();
     resolved.state.statModifiers.some(
       (modifier) => modifier.sourceCardId === "BP01-011" && modifier.stat === "attack"
     )
+  );
+}
+
+// --- Combo cards fire [Combo], not [Battle] -------------------------------
+
+{
+  // BP01-062 is a red follow-up here, but its [Battle] effect belongs only
+  // to the two cards initially revealed for the determining clash. Therefore
+  // it deals ordinary follow-up damage without replacing Encore or switching
+  // Leader, even though BP01-011 is available in the Character Pool.
+  const s = newMatch();
+  s.phase = "combo";
+  s.turnPlayerId = "p1";
+  s.combo = { playerId: "p1", unlimited: true, remaining: Infinity };
+  s.boards.p1.leader = { position: "leader", card: character("BP01-015"), under: [] };
+  s.boards.p1.characterPool = [character("BP01-011")];
+  s.boards.p1.hand = [action("BP01-062")];
+  s.boards.p1.competitionArea = [action("BP01-044"), action("BP01-044")];
+  s.actionZone.p1 = [action("BP01-044")];
+  const lifeBefore = s.boards.p2.life;
+
+  const followUp = drive(s, "p1", { kind: "combo", cardId: "BP01-062" }).result;
+  check(
+    "BP01-062 เป็น follow-up -> [Battle] ไม่ Level up Encore",
+    followUp.state.boards.p1.leader?.card.id === "BP01-015" &&
+      followUp.state.boards.p1.characterPool.some((card) => card.id === "BP01-011"),
+    `leader=${followUp.state.boards.p1.leader?.card.id} pool=${followUp.state.boards.p1.characterPool.map((card) => card.id).join()}`
+  );
+  check(
+    "BP01-062 follow-up ยังทำดาเมจตามปกติ",
+    followUp.state.boards.p2.life === lifeBefore - 3,
+    `${lifeBefore} -> ${followUp.state.boards.p2.life}`
+  );
+
+  // Counter+Combo is explicit OR timing. Removing the implicit [Battle]
+  // dispatch must not suppress BP01-061's printed [Combo] clause, or run it
+  // twice. One restriction log proves the single Combo resolution.
+  const dual = newMatch();
+  dual.phase = "combo";
+  dual.turnPlayerId = "p1";
+  dual.combo = { playerId: "p1", unlimited: true, remaining: Infinity };
+  dual.boards.p1.leader = { position: "leader", card: character("BP01-015"), under: [] };
+  dual.boards.p1.hand = [action("BP01-061")];
+  dual.actionZone.p1 = [action("BP01-044")];
+  const dualOut = drive(dual, "p1", { kind: "combo", cardId: "BP01-061" }).result;
+  check(
+    "BP01-061 follow-up: [Combo] ยังทำงานครั้งเดียว",
+    dualOut.state.turnLog.flags.p1?.includes("noCombo") === true &&
+      dualOut.log.filter((line) => line.th.includes("noCombo")).length === 1,
+    dualOut.log.map((line) => line.th).join(" | ")
   );
 }
 
@@ -1795,11 +1894,12 @@ let game = newMatch();
 }
 
 
-// --- [Battle] fires for a follow-up too ------------------------------------
+// --- [Battle] belongs to the initial revealed clash ------------------------
 //
-// [Battle] (our `counter`) only asks that the card was played in the Battle
-// phase, and a follow-up is. Only [Judgement] belongs to the one card that
-// decided the clash.
+// A red follow-up happens later in the overall battle, but it does not become
+// one of the two cards committed face-down for the determining clash. It gets
+// [Enter] and [Combo], while [Battle] and [Judgement] stay with that initial
+// reveal/judgement pair.
 
 {
   // p1 lays nothing down, so p2's red card wins unopposed and takes the
@@ -1821,9 +1921,10 @@ let game = newMatch();
   s = out.result.state;
   check("BP01-062 ลงเป็นคอมโบได้", !out.result.error, out.result.error ?? "");
   check(
-    "[Battle] ของ BP01-062 ทำงานตอนใช้กลางคอมโบ -> Encore ขึ้น Level 2",
-    s.boards.p2.leader?.card.id === "BP01-011",
-    s.boards.p2.leader?.card.id ?? "-"
+    "[Battle] ของ BP01-062 ไม่ทำงานตอนใช้กลางคอมโบ",
+    s.boards.p2.leader?.card.id === "BP01-015" &&
+      s.boards.p2.characterPool.some((card) => card.id === "BP01-011"),
+    `leader=${s.boards.p2.leader?.card.id} pool=${s.boards.p2.characterPool.map((card) => card.id).join()}`
   );
 }
 

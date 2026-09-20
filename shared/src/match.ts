@@ -31,7 +31,7 @@
 
 import { getCard } from "./cardDb";
 import { LOG, type LogLine } from "./log";
-import type { ChoiceAnswer, PendingChoice } from "./cardDef";
+import { keywordsOf, type ChoiceAnswer, type PendingChoice } from "./cardDef";
 import { effectiveStats, type EffectTrigger } from "./cards";
 import {
   comboLookupFromDb,
@@ -544,14 +544,43 @@ function isAbilityOnly(cardId: string): boolean {
 }
 
 /**
+ * The character an action card's [Leader Skill] is scoped to, null for an
+ * ordinary action. The scope is represented by `leader` on its effects —
+ * exactly the condition conditionBlocking() uses when the effect resolves —
+ * but play legality must see it earlier so the card cannot be committed or
+ * comboed under the wrong Leader just to become a blank attack.
+ */
+function leaderSkillCharacter(cardId: string): string | null {
+  const definition = getCard(cardId);
+  if (!definition || definition.type !== "action") return null;
+  if (!definition.effects.some((effect) => keywordsOf(effect.condition).includes("leader"))) {
+    return null;
+  }
+  // A neutral action has no valid [Leader Skill] owner. validateCard catches
+  // that data mistake too; returning an empty marker makes the runtime fail
+  // safe even if a malformed card slips through development validation.
+  return definition.character ?? "";
+}
+
+/**
  * Why this card cannot be laid down, or null when it can. One place for every
- * reason: cost, the Action Area caps, and cards that may only be put into
- * play by an ability rather than from hand.
+ * reason: Leader Skill scope, cost, the Action Area caps, and cards that may
+ * only be put into play by an ability rather than from hand.
  */
 function playBlocking(state: MatchState, card: ActionCard, playerId: string): string | null {
   if (isAbilityOnly(card.id)) {
     return `${card.name} can only be put into play by an ability`;
   }
+
+  const leaderSkill = leaderSkillCharacter(card.id);
+  if (leaderSkill !== null) {
+    if (!leaderSkill) return `${card.name} is a Leader Skill with no character owner`;
+    const activeLeader = state.boards[playerId]?.leader?.card.name ?? null;
+    if (activeLeader !== leaderSkill) {
+      return `${card.name} requires ${leaderSkill} as your active Leader`;
+    }
+  }
+
   const capped = zoneBlocking(state, card, playerId);
   if (capped) return capped;
 
@@ -1182,13 +1211,12 @@ function playCombo(run: Run, playerId: string, cardId: string): void {
 
   run.settle();
   run.fireOn("enter", sourceForCard(run.state, card, playerId));
-  // [Battle] (our `counter`) asks only that the card was PLAYED in the Battle
-  // phase, and a follow-up is played in it — so a card put down as a combo
-  // fires its [Battle] skill just as it would have on the reveal. Only
-  // [Judgement] is restricted to the one card that decided the clash.
-  // Raised for this card alone: the board-wide [Battle] skills already had
-  // their turn at the reveal and must not fire again per follow-up.
-  run.fireOn("counter", sourceForCard(run.state, card, playerId));
+  // A follow-up is not one of the two cards that started this Battle: it
+  // gets [Enter] and [Combo] only. [Battle] (the printed tag represented by
+  // `counter`) belongs to the face-down cards revealed together in
+  // resolveCounter(), while [Judgement] belongs to the one initial clash.
+  // Cards that explicitly print [Counter] / [Combo] still resolve here once
+  // through their declared `combo` trigger.
   run.fireOn("combo", sourceForCard(run.state, card, playerId));
 
   // A follow-up attack lands on its own, outside the colour clash: there is

@@ -338,13 +338,22 @@ function check(name: string, pass: boolean, detail = "") {
 
 // 9. leader passive only applies to the ACTIVE leader ---------------------------
 {
-  const def = action("T-009", [
-    {
-      condition: ["leader"],
-      text: { th: "น้ำเงิน speed +1" },
-      resolve: (ctx) => ctx.buff({ color: "blue" }, "speed", +1),
-    },
-  ]);
+  const def = defineCard({
+    type: "leader",
+    id: "T-009",
+    name: "T-009",
+    character: "T-009",
+    set: "BP01",
+    imageId: "T-009",
+    level: 1,
+    effects: [
+      {
+        condition: ["leader"],
+        text: { th: "น้ำเงิน speed +1" },
+        resolve: (ctx) => ctx.buff({ color: "blue" }, "speed", +1),
+      },
+    ],
+  });
   const asLeader = freshState();
   asLeader.boards.p1.leader = { position: "leader", card: chara("T-009"), under: [] };
   const inBack = freshState();
@@ -428,6 +437,14 @@ function check(name: string, pass: boolean, detail = "") {
       resolve: (ctx) => ctx.draw(1),
     },
   ]);
+  const leaderSkillWithoutCharacter = action("V-008", [
+    {
+      condition: ["leader", "judgement"],
+      text: { th: "[Leader Skill] [Judgement] ไม่มีเจ้าของ" },
+      resolve: (ctx) => ctx.draw(1),
+    },
+  ]);
+
   // A tag mid-sentence is prose about the effect, not a condition on it.
   const tagInProse = action("V-007", [
     {
@@ -458,6 +475,11 @@ function check(name: string, pass: boolean, detail = "") {
     "ป้าย [Advantage] พิมพ์ไว้แต่ไม่ใส่ใน condition -> จับได้",
     validateCard(tagNotInCondition).some((i) => i.field.endsWith("condition")),
     JSON.stringify(validateCard(tagNotInCondition))
+  );
+  check(
+    "Leader Skill ที่ไม่มีตัวละคร -> จับได้",
+    validateCard(leaderSkillWithoutCharacter).some((i) => i.field === "character"),
+    JSON.stringify(validateCard(leaderSkillWithoutCharacter))
   );
   check(
     "ป้ายกลางประโยค -> ไม่นับเป็นเงื่อนไข",

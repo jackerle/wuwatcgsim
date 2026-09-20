@@ -17,14 +17,18 @@ import {
   _resetRoomsForTests,
   _setGraceMsForTests,
   createRoom,
+  endMatch,
   getRoom,
   joinRoom,
   leaveRoom,
   markPlayerDisconnected,
   nameOf,
+  onMatchExpired,
   onMatchForfeited,
   onRoomVacated,
   publicRooms,
+  refreshMatchActivity,
+  roomLoad,
   startMatch,
   submitDeck,
   sweepRooms,
@@ -47,7 +51,10 @@ const DECK_B = starterDeck(CHAR_B);
 // same-tick reconnect clearly beats it.
 const FORFEIT_GRACE_MS = 60;
 const EMPTY_ROOM_GRACE_MS = 60;
-_setGraceMsForTests(FORFEIT_GRACE_MS, EMPTY_ROOM_GRACE_MS);
+// Kept high for the unrelated lifecycle tests below; the timeout blocks at
+// the end opt into a tiny value after resetting the room registry.
+const MATCH_INACTIVITY_MS = 10_000;
+_setGraceMsForTests(FORFEIT_GRACE_MS, EMPTY_ROOM_GRACE_MS, MATCH_INACTIVITY_MS);
 
 /** A room with both seats filled and a match dealt, ready to play. */
 function seatedMatch(hostId: string, guestId: string) {
@@ -261,6 +268,69 @@ async function run() {
       sweepRooms(() => true).length === 0 && publicRooms().length === 1
     );
     check("ยังอยู่ในลิสต์เหมือนเดิม", publicRooms()[0].code === live.room.code);
+  }
+
+  // --- Match inactivity ends as a draw and unblocks deploy ------------------
+
+  {
+    _resetRoomsForTests();
+    // Short only inside this block: all earlier lifecycle cases use a long
+    // idle value so this timer cannot interfere with their own assertion.
+    const IDLE_MS = 120;
+    _setGraceMsForTests(FORFEIT_GRACE_MS, EMPTY_ROOM_GRACE_MS, IDLE_MS);
+    const record = seatedMatch("idle-host-1", "idle-guest-1");
+    let expired: RoomRecord | null = null;
+    onMatchExpired((room) => {
+      expired = room;
+    });
+
+    await sleep(IDLE_MS + 60);
+    check("ไม่มี action เกินเวลา -> เกมจบเสมอ", record.session?.winnerId === "draw");
+    check("timeout แจ้ง room เดียวที่หมดเวลา", expired === record);
+    check(
+      "timeout เคลียร์ match ออกจาก deploy load แต่เก็บกระดานจบเกมไว้",
+      roomLoad().matches === 0 && record.room.inMatch && record.session !== null,
+      JSON.stringify(roomLoad())
+    );
+    check(
+      "log บอกว่าเกมหมดเวลา",
+      record.session?.log.some((line) => line.en.includes("No game activity")) === true
+    );
+  }
+
+  // --- Accepted gameplay refreshes the clock; ending clears it -------------
+
+  {
+    _resetRoomsForTests();
+    const IDLE_MS = 120;
+    _setGraceMsForTests(FORFEIT_GRACE_MS, EMPTY_ROOM_GRACE_MS, IDLE_MS);
+    const record = seatedMatch("idle-host-2", "idle-guest-2");
+    let expiryCount = 0;
+    onMatchExpired(() => {
+      expiryCount += 1;
+    });
+
+    // Cross the original deadline, but not the deadline rearmed at halfway.
+    await sleep(70);
+    refreshMatchActivity(record);
+    await sleep(80);
+    check("action สำเร็จรีเซ็ต idle timer", record.session?.winnerId === null && expiryCount === 0);
+
+    await sleep(80);
+    check("หมดเวลาใหม่หลังจาก activity ล่าสุด", record.session?.winnerId === "draw" && expiryCount === 1);
+
+    _resetRoomsForTests();
+    const finished = seatedMatch("idle-host-3", "idle-guest-3");
+    let clearedTimerExpired = false;
+    onMatchExpired(() => {
+      clearedTimerExpired = true;
+    });
+    endMatch(finished);
+    await sleep(IDLE_MS + 60);
+    check(
+      "endMatch เคลียร์ idle timer ไม่ยิง timeout เก่า",
+      !clearedTimerExpired && finished.session === null && roomLoad().matches === 0
+    );
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);
