@@ -50,7 +50,6 @@ import {
   type ResolvedEffect,
 } from "./effects";
 import {
-  ACTION_ZONE_MAX_CARDS,
   characterStack,
   emptyMatchState,
   CHARACTERS_IN_PLAY,
@@ -859,7 +858,7 @@ function levelUp(run: Run, playerId: string, characterId: string, discardIds: st
 }
 
 function switchLeader(run: Run, playerId: string, toCardId: string): void {
-  if (run.state.phase === "action" && isRestricted(run.state, playerId, "noLeaderSwitch")) {
+  if (isRestricted(run.state, playerId, "noLeaderSwitch")) {
     run.reject("An effect stops you switching Leader this turn");
   }
   takeAction(run, playerId, "switch");
@@ -1176,13 +1175,12 @@ function playCombo(run: Run, playerId: string, cardId: string): void {
   }
 
   const zone = run.state.actionZone[playerId] ?? [];
-  // A limited chain is limited by its own count, not by the table: a red win
-  // grants an unlimited chain, and stopping it at five cards turned
-  // "unlimited" into "five". Caps a CARD imposes are still enforced, in
+  // The Action Area is unbounded — there is no table-wide cap. A limited chain
+  // is limited only by its own count (the `window.remaining` gate above), and
+  // an unlimited chain (a red win) may run as long as the player has red cards.
+  // A hard cap here turned "unlimited" into "five" and, worse, capped a
+  // Follow{8} at five follow-ups. Caps a CARD imposes are still enforced, in
   // playBlocking below.
-  if (!window.unlimited && zone.length >= ACTION_ZONE_MAX_CARDS) {
-    run.reject(`The Action Area holds at most ${ACTION_ZONE_MAX_CARDS} cards`);
-  }
 
   const board = run.board(playerId);
   const index = board.hand.findIndex((card) => card.id === cardId);
@@ -1595,7 +1593,7 @@ export function canSwitchLeader(state: MatchState, playerId: string): boolean {
   const board = state.boards[playerId];
   if (!board || board.back.length === 0) return false;
   if (!legalIntents(state, playerId).includes("switch")) return false;
-  return !(state.phase === "action" && isRestricted(state, playerId, "noLeaderSwitch"));
+  return !isRestricted(state, playerId, "noLeaderSwitch");
 }
 
 /** Why a card in hand cannot be played, for the UI to show on the card. */

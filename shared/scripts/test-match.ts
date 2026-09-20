@@ -1796,6 +1796,40 @@ let game = newMatch();
   );
 }
 
+// --- A limited Follow{8} window really allows eight ------------------------
+//
+// SD02-010 grants +8 [follow-up attack] on [Judgement]. That is a limited
+// window (unlimited: false, remaining: 8), and a blanket 5-card Action Area
+// cap used to choke it at five. The Action Area is unbounded; only the
+// window's own count limits it.
+{
+  let s = newMatch();
+  s.phase = "combo";
+  s.turnPlayerId = "p1";
+  s.combo = { playerId: "p1", unlimited: false, remaining: 8 };
+  s.boards.p1.hand = Array.from({ length: 8 }, () => action("BP01-044"));
+  s.boards.p1.competitionArea = Array.from({ length: 12 }, () => action("BP01-044"));
+
+  let played = 0;
+  for (let i = 0; i < 8; i += 1) {
+    const out = drive(s, "p1", { kind: "combo", cardId: "BP01-044" });
+    if (out.result.error) break;
+    s = out.result.state;
+    played += 1;
+  }
+  check(
+    "Follow{8}: ต่อได้ครบ 8 ใบ ไม่โดน Action Area จำกัดที่ 5",
+    played === 8 && (s.actionZone.p1 ?? []).length === 8,
+    `ต่อได้ ${played} ใบ, Action Area ${(s.actionZone.p1 ?? []).length} ใบ, remaining=${s.combo?.remaining}`
+  );
+  const ninth = step(s, "p1", { kind: "combo", cardId: "BP01-044" });
+  check(
+    "Follow{8}: ใบที่ 9 เกินสิทธิ์ -> ต่อไม่ได้",
+    ninth.error === "No follow-ups left",
+    ninth.error ?? "(ไม่ปฏิเสธ)"
+  );
+}
+
 // --- A card only an ability may put into play ------------------------------
 
 {

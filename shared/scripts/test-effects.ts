@@ -715,6 +715,46 @@ function check(name: string, pass: boolean, detail = "") {
   );
 }
 
+// 16. noLeaderSwitch blocks the effect-driven switch too ------------------------
+{
+  // SD02-010 sets noLeaderSwitch on [Counter]. Most in-game switches happen
+  // through ctx.switchLeaderTo during Judgement/Combo, not the manual Action
+  // move, so the flag has to bite here or the restriction does nothing.
+  const switcher = action("T-016", [
+    {
+      condition: ["judgement"],
+      text: { th: "สลับ Leader เป็น T-016b" },
+      resolve: (ctx) => ctx.switchLeaderTo("T-016b"),
+    },
+  ]);
+
+  const free = freshState();
+  free.boards.p1.leader = { position: "leader", card: chara("T-016a"), under: [] };
+  free.boards.p1.back = [{ position: "back", card: chara("T-016b"), under: [] }];
+  const switched = resolveTrigger(free, "judgement", [
+    { card: switcher, controllerId: "p1", zone: "actionZone" },
+  ]);
+  check(
+    "ไม่มีข้อจำกัด -> switchLeaderTo สลับได้",
+    switched.state.boards.p1.leader?.card.id === "T-016b",
+    switched.state.boards.p1.leader?.card.id ?? "(null)"
+  );
+
+  const locked = freshState();
+  locked.boards.p1.leader = { position: "leader", card: chara("T-016a"), under: [] };
+  locked.boards.p1.back = [{ position: "back", card: chara("T-016b"), under: [] }];
+  locked.turnLog.flags.p1 = ["noLeaderSwitch"];
+  const blocked = resolveTrigger(locked, "judgement", [
+    { card: switcher, controllerId: "p1", zone: "actionZone" },
+  ]);
+  check(
+    "ติด noLeaderSwitch -> switchLeaderTo ไม่สลับ Leader คงเดิม",
+    blocked.state.boards.p1.leader?.card.id === "T-016a" &&
+      blocked.state.boards.p1.back[0]?.card.id === "T-016b",
+    blocked.state.boards.p1.leader?.card.id ?? "(null)"
+  );
+}
+
 // --- report ---------------------------------------------------------------------
 let failed = 0;
 for (const r of results) {

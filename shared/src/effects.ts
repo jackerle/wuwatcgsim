@@ -685,6 +685,15 @@ function createContext(
     },
     switchLeaderTo(characterName, playerId) {
       const board = boardOf(playerId);
+      // A card can forbid switching for the turn (SD02-010's [Counter]). That
+      // restriction has to bite here too, not only on the manual Action-Phase
+      // switch: most in-game switches during Judgement/Combo run through this
+      // effect path, and honouring the flag only in the manual path let them
+      // slip past. "This turn" means the flag holds regardless of phase.
+      if ((state.turnLog.flags[board.playerId] ?? []).includes("noLeaderSwitch")) {
+        log.push(LOG.restrictionBlocksSwitch(board.playerId));
+        return [];
+      }
       const at = board.back.findIndex((slot) => slot.card.name === characterName);
       if (at < 0) {
         // Already leading is the common case — half these abilities read

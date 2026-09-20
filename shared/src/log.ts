@@ -126,6 +126,8 @@ export const LOG = {
   notInPlay: (character: string) => line(`${character} ไม่ได้อยู่ในสนาม`, `${character} is not in play`),
   notInPlayToSwitch: (character: string) =>
     line(`ไม่มี ${character} ให้สลับไปหา`, `There's no ${character} to switch to`),
+  restrictionBlocksSwitch: (player: string) =>
+    line(`${player} ถูกจำกัด สลับ Leader ไม่ได้ในเทิร์นนี้`, `${player} cannot switch Leaders this turn`),
   noLevelUpCardLeft: (character: string) =>
     line(`ไม่เหลือการ์ดเลเวลอัปของ ${character} แล้ว`, `No Level Up cards left for ${character}`),
   noBackCharacter: () => line("ไม่มีตัวหลังให้สลับ", "No back character to switch to"),
