@@ -228,7 +228,7 @@ export const SD02: CardDef[] = [
           en: "[Leader] Your red cards gain “[Combo] This card gains +1 damage”",
         },
         resolve: (ctx) =>
-            ctx.grantEffect({ color: "red" }, "comboBoost", "whileActive"),
+          ctx.grantEffect({ color: "red" }, "comboBoost", "whileActive"),
       },
     ],
   }),
@@ -313,21 +313,21 @@ export const SD02: CardDef[] = [
           en: "[Combo] Switch Leaders; if 「Jinshi」 is one of the switched characters, this card gains +2 damage",
         },
         resolve: (ctx) => {
-            const back = ctx.board().back;
-            if (back.length === 0) return;
-            const chosen = ctx.chooseOption(
-              { th: "สลับ Leader ไปตัวไหน", en: "Switch your Leader to?" },
-              [
-                ...back.map((slot) => ({ value: slot.card.name, label: { th: slot.card.name, en: slot.card.name } })),
-                { value: "", label: { th: "ไม่สลับ", en: "Do not switch" } },
-              ]
-            );
-            if (!chosen) return;
-            // "if 「Jinshi」 is one of the switched characters" — the character
-            // leaving the Leader slot is switched too, not only the one arriving
-            // (906.2, and FAQ #52 on SD01-009 answers exactly this).
-            if (ctx.switchLeaderTo(chosen).includes("Jinshi")) { ctx.buff({ cardId: ctx.self.id }, "attack", 2, "battle"); }
-          },
+          const back = ctx.board().back;
+          if (back.length === 0) return;
+          const chosen = ctx.chooseOption(
+            { th: "สลับ Leader ไปตัวไหน", en: "Switch your Leader to?" },
+            [
+              ...back.map((slot) => ({ value: slot.card.name, label: { th: slot.card.name, en: slot.card.name } })),
+              { value: "", label: { th: "ไม่สลับ", en: "Do not switch" } },
+            ]
+          );
+          if (!chosen) return;
+          // "if 「Jinshi」 is one of the switched characters" — the character
+          // leaving the Leader slot is switched too, not only the one arriving
+          // (906.2, and FAQ #52 on SD01-009 answers exactly this).
+          if (ctx.switchLeaderTo(chosen).includes("Jinshi")) { ctx.buff({ cardId: ctx.self.id }, "attack", 2, "battle"); }
+        },
       },
     ],
   }),
@@ -346,22 +346,22 @@ export const SD02: CardDef[] = [
     subtypes: ["Forte Circuit"],
     effects: [
       {
-        condition: ["counter"],
+        condition: ["leader", "counter"],
         text: { th: "[Counter] ในเทิร์นนี้ ไม่สามารถสลับ Leader ได้", en: "[Counter] This turn, you cannot switch Leaders" },
         resolve: (ctx) => ctx.restrict("noLeaderSwitch"),
       },
       {
-        condition: ["judgement", "follow"],
+        condition: ["leader", "judgement", "follow"],
         followCount: 8,
         text: {
           th: "[Judgement] หากชนะ จั่วการ์ด 3 ใบ ได้รับ +8[follow-up attack]",
           en: "[Judgement] If you win, draw 3 cards and gain +8 [follow-up attack]",
         },
         resolve: (ctx) => {
-            if (!ctx.wonLastBattle()) return;
-            ctx.draw(3);
-            ctx.grantFollowUp(8);
-          },
+          if (!ctx.wonLastBattle()) return;
+          ctx.draw(3);
+          ctx.grantFollowUp(8);
+        },
       },
     ],
   }),
@@ -387,8 +387,8 @@ export const SD02: CardDef[] = [
           en: "[Leader Skill] [Combo] If your Action area has 3 or more cards, this card gains +3 damage",
         },
         resolve: (ctx) => {
-            if (ctx.actionZone().length >= 3) ctx.buff({ cardId: ctx.self.id }, "attack", 3, "battle");
-          },
+          if (ctx.actionZone().length >= 3) ctx.buff({ cardId: ctx.self.id }, "attack", 3, "battle");
+        },
       },
     ],
   }),
@@ -450,21 +450,21 @@ export const SD02: CardDef[] = [
           en: "[Combo] Switch Leaders; if 「Sanhua」 is one of the switched characters, put the top card of your deck into the Concerto area",
         },
         resolve: (ctx) => {
-            const back = ctx.board().back;
-            if (back.length === 0) return;
-            const chosen = ctx.chooseOption(
-              { th: "สลับ Leader ไปตัวไหน", en: "Switch your Leader to?" },
-              [
-                ...back.map((slot) => ({ value: slot.card.name, label: { th: slot.card.name, en: slot.card.name } })),
-                { value: "", label: { th: "ไม่สลับ", en: "Do not switch" } },
-              ]
-            );
-            if (!chosen) return;
-            // "if 「Sanhua」 is one of the switched characters" — the character
-            // leaving the Leader slot is switched too, not only the one arriving
-            // (906.2, and FAQ #52 on SD01-009 answers exactly this).
-            if (ctx.switchLeaderTo(chosen).includes("Sanhua")) { ctx.topToConcerto(1); }
-          },
+          const back = ctx.board().back;
+          if (back.length === 0) return;
+          const chosen = ctx.chooseOption(
+            { th: "สลับ Leader ไปตัวไหน", en: "Switch your Leader to?" },
+            [
+              ...back.map((slot) => ({ value: slot.card.name, label: { th: slot.card.name, en: slot.card.name } })),
+              { value: "", label: { th: "ไม่สลับ", en: "Do not switch" } },
+            ]
+          );
+          if (!chosen) return;
+          // "if 「Sanhua」 is one of the switched characters" — the character
+          // leaving the Leader slot is switched too, not only the one arriving
+          // (906.2, and FAQ #52 on SD01-009 answers exactly this).
+          if (ctx.switchLeaderTo(chosen).includes("Sanhua")) { ctx.topToConcerto(1); }
+        },
       },
     ],
   }),
@@ -517,8 +517,8 @@ export const SD02: CardDef[] = [
           en: "[Leader Skill] [Judgement] If you win, your opponent cannot Combo next round",
         },
         resolve: (ctx) => {
-            if (ctx.wonLastBattle()) ctx.restrictNextTurn("noFollowUp", ctx.opponentId);
-          },
+          if (ctx.wonLastBattle()) ctx.restrictNextTurn("noFollowUp", ctx.opponentId);
+        },
       },
     ],
   }),
@@ -558,11 +558,11 @@ export const SD02: CardDef[] = [
           en: "[Judgement] If you win, draw 1 card, then discard 1 card from hand",
         },
         resolve: (ctx) => {
-            if (!ctx.wonLastBattle()) return;
-            ctx.draw(1);
-            const pick = ctx.chooseCard({ th: "เลือกการ์ดที่จะทิ้ง", en: "Discard which card?" }, ctx.hand());
-            if (pick) ctx.discardCards([pick]);
-          },
+          if (!ctx.wonLastBattle()) return;
+          ctx.draw(1);
+          const pick = ctx.chooseCard({ th: "เลือกการ์ดที่จะทิ้ง", en: "Discard which card?" }, ctx.hand());
+          if (pick) ctx.discardCards([pick]);
+        },
       },
     ],
   }),
@@ -587,21 +587,21 @@ export const SD02: CardDef[] = [
           en: "[Combo] Switch Leaders; if 「Rover (M)」 is one of the switched characters, draw 1 card",
         },
         resolve: (ctx) => {
-            const back = ctx.board().back;
-            if (back.length === 0) return;
-            const chosen = ctx.chooseOption(
-              { th: "สลับ Leader ไปตัวไหน", en: "Switch your Leader to?" },
-              [
-                ...back.map((slot) => ({ value: slot.card.name, label: { th: slot.card.name, en: slot.card.name } })),
-                { value: "", label: { th: "ไม่สลับ", en: "Do not switch" } },
-              ]
-            );
-            if (!chosen) return;
-            // "if 「Rover (M)」 is one of the switched characters" — the character
-            // leaving the Leader slot is switched too, not only the one arriving
-            // (906.2, and FAQ #52 on SD01-009 answers exactly this).
-            if (ctx.switchLeaderTo(chosen).includes("Rover (M)")) { ctx.draw(1); }
-          },
+          const back = ctx.board().back;
+          if (back.length === 0) return;
+          const chosen = ctx.chooseOption(
+            { th: "สลับ Leader ไปตัวไหน", en: "Switch your Leader to?" },
+            [
+              ...back.map((slot) => ({ value: slot.card.name, label: { th: slot.card.name, en: slot.card.name } })),
+              { value: "", label: { th: "ไม่สลับ", en: "Do not switch" } },
+            ]
+          );
+          if (!chosen) return;
+          // "if 「Rover (M)」 is one of the switched characters" — the character
+          // leaving the Leader slot is switched too, not only the one arriving
+          // (906.2, and FAQ #52 on SD01-009 answers exactly this).
+          if (ctx.switchLeaderTo(chosen).includes("Rover (M)")) { ctx.draw(1); }
+        },
       },
     ],
   }),
@@ -626,10 +626,10 @@ export const SD02: CardDef[] = [
           en: "[Judgement] If you win, draw 1 card and your opponent reveals their hand",
         },
         resolve: (ctx) => {
-            if (!ctx.wonLastBattle()) return;
-            ctx.draw(1);
-            ctx.revealHand(ctx.opponentId);
-          },
+          if (!ctx.wonLastBattle()) return;
+          ctx.draw(1);
+          ctx.revealHand(ctx.opponentId);
+        },
       },
     ],
   }),
@@ -655,10 +655,10 @@ export const SD02: CardDef[] = [
           en: "[Judgement] If you win, draw 1 card and gain +2 [follow-up attack]",
         },
         resolve: (ctx) => {
-            if (!ctx.wonLastBattle()) return;
-            ctx.draw(1);
-            ctx.grantFollowUp(2);
-          },
+          if (!ctx.wonLastBattle()) return;
+          ctx.draw(1);
+          ctx.grantFollowUp(2);
+        },
       },
     ],
   }),
@@ -675,7 +675,16 @@ export const SD02: CardDef[] = [
     attack: 3,
     rarity: 1,
     subtypes: ["Resonance Skill"],
-    effects: [],
+    effects: [
+      {
+        condition: ["leader"],
+        text: {
+          th: "",
+          en: "",
+        },
+        resolve: () => { }
+      }
+    ],
   }),
   defineCard({
     type: "action",
@@ -691,6 +700,15 @@ export const SD02: CardDef[] = [
     attack: 5,
     rarity: 1,
     subtypes: ["Resonance Liberation"],
-    effects: [],
+    effects: [
+      {
+        condition: ["leader"],
+        text: {
+          th: "",
+          en: "",
+        },
+        resolve: () => { }
+      }
+    ],
   }),
 ];
