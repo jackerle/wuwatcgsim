@@ -71,10 +71,6 @@ export const STRINGS = {
   },
   "mainMenu.deckSubEmpty": { th: "จัดเด็ค — ยังไม่มีเด็ค", en: "Decks — none yet" },
   "mainMenu.vsBot": { th: "เล่นกับบอท — ไม่ต้องมีคู่แข่ง", en: "Play against the bot — no opponent needed" },
-  "mainMenu.hotseat": {
-    th: "เล่นสองฝั่งบนจอนี้ (ไม่ต้องมีคู่)",
-    en: "Play both sides on this screen (no opponent needed)",
-  },
   "mainMenu.langSwitchTitle": { th: "เปลี่ยนภาษา", en: "Change language" },
   "mainMenu.credit": { th: "สร้างโดย", en: "Made by" },
 

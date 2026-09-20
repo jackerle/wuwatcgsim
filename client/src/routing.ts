@@ -26,22 +26,9 @@ export function pathForScreen(screen: Screen): string {
 }
 
 /**
- * Hotseat — both sides on one screen, no server involved — gets its own
- * path rather than living only behind the `?play` query param it used to.
- * It isn't one of the Screen union's three: it's an override that replaces
- * the whole menu system while it's on, the same way a room or a running
- * match does.
- */
-export const SELF_PLAY_PATH = "/self-play";
-
-export function isSelfPlayPath(pathname: string): boolean {
-  return pathname === SELF_PLAY_PATH;
-}
-
-/**
  * Playing the bot — one person, no server, the engine in this tab. An
- * override like hotseat rather than one of the three Screens, and its own
- * path for the same reasons.
+ * override rather than one of the three Screens, with its own path so it can
+ * come and go from the address bar and Back button.
  */
 export const VS_BOT_PATH = "/vs-bot";
 

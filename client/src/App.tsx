@@ -21,11 +21,9 @@ import { allDecks } from "./decks/storage";
 import { Lobby } from "./menu/Lobby";
 import { warmCardImages } from "./board/imagePreload";
 import {
-  isSelfPlayPath,
   isVsBotPath,
   pathForScreen,
   screenFromPath,
-  SELF_PLAY_PATH,
   VS_BOT_PATH,
   type Screen,
 } from "./routing";
@@ -34,7 +32,6 @@ const ME = playerId();
 
 export default function App() {
   const [screen, setScreenState] = useState<Screen>(() => screenFromPath(location.pathname));
-  const [hotseat, setHotseatState] = useState(() => isSelfPlayPath(location.pathname));
   const [vsBot, setVsBotState] = useState(() => isVsBotPath(location.pathname));
   // Wraps the raw setter so every screen change also lands in browser
   // history — a real Back press then just re-fires this same setter via the
@@ -45,17 +42,9 @@ export default function App() {
     const path = pathForScreen(next);
     if (location.pathname !== path) history.pushState({ screen: next }, "", path);
   }, []);
-  // Hotseat is an override, not one of the three Screen paths — same idea,
-  // its own path (/self-play) so it can come and go from the address bar
-  // and Back too. Turning it off falls back to the menu, the same place
-  // leaving it any other way lands.
-  const setHotseat = useCallback((on: boolean) => {
-    setHotseatState(on);
-    const path = on ? SELF_PLAY_PATH : pathForScreen("menu");
-    if (location.pathname !== path) history.pushState({}, "", path);
-  }, []);
-  // Same again for the bot match: an override with a path of its own, so Back
-  // leaves it the way Back leaves hotseat.
+  // The bot match is an override, not one of the three Screen paths: it gets
+  // its own path so it can come and go from the address bar, and Back leaves
+  // it the way Back leaves any screen.
   const setVsBot = useCallback((on: boolean) => {
     setVsBotState(on);
     const path = on ? VS_BOT_PATH : pathForScreen("menu");
@@ -65,7 +54,6 @@ export default function App() {
   useEffect(() => {
     const onPopState = () => {
       setScreenState(screenFromPath(location.pathname));
-      setHotseatState(isSelfPlayPath(location.pathname));
       setVsBotState(isVsBotPath(location.pathname));
     };
     window.addEventListener("popstate", onPopState);
@@ -223,10 +211,12 @@ export default function App() {
     setScreen("play");
   }, [room, setScreen]);
 
-  // ?play still opens a hotseat game straight off, which is how the board gets
-  // exercised without needing a second person or a server.
+  // A hidden ?play / ?boardPreview query hatch still opens a two-seat board
+  // straight off — it is how the board gets exercised without a second person
+  // or a server. It is deliberately not surfaced in the menu; the "play both
+  // sides" entry was removed, so this stays for development only.
   const params = new URLSearchParams(location.search);
-  if (hotseat || params.has("play") || params.has("boardPreview")) {
+  if (params.has("play") || params.has("boardPreview")) {
     return (
       <main className="page board-page">
         <HotseatGame picks={{ p1: params.get("you") ?? "Camellya", p2: params.get("vs") ?? "Encore" }} />
@@ -234,9 +224,9 @@ export default function App() {
     );
   }
 
-  // Checked before a room, but after hotseat, for the same reason hotseat is
-  // where it is: neither one involves the server, so neither can be holding a
-  // seat somebody else is waiting on.
+  // Checked before a room, but after the dev board hatch, for the same reason
+  // that hatch is where it is: neither one involves the server, so neither can
+  // be holding a seat somebody else is waiting on.
   if (vsBot) {
     return <BotGame onBack={() => setVsBot(false)} />;
   }
@@ -290,7 +280,6 @@ export default function App() {
       }}
       onDecks={() => setScreen("decks")}
       onVsBot={() => setVsBot(true)}
-      onHotseat={() => setHotseat(true)}
     />
   );
 }

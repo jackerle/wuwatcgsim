@@ -9,7 +9,6 @@ export function MainMenu({
   onNameChange,
   onPlay,
   onDecks,
-  onHotseat,
   onVsBot,
   deckCount,
 }: {
@@ -17,7 +16,6 @@ export function MainMenu({
   onNameChange: (name: string) => void;
   onPlay: () => void;
   onDecks: () => void;
-  onHotseat: () => void;
   onVsBot: () => void;
   deckCount: number;
 }) {
@@ -75,10 +73,6 @@ export function MainMenu({
             alt=""
             aria-hidden="true"
           />
-        </button>
-
-        <button type="button" className="menu-link" onClick={onHotseat}>
-          {t("mainMenu.hotseat")}
         </button>
       </div>
 
