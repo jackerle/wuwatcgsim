@@ -54,6 +54,34 @@ bakes it into the static bundle when you run `npm run build`, so setting it
 as a runtime environment variable on an already-built deployment does
 nothing — rebuild after changing it.
 
+## Playing the bot
+
+"Play against the bot" on the menu (`/vs-bot`) deals a match against an
+opponent the tab plays itself — no server, no second person. Pick your deck,
+it brings a starter deck around a random character.
+
+Two things make it a game rather than a puzzle:
+
+- **It cannot see your hand.** Every decision it makes is taken from
+  `updateFor(seat)`, the same filtered view the server sends a networked
+  player, where the other hand is a row of blank backs. `test-bot.ts` proves
+  it rather than asserting it: the test swaps the opponent's hand behind the
+  bot's back between two identical questions and checks the answer never
+  moves. The screen filters the same way in the other direction, so you cannot
+  see the bot's hand either.
+- **It plays the same rules you do.** It carries no copy of them. Which moves
+  exist comes from `legalIntents`, what a card costs from `whyUnplayable`, who
+  wins a clash from `resolveCombat` — the engine's own functions, the same
+  ones the board calls to decide what to grey out.
+
+What it does bring is `worth()` in `shared/src/bot.ts`, which prices a card as
+the clash it would be laid down in — run against what the opponent has been
+seen playing, falling back to the printed pool. Every other decision is that
+one number read in a direction: keep the highest, spend the lowest. A card
+that asks a question says which direction it wants through `ChoiceTag`,
+because "choose a card" means the opposite thing when the card is being taken
+away.
+
 ## Decks
 
 A deck is three characters plus 40 Action cards. The three bring their own

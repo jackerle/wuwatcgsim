@@ -231,6 +231,31 @@
   opacity: 1;
 }
 
+/* A square chibi rather than a standing character, so the rules above are
+   wrong for it in two ways.
+
+   It is sized to sit INSIDE the button instead of standing taller than it:
+   `overflow: hidden` reads as a character walking out of frame when what it
+   cuts off is a pair of legs, and as a decapitation when the art is a head.
+   The 92% leaves room for the hover to grow into without meeting the edge.
+
+   And the fade runs outwards from the middle rather than off to one side: a
+   left-to-right fade thins a character bleeding in from the edge, but takes
+   half the face off one that is centred in its own square. */
+.menu-button-art.chibi {
+  height: 92%;
+  right: 6px;
+  bottom: -2px;
+  max-width: 34%;
+  transform: none;
+  -webkit-mask-image: radial-gradient(closest-side circle at 50% 50%, black 78%, transparent 100%);
+  mask-image: radial-gradient(closest-side circle at 50% 50%, black 78%, transparent 100%);
+}
+
+.menu-button:hover:not(:disabled) .menu-button-art.chibi {
+  transform: scale(1.08);
+}
+
 .menu-link {
   margin-top: 4px;
   padding: 6px;

@@ -344,6 +344,28 @@ export interface EffectContext {
 
 export type ChoiceKind = "confirm" | "pickCard" | "pickOption";
 
+/**
+ * What a card-picking question is FOR, in a form code can read.
+ *
+ * The prompt says it in words, in two languages, which is enough for a
+ * person and no use at all to anything else: "pick a card" tells a bot
+ * nothing about whether the card it picks is one it GAINS or one it gives
+ * up, and picking its best card is exactly right for the first and exactly
+ * wrong for the second. Matching on the prompt text would be a third copy of
+ * that meaning, in the most fragile form available.
+ *
+ * Only set where the engine already knows (see PROMPT in log.ts, which these
+ * are named after). A question without one is a card's own `chooseCard`,
+ * where the meaning is the card's and nobody else can state it.
+ */
+export type ChoiceTag =
+  | "trashToHand"
+  | "trashToConcerto"
+  | "concertoToTrash"
+  | "discard"
+  | "charge"
+  | "searchDeck";
+
 /** One option the player can pick, for pickCard / pickOption. */
 export interface ChoiceOption {
   /**
@@ -373,6 +395,8 @@ export interface PendingChoice {
   /** For pickCard: how many to pick. Both default to 1. */
   min: number;
   max: number;
+  /** What the pick is for, where the engine knows. See ChoiceTag. */
+  tag?: ChoiceTag;
 }
 
 /** What a player sent back: yes/no, one value, or several. */

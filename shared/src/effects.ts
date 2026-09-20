@@ -32,6 +32,7 @@ import {
   type CardEffect,
   type ChoiceAnswer,
   type ChoiceOption,
+  type ChoiceTag,
   type Condition,
   type EffectContext,
   type PendingChoice,
@@ -229,7 +230,9 @@ function createContext(
     count: number,
     filter: CardFilter | undefined,
     owner: string,
-    prompt: LocalizedText
+    prompt: LocalizedText,
+    /** What the pick is for — see ChoiceTag. Paired with `prompt`. */
+    tag: ChoiceTag
   ): ActionCard[] => {
     // Newest first, which is the order these piles are read in and the one
     // the old silent behaviour used.
@@ -251,6 +254,7 @@ function createContext(
       options: candidates.map(cardOption),
       min: count,
       max: count,
+      tag,
     });
     const picked = Array.isArray(answer) ? answer : [answer].filter((v) => typeof v === "string");
     const seen = new Set<number>();
@@ -392,7 +396,7 @@ function createContext(
       const board = boardOf(playerId);
       const moved = lift(
         board.hand,
-        pickFrom(board.hand, count, undefined, board.playerId, PROMPT.discard(count))
+        pickFrom(board.hand, count, undefined, board.playerId, PROMPT.discard(count), "discard")
       );
       board.trash.push(...moved);
       log.push(LOG.discards(board.playerId, moved.length));
@@ -401,7 +405,7 @@ function createContext(
       const board = boardOf(playerId);
       const moved = lift(
         board.hand,
-        pickFrom(board.hand, count, undefined, board.playerId, PROMPT.charge(count))
+        pickFrom(board.hand, count, undefined, board.playerId, PROMPT.charge(count), "charge")
       );
       board.competitionArea.push(...moved);
       log.push(LOG.chargesCards(board.playerId, moved.length));
@@ -498,7 +502,7 @@ function createContext(
       const board = boardOf(playerId);
       const moved = lift(
         board.trash,
-        pickFrom(board.trash, count, filter, board.playerId, PROMPT.trashToHand(count))
+        pickFrom(board.trash, count, filter, board.playerId, PROMPT.trashToHand(count), "trashToHand")
       );
       board.hand.push(...moved);
       // Silent when nothing matched — an ability that found no target should
@@ -704,7 +708,14 @@ function createContext(
       const board = boardOf(playerId);
       const moved = lift(
         board.trash,
-        pickFrom(board.trash, count, filter, board.playerId, PROMPT.trashToConcerto(count))
+        pickFrom(
+          board.trash,
+          count,
+          filter,
+          board.playerId,
+          PROMPT.trashToConcerto(count),
+          "trashToConcerto"
+        )
       );
       board.competitionArea.push(...moved);
       if (moved.length > 0) {
@@ -720,7 +731,8 @@ function createContext(
           count,
           filter,
           board.playerId,
-          PROMPT.concertoToTrash(count)
+          PROMPT.concertoToTrash(count),
+          "concertoToTrash"
         )
       );
       board.trash.push(...moved);
@@ -756,7 +768,7 @@ function createContext(
       // reach.
       const found = lift(
         board.actionDeck,
-        pickFrom(board.actionDeck, count, filter, board.playerId, PROMPT.searchDeck(count))
+        pickFrom(board.actionDeck, count, filter, board.playerId, PROMPT.searchDeck(count), "searchDeck")
       );
       board.hand.push(...found);
       // Searching exposes the deck order, so it is shuffled afterwards.

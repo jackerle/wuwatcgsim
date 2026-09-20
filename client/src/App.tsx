@@ -12,6 +12,7 @@ import { socket } from "./socket";
 import { playerId, rememberName, rememberRoom, rememberedName, rememberedRoom } from "./identity";
 import { clearMatch } from "./game/matchStore";
 import { HotseatGame } from "./game/HotseatGame";
+import { BotGame } from "./game/BotGame";
 import { NetGame } from "./game/NetGame";
 import { MainMenu } from "./menu/MainMenu";
 import { PlayMenu } from "./menu/PlayMenu";
@@ -19,13 +20,22 @@ import { DeckManager } from "./decks/DeckManager";
 import { allDecks } from "./decks/storage";
 import { Lobby } from "./menu/Lobby";
 import { warmCardImages } from "./board/imagePreload";
-import { isSelfPlayPath, pathForScreen, screenFromPath, SELF_PLAY_PATH, type Screen } from "./routing";
+import {
+  isSelfPlayPath,
+  isVsBotPath,
+  pathForScreen,
+  screenFromPath,
+  SELF_PLAY_PATH,
+  VS_BOT_PATH,
+  type Screen,
+} from "./routing";
 
 const ME = playerId();
 
 export default function App() {
   const [screen, setScreenState] = useState<Screen>(() => screenFromPath(location.pathname));
   const [hotseat, setHotseatState] = useState(() => isSelfPlayPath(location.pathname));
+  const [vsBot, setVsBotState] = useState(() => isVsBotPath(location.pathname));
   // Wraps the raw setter so every screen change also lands in browser
   // history — a real Back press then just re-fires this same setter via the
   // popstate listener below, instead of screen state and the address bar
@@ -44,11 +54,19 @@ export default function App() {
     const path = on ? SELF_PLAY_PATH : pathForScreen("menu");
     if (location.pathname !== path) history.pushState({}, "", path);
   }, []);
+  // Same again for the bot match: an override with a path of its own, so Back
+  // leaves it the way Back leaves hotseat.
+  const setVsBot = useCallback((on: boolean) => {
+    setVsBotState(on);
+    const path = on ? VS_BOT_PATH : pathForScreen("menu");
+    if (location.pathname !== path) history.pushState({}, "", path);
+  }, []);
 
   useEffect(() => {
     const onPopState = () => {
       setScreenState(screenFromPath(location.pathname));
       setHotseatState(isSelfPlayPath(location.pathname));
+      setVsBotState(isVsBotPath(location.pathname));
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -216,6 +234,13 @@ export default function App() {
     );
   }
 
+  // Checked before a room, but after hotseat, for the same reason hotseat is
+  // where it is: neither one involves the server, so neither can be holding a
+  // seat somebody else is waiting on.
+  if (vsBot) {
+    return <BotGame onBack={() => setVsBot(false)} />;
+  }
+
   if (room?.inMatch && seat) {
     const isHost = room.players.find((p) => p.id === ME)?.isHost ?? false;
     return (
@@ -264,6 +289,7 @@ export default function App() {
         setScreen("play");
       }}
       onDecks={() => setScreen("decks")}
+      onVsBot={() => setVsBot(true)}
       onHotseat={() => setHotseat(true)}
     />
   );

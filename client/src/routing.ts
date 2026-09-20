@@ -37,3 +37,14 @@ export const SELF_PLAY_PATH = "/self-play";
 export function isSelfPlayPath(pathname: string): boolean {
   return pathname === SELF_PLAY_PATH;
 }
+
+/**
+ * Playing the bot — one person, no server, the engine in this tab. An
+ * override like hotseat rather than one of the three Screens, and its own
+ * path for the same reasons.
+ */
+export const VS_BOT_PATH = "/vs-bot";
+
+export function isVsBotPath(pathname: string): boolean {
+  return pathname === VS_BOT_PATH;
+}

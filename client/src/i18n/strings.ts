@@ -37,6 +37,22 @@ export const STRINGS = {
   "common.cancelQuestion": { th: "ยกเลิกการสั่ง", en: "Cancel Question" },
   "common.back.position": { th: "หลัง", en: "Back" },
 
+  // --- BotGame.tsx / useBotMatch.ts -------------------------------------------
+  "bot.title": { th: "เล่นกับบอท", en: "Play vs Bot" },
+  "bot.name": { th: "บอท", en: "Bot" },
+  "bot.you": { th: "คุณ", en: "You" },
+  "bot.opponent": { th: "คู่ต่อสู้", en: "Opponent" },
+  "bot.reroll": { th: "สุ่มใหม่", en: "Reroll" },
+  "bot.start": { th: "เริ่มเกม", en: "Start" },
+  "bot.fairPlay": {
+    th: "บอทมองไม่เห็นไพ่ในมือคุณ และเล่นด้วยกฎชุดเดียวกับคุณทุกข้อ",
+    en: "The bot cannot see your hand, and plays by exactly the same rules you do.",
+  },
+  "bot.stuck": {
+    th: "บอทเดินต่อไม่ได้ — กดเกมใหม่เพื่อเริ่มอีกครั้ง",
+    en: "The bot has no move it can make — start a new game to carry on.",
+  },
+
   // --- ServerNotice.tsx -------------------------------------------------------
   "notice.restarting": {
     th: "เซิร์ฟเวอร์กำลังรีสตาร์ทเพื่ออัปเดต — ห้องที่เปิดค้างไว้จะถูกปิด แล้วระบบจะต่อใหม่ให้เอง ไม่ต้องรีเฟรช",
@@ -54,6 +70,7 @@ export const STRINGS = {
     en: (n: number) => `Decks — ${n} saved`,
   },
   "mainMenu.deckSubEmpty": { th: "จัดเด็ค — ยังไม่มีเด็ค", en: "Decks — none yet" },
+  "mainMenu.vsBot": { th: "เล่นกับบอท — ไม่ต้องมีคู่แข่ง", en: "Play against the bot — no opponent needed" },
   "mainMenu.hotseat": {
     th: "เล่นสองฝั่งบนจอนี้ (ไม่ต้องมีคู่)",
     en: "Play both sides on this screen (no opponent needed)",

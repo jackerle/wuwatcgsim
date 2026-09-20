@@ -10,6 +10,7 @@ export function MainMenu({
   onPlay,
   onDecks,
   onHotseat,
+  onVsBot,
   deckCount,
 }: {
   playerName: string;
@@ -17,6 +18,7 @@ export function MainMenu({
   onPlay: () => void;
   onDecks: () => void;
   onHotseat: () => void;
+  onVsBot: () => void;
   deckCount: number;
 }) {
   const { t } = useLang();
@@ -60,6 +62,19 @@ export function MainMenu({
             </span>
           </span>
           <img className="menu-button-art" src="/cards/rover_m.webp" alt="" aria-hidden="true" />
+        </button>
+
+        <button type="button" className="menu-button" onClick={onVsBot}>
+          <span className="menu-button-text">
+            <span className="menu-button-label">Bot</span>
+            <span className="menu-button-sub">{t("mainMenu.vsBot")}</span>
+          </span>
+          <img
+            className="menu-button-art chibi"
+            src="/cards/shore_icon.jpg"
+            alt=""
+            aria-hidden="true"
+          />
         </button>
 
         <button type="button" className="menu-link" onClick={onHotseat}>
