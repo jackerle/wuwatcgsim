@@ -343,9 +343,10 @@ class Run {
   }
 
   /**
-   * Raises a trigger for one player's cards only. Nothing uses this yet: the
-   * Counter Phase happens for both sides, so every phase trigger goes out
-   * board-wide and each card's own conditions decide whether it applies.
+   * Raises a trigger for one player's cards only. Used for "own phase" triggers
+   * like [At start of own Counter phase], which belong to the turn player and
+   * must not fire on the opponent's identical cards. Most phase triggers still
+   * go out board-wide via fire() and let each card's conditions decide.
    */
   fireFor(trigger: EffectTrigger, playerId: string): void {
     this.fireOn(
@@ -943,7 +944,10 @@ function skipCounter(run: Run, playerId: string): void {
 function openCounterPhase(run: Run): void {
   run.state.phase = "counter";
   run.note(LOG.battlePhase(run.state.turnPlayerId));
-  run.fire("counterPhaseStart");
+  // [At start of own Counter phase] — "own" is the turn player's, so this goes
+  // out to their cards only, never the opponent's. counterPhaseEnd stays
+  // board-wide because its printed form is "each Counter phase".
+  run.fireFor("counterPhaseStart", run.state.turnPlayerId);
   run.settle();
 }
 
