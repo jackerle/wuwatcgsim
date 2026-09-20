@@ -1623,7 +1623,7 @@ export const BP01: CardDef[] = [
     subtypes: ["Resonance Skill"],
     effects: [
       {
-        condition: ["judgement"],
+        condition: ["leader", "judgement"],
         text: { th: "[Judgement] หากชนะ Level up ให้「Shorekeeper」 ของเจ้าของ", en: "[Judgement] If you win, level up your 「Shorekeeper」" },
         resolve: (ctx) => { if (ctx.wonLastBattle()) ctx.levelUpCharacter("Shorekeeper"); },
       },
@@ -1654,7 +1654,7 @@ export const BP01: CardDef[] = [
         // The printed trigger is [Counter] alone — the [Combo] in the text is
         // part of the ability handed out (see `grants`), not a second trigger
         // for this one.
-        condition: ["counter"],
+        condition: ["leader", "counter"],
         text: {
           th: "[Counter] ในรอบนี้ การ์ด〈Intro Skill〉2 ใบถัดไปที่เล่นได้รับ \"[Combo] จั่วการ์ด 1 ใบ\"",
           en: "[Counter] This round, the next 2 〈Intro Skill〉 cards played gain \"[Combo] Draw a card.\"",
@@ -1663,7 +1663,7 @@ export const BP01: CardDef[] = [
             ctx.grantEffect({ subtype: "Intro Skill" }, "comboDraw", "turn", { limit: 2 }),
       },
       {
-        condition: ["judgement", "follow"],
+        condition: ["leader", "judgement", "follow"],
         followCount: 8,
         text: {
           th: "[Judgement] หากชนะ ฟื้นฟู 1 พลังชีวิตและได้รับ +8 [follow-up attack]",
@@ -1749,7 +1749,7 @@ export const BP01: CardDef[] = [
     subtypes: ["Forte Circuit", "Resonance Liberation"],
     effects: [
       {
-        condition: ["counter", "combo"],
+        condition: ["leader", "counter", "combo"],
         text: { th: "[Counter] / [Combo] ในรอบนี้ เจ้าของจะไม่สามารถโจมตีต่อเนื่องได้", en: "[Counter] / [Combo] This round, you cannot Combo" },
         resolve: (ctx) => ctx.restrict("noCombo"),
       },
@@ -2054,7 +2054,7 @@ export const BP01: CardDef[] = [
     subtypes: ["Resonance Skill"],
     effects: [
       {
-        condition: ["judgement"],
+        condition: ["leader", "judgement"],
         text: { th: "[Judgement] หากชนะ นำ 「Incarnation」 ขึ้นมือ จากนั้นสับเด็ค", en: "[Judgement] If you win, take 「Incarnation」 to hand, then shuffle your deck" },
         resolve: (ctx) => {
             if (!ctx.wonLastBattle()) return;
@@ -2080,7 +2080,7 @@ export const BP01: CardDef[] = [
     subtypes: ["Forte Circuit", "Resonance Skill"],
     effects: [
       {
-        condition: ["combo"],
+        condition: ["leader", "combo"],
         text: {
           th: "[Combo] การ์ดใบนี้ได้รับ +1 ดาเมจ ตามจำนวนการ์ดที่อยู่บน Action area ฝ่ายเรา",
           en: "[Combo] This card gains +1 damage for each card in your Action area",
@@ -2091,7 +2091,7 @@ export const BP01: CardDef[] = [
           },
       },
       {
-        condition: ["counter", "combo"],
+        condition: ["leader", "counter", "combo"],
         text: { th: "[Counter] / [Combo] ในรอบนี้ เจ้าของไม่สามารถโจมตีต่อเนื่องได้", en: "[Counter] / [Combo] This round, you cannot Combo" },
         resolve: (ctx) => ctx.restrict("noCombo"),
       },
@@ -2113,7 +2113,7 @@ export const BP01: CardDef[] = [
     subtypes: ["Forte Circuit", "Resonance Skill"],
     effects: [
       {
-        condition: ["judgement"],
+        condition: ["leader", "judgement"],
         text: {
           th: "[Judgement] หากชนะและมีการ์ดของ 【Sanhua】 ใน Concerto Area เจ้าของสามารถสลับ Leader ได้",
           en: "[Judgement] If you win and have a 【Sanhua】 card in your Concerto Area, you may switch Leaders",
