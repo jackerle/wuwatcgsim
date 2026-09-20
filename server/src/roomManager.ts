@@ -332,6 +332,25 @@ export function publicRooms(): RoomSummary[] {
   return out;
 }
 
+/**
+ * What the server is carrying right now — for the deploy script, which waits
+ * for this to go quiet before restarting.
+ *
+ * `matches` counts only matches still being played: `room.inMatch` stays true
+ * after a win so the final board keeps showing, and a restart that lands on
+ * two people reading a result they have already seen costs them nothing. One
+ * that lands mid-turn costs them the game.
+ */
+export function roomLoad(): { rooms: number; matches: number; players: number } {
+  let matches = 0;
+  let players = 0;
+  for (const record of rooms.values()) {
+    if (record.room.inMatch && record.session && !record.session.winnerId) matches += 1;
+    players += record.room.players.filter((p) => p.connected).length;
+  }
+  return { rooms: rooms.size, matches, players };
+}
+
 export function endMatch(record: RoomRecord): void {
   clearForfeitTimer(record);
   record.session = null;

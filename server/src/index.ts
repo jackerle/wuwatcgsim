@@ -21,6 +21,7 @@ import {
   onMatchForfeited,
   onRoomVacated,
   publicRooms,
+  roomLoad,
   seatInfo,
   seatOf,
   startMatch,
@@ -55,7 +56,10 @@ app.use(cors({ origin: CLIENT_ORIGIN }));
 app.use(express.json());
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, characters: playableCharacters() });
+  // `load` is what `scripts/wait-for-idle.mjs` polls before a deploy restarts
+  // the process: rooms and matches live in memory and do not survive it, so
+  // the deploy waits for a moment when losing them costs nobody a game.
+  res.json({ ok: true, characters: playableCharacters(), load: roomLoad() });
 });
 
 const httpServer = createServer(app);
@@ -382,6 +386,41 @@ io.on("connection", (socket) => {
 
 // Exported for tests / reuse; not required for `npm run dev`.
 export { app, io, getRoom };
+
+/**
+ * How long to hold the door open after announcing a restart.
+ *
+ * Just long enough for the notice to reach everyone's screen before the
+ * socket drops — they are about to lose whatever room they were in, and the
+ * difference between being told and simply falling over is this much. The
+ * deploy waits for no match to be running first (see the drain step in the
+ * root package.json), so in the ordinary case this reaches people sitting in
+ * lobbies rather than anyone mid-turn.
+ *
+ * systemd allows 90s for a stop by default, so this is nowhere near the
+ * point where it would be killed instead.
+ */
+const SHUTDOWN_NOTICE_MS = 1_500;
+
+let shuttingDown = false;
+
+function shutdown(signal: string): void {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal} received — telling players, then closing`);
+  io.emit("serverNotice", { kind: "restarting", seconds: Math.ceil(SHUTDOWN_NOTICE_MS / 1000) });
+  clearInterval(sweeper);
+  // Not unref'd, unlike the sweeper: this timer is the shutdown, and a
+  // process that exited before it fired would drop the notice on the floor.
+  setTimeout(() => {
+    io.close();
+    httpServer.close();
+    process.exit(0);
+  }, SHUTDOWN_NOTICE_MS);
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 // A last line of defence for anything that escapes `guard` — a timer, a
 // promise, the socket library itself. A crashed process drops every match in
