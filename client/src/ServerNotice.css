@@ -1,0 +1,19 @@
+/* Fixed rather than sticky: it has to sit over the board, which scrolls and
+   has its own stacking contexts, not push it down. */
+.server-notice {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-h);
+  background: var(--accent-bg);
+  border-bottom: 1px solid var(--accent-border);
+  /* The board sits on a dark backdrop of its own; without this the strip
+     would read as part of whatever is behind it. */
+  backdrop-filter: blur(8px);
+}

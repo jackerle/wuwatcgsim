@@ -157,6 +157,23 @@ export interface ClientToServerEvents {
   sendChat: (payload: { text: string }) => void;
 }
 
+/**
+ * Something the server has to say about itself, to everyone at once —
+ * a restart on its way, and nothing else so far.
+ *
+ * Not an `errorMessage`: nothing the player did caused it, and it has to
+ * reach every screen, including a board mid-match, rather than the one
+ * place a refused action is reported.
+ *
+ * Carries the fact, not the sentence: the wording lives in the client's
+ * string table with the rest of the UI text, in both languages.
+ */
+export interface ServerNotice {
+  kind: "restarting";
+  /** Roughly how long before it goes, so the client can say so. */
+  seconds: number;
+}
+
 export interface ServerToClientEvents {
   roomUpdate: (room: Room) => void;
   /** The public rooms waiting for an opponent, for anyone watching. */
@@ -167,6 +184,7 @@ export interface ServerToClientEvents {
   /** The backlog, sent once on joining so a latecomer sees what was said. */
   chatHistory: (messages: ChatMessage[]) => void;
   errorMessage: (error: ApiError) => void;
+  serverNotice: (notice: ServerNotice) => void;
 }
 
 export interface InterServerEvents {

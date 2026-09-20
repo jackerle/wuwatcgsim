@@ -60,6 +60,42 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   /** Stops the refresh-rejoin from firing again on every reconnect. */
   const rejoined = useRef(false);
+  /**
+   * One room request in flight at a time.
+   *
+   * Nothing used to stop a second "create room" while the first was still on
+   * its way. On a slow connection a player taps again because nothing seems
+   * to be happening — and every tap opened a real room on the server, while
+   * only the last answer was the one they landed in. The rooms in between
+   * were left standing in the public list with nobody in them.
+   *
+   * The ref is what actually guards: two clicks can land before React has
+   * re-rendered the button as disabled, and a ref is already true by the
+   * second one.
+   */
+  const [busy, setBusy] = useState(false);
+  const busy_ = useRef(false);
+  const busyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const endRequest = useCallback(() => {
+    if (busyTimer.current) {
+      clearTimeout(busyTimer.current);
+      busyTimer.current = null;
+    }
+    busy_.current = false;
+    setBusy(false);
+  }, []);
+
+  /** Takes the lock, or returns false if a request is already running. */
+  const beginRequest = useCallback(() => {
+    if (busy_.current) return false;
+    busy_.current = true;
+    setBusy(true);
+    // A socket that drops mid-request never calls its ack back at all;
+    // without this the buttons would stay dead until the page was reloaded.
+    busyTimer.current = setTimeout(endRequest, 10_000);
+    return true;
+  }, [endRequest]);
 
   // Starts loading every card image once, in the background, as soon as the
   // app opens — by the time a screen actually needs one (deck building, a
@@ -82,21 +118,35 @@ export default function App() {
     };
   }, []);
 
-  const join = useCallback((code: string, name: string, quiet = false) => {
-    socket.emit("joinRoom", { roomCode: code, playerName: name, playerId: ME }, (result) => {
-      if ("error" in result) {
-        // A silent rejoin that fails just means the room is gone; don't shout
-        // about it on a page the player opened fresh.
-        if (!quiet) setError(result.error);
-        rememberRoom(null);
-        return;
-      }
-      setError(null);
-      setRoom(result.room);
-      setSeat(result.seat);
-      rememberRoom(result.room.code);
-    });
-  }, []);
+  const join = useCallback(
+    (code: string, name: string, quiet = false) => {
+      // The quiet rejoin fires off a reconnect rather than a click: it is not
+      // a button to protect, and it must not be blocked by one.
+      if (!quiet && !beginRequest()) return;
+      socket.emit("joinRoom", { roomCode: code, playerName: name, playerId: ME }, (result) => {
+        if (!quiet) endRequest();
+        if ("error" in result) {
+          // A silent rejoin that fails just means the room is gone; don't
+          // shout about it on a page the player opened fresh.
+          if (!quiet) setError(result.error);
+          rememberRoom(null);
+          // There is no seat to go back to, so stop showing one. Without
+          // this the player was left on a board that would never update
+          // again, with no way out but a reload — which is exactly what
+          // every server restart used to do to everyone mid-match.
+          setRoom(null);
+          setSeat(null);
+          clearMatch();
+          return;
+        }
+        setError(null);
+        setRoom(result.room);
+        setSeat(result.seat);
+        rememberRoom(result.room.code);
+      });
+    },
+    [beginRequest, endRequest]
+  );
 
   // Walk back into the room this browser was in, if it is still there. Mostly
   // this is a refresh mid-match; the server keeps the seat for exactly this.
@@ -129,9 +179,11 @@ export default function App() {
 
   const createRoom = useCallback(
     (visibility: RoomVisibility) => {
+      if (!beginRequest()) return;
       setError(null);
       rememberName(playerName);
       socket.emit("createRoom", { playerName, playerId: ME, visibility }, (result) => {
+        endRequest();
         if ("error" in result) {
           setError(result.error);
           return;
@@ -141,7 +193,7 @@ export default function App() {
         rememberRoom(result.room.code);
       });
     },
-    [playerName]
+    [playerName, beginRequest, endRequest]
   );
 
   const leaveRoom = useCallback(() => {
@@ -189,6 +241,7 @@ export default function App() {
           setError(null);
           setScreen("menu");
         }}
+        busy={busy}
         onJoin={(code) => {
           rememberName(playerName);
           join(code, playerName || "Player");

@@ -16,11 +16,18 @@ export function PlayMenu({
   onCreate,
   onBack,
   error,
+  busy,
 }: {
   onJoin: (code: string) => void;
   onCreate: (visibility: RoomVisibility) => void;
   onBack: () => void;
   error: string | null;
+  /**
+   * A room request is already on its way. Every button that would start
+   * another one goes dead until it comes back — a second "create room" while
+   * the first is in flight opens a second room that nobody ever sits in.
+   */
+  busy: boolean;
 }) {
   const { t } = useLang();
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
@@ -70,7 +77,12 @@ export function PlayMenu({
                           .join(" vs ")}`}
                     </div>
                   </div>
-                  <button type="button" className="primary" onClick={() => onJoin(room.code)}>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={busy}
+                    onClick={() => onJoin(room.code)}
+                  >
                     {t("playMenu.join")}
                   </button>
                 </div>
@@ -88,7 +100,7 @@ export function PlayMenu({
               placeholder={t("playMenu.codePlaceholder")}
               maxLength={4}
             />
-            <button type="button" disabled={!code.trim()} onClick={() => onJoin(code)}>
+            <button type="button" disabled={busy || !code.trim()} onClick={() => onJoin(code)}>
               {t("playMenu.join")}
             </button>
           </div>
@@ -114,7 +126,12 @@ export function PlayMenu({
               </button>
             </span>
             <span className="play-spacer" />
-            <button type="button" className="primary" onClick={() => onCreate(visibility)}>
+            <button
+              type="button"
+              className="primary"
+              disabled={busy}
+              onClick={() => onCreate(visibility)}
+            >
               {t("playMenu.createRoom")}
             </button>
           </div>

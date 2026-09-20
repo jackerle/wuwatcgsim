@@ -37,6 +37,12 @@ export const STRINGS = {
   "common.cancelQuestion": { th: "ยกเลิกการสั่ง", en: "Cancel Question" },
   "common.back.position": { th: "หลัง", en: "Back" },
 
+  // --- ServerNotice.tsx -------------------------------------------------------
+  "notice.restarting": {
+    th: "เซิร์ฟเวอร์กำลังรีสตาร์ทเพื่ออัปเดต — ห้องที่เปิดค้างไว้จะถูกปิด แล้วระบบจะต่อใหม่ให้เอง ไม่ต้องรีเฟรช",
+    en: "The server is restarting to update — open rooms will close, and it will reconnect on its own. No need to refresh.",
+  },
+
   // --- MainMenu.tsx -----------------------------------------------------------
   "mainMenu.subtitle": { th: "Wuthering Waves TCG Simulator", en: "Wuthering Waves TCG Simulator" },
   "mainMenu.playerNameLabel": { th: "ชื่อผู้เล่น", en: "Player name" },

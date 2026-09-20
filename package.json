@@ -14,7 +14,11 @@
     "build:shared": "npm run build -w shared",
     "build:server": "npm run build -w server",
     "build:client": "npm run build -w client",
-    "deploy": "npm run build:shared && npm run build:client && systemctl restart wuwasim-server && systemctl is-active wuwasim-server",
+    "build": "npm run build:shared && npm run build:server && npm run build:client",
+    "wait:idle": "node server/scripts/wait-for-idle.mjs",
+    "restart": "systemctl restart wuwasim-server && systemctl is-active wuwasim-server",
+    "deploy": "npm run build && npm run wait:idle && npm run restart",
+    "deploy:now": "npm run build && npm run restart",
     "validate:cards": "npm run validate:cards -w shared"
   }
 }

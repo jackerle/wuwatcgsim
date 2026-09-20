@@ -204,6 +204,36 @@ Both timers live in `server/src/roomManager.ts` and are overridable for tests
 (`_setGraceMsForTests`) — real 90-second and 5-minute timers would make the
 test suite that slow.
 
+One player holds one seat. Opening or joining a room gives up whatever seat
+they already had (`vacatePreviousRoom`) — without that, the room they walked
+out of kept a player it still believed was connected, and nothing would ever
+tell it otherwise. A periodic sweep (`sweepRooms`, every 30s) is the backstop:
+any seat a room thinks is live but that has no socket open is treated as a
+disconnect, which starts the usual countdown rather than deleting anything on
+the spot.
+
+## Deploying
+
+Rooms and matches live in the server's memory, so a restart ends every game in
+progress. `npm run deploy` therefore builds, then **waits for a moment when no
+match is running** before restarting:
+
+```bash
+npm run deploy       # build -> wait for idle -> systemctl restart
+npm run deploy:now   # build -> restart, without waiting
+```
+
+The wait is `server/scripts/wait-for-idle.mjs`, which polls `/health` — that
+endpoint reports `load: { rooms, matches, players }`, counting only matches
+still being played, not finished boards someone is still reading. It gives up
+after 15 minutes (`DRAIN_TIMEOUT_S`) and exits non-zero rather than deciding
+for you; `deploy:now` is how you say "restart anyway".
+
+On the way down the server announces itself (`serverNotice`) and holds the
+door open for a moment so the notice lands, then closes. Clients show a strip
+across the top, reconnect on their own, and fall back to the menu when the
+room they were in no longer exists.
+
 ## Project layout
 
 ```
