@@ -111,3 +111,25 @@ export function rememberDeckId(id: string): void {
     // Best effort — losing it only costs one extra click next time.
   }
 }
+
+/**
+ * The deck last handed to the bot, kept apart from the player's own so the two
+ * preselections do not clobber each other between matches.
+ */
+const LAST_BOT_KEY = "wuwatcg.lastBotDeck";
+
+export function rememberedBotDeckId(): string | null {
+  try {
+    return localStorage.getItem(LAST_BOT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function rememberBotDeckId(id: string): void {
+  try {
+    localStorage.setItem(LAST_BOT_KEY, id);
+  } catch {
+    // Best effort — losing it only costs one extra click next time.
+  }
+}

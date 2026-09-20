@@ -43,6 +43,10 @@ export const STRINGS = {
   "bot.you": { th: "คุณ", en: "You" },
   "bot.opponent": { th: "คู่ต่อสู้", en: "Opponent" },
   "bot.reroll": { th: "สุ่มใหม่", en: "Reroll" },
+  "bot.botDeck": { th: "เด็คของบอท", en: "Bot's Deck" },
+  "bot.pickBotDeckTitle": { th: "เลือกเด็คให้บอท", en: "Choose the Bot's Deck" },
+  "bot.chooseBotDeck": { th: "เลือกเด็คบอท", en: "Choose Bot Deck" },
+  "bot.randomDeck": { th: "สุ่มเด็ค", en: "Random Deck" },
   "bot.start": { th: "เริ่มเกม", en: "Start" },
   "bot.fairPlay": {
     th: "บอทมองไม่เห็นไพ่ในมือคุณ และเล่นด้วยกฎชุดเดียวกับคุณทุกข้อ",

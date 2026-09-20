@@ -5,16 +5,17 @@
 // and is not allowed to see.
 
 import { useState } from "react";
-import {
-  isDeckPlayable,
-  playableCharacters,
-  starterDeck,
-  type DeckList,
-} from "@wuwatcg/shared";
+import { isDeckPlayable, type DeckList } from "@wuwatcg/shared";
 import { PlayGame } from "./PlayGame";
 import { useBotMatch } from "./useBotMatch";
 import { DeckManager } from "../decks/DeckManager";
-import { allDecks, rememberDeckId, rememberedDeckId } from "../decks/storage";
+import {
+  allDecks,
+  rememberBotDeckId,
+  rememberDeckId,
+  rememberedBotDeckId,
+  rememberedDeckId,
+} from "../decks/storage";
 import { useLang } from "../i18n/LanguageContext";
 import "../menu/MainMenu.css";
 
@@ -24,10 +25,8 @@ function BotMatch({ deck, botDeck }: { deck: DeckList; botDeck: DeckList }) {
   return <PlayGame match={match} />;
 }
 
-const randomCharacter = (): string => {
-  const names = playableCharacters();
-  return names[Math.floor(Math.random() * names.length)];
-};
+const randomDeck = (decks: DeckList[]): DeckList | null =>
+  decks.length > 0 ? decks[Math.floor(Math.random() * decks.length)] : null;
 
 export function BotGame({ onBack }: { onBack: () => void }) {
   const { t } = useLang();
@@ -38,19 +37,24 @@ export function BotGame({ onBack }: { onBack: () => void }) {
   const [deck, setDeck] = useState<DeckList | null>(
     () => playable.find((entry) => entry.id === rememberedDeckId()) ?? playable[0] ?? null
   );
-  const [botCharacter, setBotCharacter] = useState(randomCharacter);
-  const [picking, setPicking] = useState(false);
+  // The bot picks from the very same list the player does. Preselect its last
+  // deck, then a random one so the opening screen is not blank.
+  const [botDeck, setBotDeck] = useState<DeckList | null>(
+    () => playable.find((entry) => entry.id === rememberedBotDeckId()) ?? randomDeck(playable)
+  );
+  // Which picker is open, if any — the player's own or the bot's.
+  const [picking, setPicking] = useState<"self" | "bot" | null>(null);
   const [playing, setPlaying] = useState(false);
 
-  if (playing && deck) {
+  if (playing && deck && botDeck) {
     return (
       <main className="page board-page">
-        <BotMatch deck={deck} botDeck={starterDeck(botCharacter)} />
+        <BotMatch deck={deck} botDeck={botDeck} />
       </main>
     );
   }
 
-  if (picking) {
+  if (picking === "self") {
     return (
       <DeckManager
         title={t("lobby.pickDeckTitle")}
@@ -58,9 +62,24 @@ export function BotGame({ onBack }: { onBack: () => void }) {
         onPick={(chosen) => {
           setDeck(chosen);
           rememberDeckId(chosen.id);
-          setPicking(false);
+          setPicking(null);
         }}
-        onBack={() => setPicking(false)}
+        onBack={() => setPicking(null)}
+      />
+    );
+  }
+
+  if (picking === "bot") {
+    return (
+      <DeckManager
+        title={t("bot.pickBotDeckTitle")}
+        pickedId={botDeck?.id ?? rememberedBotDeckId()}
+        onPick={(chosen) => {
+          setBotDeck(chosen);
+          rememberBotDeckId(chosen.id);
+          setPicking(null);
+        }}
+        onBack={() => setPicking(null)}
       />
     );
   }
@@ -84,13 +103,13 @@ export function BotGame({ onBack }: { onBack: () => void }) {
                 <div className="room-row-host">{deck.name}</div>
                 <div className="room-row-sub">{deck.characters.join(" · ")}</div>
               </div>
-              <button type="button" onClick={() => setPicking(true)}>
+              <button type="button" onClick={() => setPicking("self")}>
                 {t("lobby.change")}
               </button>
             </div>
           ) : (
             <div className="play-row">
-              <button type="button" className="primary" onClick={() => setPicking(true)}>
+              <button type="button" className="primary" onClick={() => setPicking("self")}>
                 {playable.length > 0 ? t("lobby.chooseDeck") : t("lobby.buildDeckFirst")}
               </button>
             </div>
@@ -99,15 +118,28 @@ export function BotGame({ onBack }: { onBack: () => void }) {
 
         <section className="play-card">
           <h2>{t("bot.opponent")}</h2>
-          <div className="room-row">
-            <div className="room-row-main">
-              <div className="room-row-host">{t("bot.name")}</div>
-              <div className="room-row-sub">{botCharacter}</div>
+          {botDeck ? (
+            <div className="room-row">
+              <div className="room-row-main">
+                <div className="room-row-host">{botDeck.name}</div>
+                <div className="room-row-sub">{botDeck.characters.join(" · ")}</div>
+              </div>
+              <div className="deck-row-actions">
+                <button type="button" onClick={() => setBotDeck(randomDeck(playable))}>
+                  {t("bot.randomDeck")}
+                </button>
+                <button type="button" onClick={() => setPicking("bot")}>
+                  {t("lobby.change")}
+                </button>
+              </div>
             </div>
-            <button type="button" onClick={() => setBotCharacter(randomCharacter())}>
-              {t("bot.reroll")}
-            </button>
-          </div>
+          ) : (
+            <div className="play-row">
+              <button type="button" className="primary" onClick={() => setPicking("bot")}>
+                {playable.length > 0 ? t("bot.chooseBotDeck") : t("lobby.buildDeckFirst")}
+              </button>
+            </div>
+          )}
           <p className="play-empty" style={{ textAlign: "left", padding: 0 }}>
             {t("bot.fairPlay")}
           </p>
@@ -118,7 +150,7 @@ export function BotGame({ onBack }: { onBack: () => void }) {
           <button
             type="button"
             className="primary"
-            disabled={!deck}
+            disabled={!deck || !botDeck}
             onClick={() => setPlaying(true)}
           >
             {t("bot.start")}
