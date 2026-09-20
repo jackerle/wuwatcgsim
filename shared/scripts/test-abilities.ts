@@ -620,6 +620,60 @@ const check = (name: string, ok: boolean, detail = "") => {
   );
 }
 
+// --- 〈Intro Skill〉: "one of the switched characters" -------------------------
+//
+// SD01-009 跃焰 reads "[Combo] Switch your Leader. If 「Chixia」 is one of the
+// switched characters, this card deals +2" — and FAQ #52 asks precisely the
+// awkward case: Chixia is ALREADY the Leader, so the switch puts her in the
+// back. Official answer: yes, the +2 applies. Rule 906.2 makes any character
+// whose position changed "switched", in either direction, so reading the card
+// as "if you switch TO Chixia" loses half of what it does.
+
+{
+  const backSlot = (id: string) => ({ ...chara(id), position: "back" as const });
+  const attackBonus = (s: MatchState) =>
+    s.statModifiers
+      .filter((m) => m.stat === "attack" && m.filter.cardId === "SD01-009")
+      .reduce((sum, m) => sum + m.amount, 0);
+
+  // Chixia leads and is switched OUT to the back.
+  const out = state();
+  out.boards.p1.leader = chara("BP01-027"); // Chixia Lv.0
+  out.boards.p1.back = [backSlot("BP01-024")]; // Yangyang Lv.0
+  out.actionZone.p1 = [card("SD01-009")];
+  const left = resolveTrigger(out, "combo", [src("SD01-009", "actionZone")], ["Yangyang"]);
+  check(
+    "SD01-009: 「Chixia」 ถูกสลับออกจาก Leader -> ยังได้ +2",
+    attackBonus(left.state) === 2,
+    `${attackBonus(left.state)} / ${left.state.boards.p1.leader?.card.name} นำ`
+  );
+
+  // The direction that always worked: Chixia comes forward.
+  const into = state();
+  into.boards.p1.leader = chara("BP01-024");
+  into.boards.p1.back = [backSlot("BP01-027")];
+  into.actionZone.p1 = [card("SD01-009")];
+  const came = resolveTrigger(into, "combo", [src("SD01-009", "actionZone")], ["Chixia"]);
+  check(
+    "SD01-009: 「Chixia」 ถูกสลับขึ้นมาเป็น Leader -> ได้ +2",
+    attackBonus(came.state) === 2,
+    `${attackBonus(came.state)}`
+  );
+
+  // Chixia nowhere near the switch: no bonus. The rule widens who counts as
+  // switched, it does not hand the bonus out for free.
+  const away = state();
+  away.boards.p1.leader = chara("BP01-024"); // Yangyang
+  away.boards.p1.back = [backSlot("BP01-033"), backSlot("BP01-027")]; // Sanhua, Chixia
+  away.actionZone.p1 = [card("SD01-009")];
+  const other = resolveTrigger(away, "combo", [src("SD01-009", "actionZone")], ["Sanhua"]);
+  check(
+    "SD01-009: สลับคู่อื่น 「Chixia」 ไม่ได้ขยับ -> ไม่ได้ +2",
+    attackBonus(other.state) === 0,
+    `${attackBonus(other.state)}`
+  );
+}
+
 console.log(`
 ${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

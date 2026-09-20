@@ -1437,8 +1437,8 @@ export const BP01: CardDef[] = [
       {
         condition: ["combo"],
         text: {
-          th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น 「Camellya」 Level up ให้「Camellya」 ของคุณ",
-          en: "[Combo] Switch Leaders; if you switch to 「Camellya」, level up your 「Camellya」",
+          th: "[Combo] เปลี่ยน Leader หาก Camellya เป็นตัวที่ถูกสลับ Level up ให้「Camellya」 ของคุณ",
+          en: "[Combo] Switch Leaders; if 「Camellya」 is one of the switched characters, level up your 「Camellya」",
         },
         resolve: (ctx) => {
             const back = ctx.board().back;
@@ -1451,8 +1451,10 @@ export const BP01: CardDef[] = [
               ]
             );
             if (!chosen) return;
-            ctx.switchLeaderTo(chosen);
-            if (chosen === "Camellya") { ctx.levelUpCharacter("Camellya"); }
+            // "if 「Camellya」 is one of the switched characters" — the character
+            // leaving the Leader slot is switched too, not only the one arriving
+            // (906.2, and FAQ #52 on SD01-009 answers exactly this).
+            if (ctx.switchLeaderTo(chosen).includes("Camellya")) { ctx.levelUpCharacter("Camellya"); }
           },
       },
     ],
@@ -1554,8 +1556,8 @@ export const BP01: CardDef[] = [
       {
         condition: ["combo"],
         text: {
-          th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น 「Shorekeeper」ฟื้นฟู 1 พลังชีวิต",
-          en: "[Combo] Switch Leaders; if you switch to 「Shorekeeper」, heal 1 life",
+          th: "[Combo] เปลี่ยน Leader หาก Shorekeeper เป็นตัวที่ถูกสลับ ฟื้นฟู 1 พลังชีวิต",
+          en: "[Combo] Switch Leaders; if 「Shorekeeper」 is one of the switched characters, heal 1 life",
         },
         resolve: (ctx) => {
             const back = ctx.board().back;
@@ -1568,8 +1570,10 @@ export const BP01: CardDef[] = [
               ]
             );
             if (!chosen) return;
-            ctx.switchLeaderTo(chosen);
-            if (chosen === "Shorekeeper") { ctx.heal(1); }
+            // "if 「Shorekeeper」 is one of the switched characters" — the character
+            // leaving the Leader slot is switched too, not only the one arriving
+            // (906.2, and FAQ #52 on SD01-009 answers exactly this).
+            if (ctx.switchLeaderTo(chosen).includes("Shorekeeper")) { ctx.heal(1); }
           },
       },
     ],
@@ -1804,8 +1808,8 @@ export const BP01: CardDef[] = [
       {
         condition: ["combo"],
         text: {
-          th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น 「Encore 」นำการ์ดสีแดงของ Encore ที่ไม่ใช่ 〈Intro Skill〉 1 ใบขึ้นมือ",
-          en: "[Combo] Switch Leaders; if you switch to 「Encore」, take 1 of Encore's red cards that isn't 〈Intro Skill〉 to hand",
+          th: "[Combo] เปลี่ยน Leader หาก Encore เป็นตัวที่ถูกสลับ นำการ์ดสีแดงของ Encore ที่ไม่ใช่ 〈Intro Skill〉 1 ใบขึ้นมือ",
+          en: "[Combo] Switch Leaders; if 「Encore」 is one of the switched characters, take 1 of Encore's red cards that isn't 〈Intro Skill〉 to hand",
         },
         resolve: (ctx) => {
             const back = ctx.board().back;
@@ -1818,8 +1822,10 @@ export const BP01: CardDef[] = [
               ]
             );
             if (!chosen) return;
-            ctx.switchLeaderTo(chosen);
-            if (chosen === "Encore") { ctx.searchDeck({ character: "Encore", color: "red" }, 1); }
+            // "if 「Encore」 is one of the switched characters" — the character
+            // leaving the Leader slot is switched too, not only the one arriving
+            // (906.2, and FAQ #52 on SD01-009 answers exactly this).
+            if (ctx.switchLeaderTo(chosen).includes("Encore")) { ctx.searchDeck({ character: "Encore", color: "red" }, 1); }
           },
       },
     ],

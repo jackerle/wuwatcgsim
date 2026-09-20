@@ -134,8 +134,16 @@ export interface EffectContext {
   charge(count: number, playerId?: string): void;
   /** Put this card back into the Character Deck (the open character pool). */
   returnToCharacterDeck(): void;
-  /** Swap the active leader with one of the back characters. */
-  switchLeader(toCardId?: string, playerId?: string): void;
+  /**
+   * Swap the active leader with one of the back characters.
+   *
+   * Returns the names of the characters that were switched — BOTH of them.
+   * Rule 906.2: "a character whose position changed as a result of a switch
+   * is said to be switched", which is the one going to the front AND the
+   * Leader it displaced. Cards printed "if 「X」 is one of the switched
+   * characters" read this list; see switchLeaderTo.
+   */
+  switchLeader(toCardId?: string, playerId?: string): string[];
   /**
    * Reveal the top cards of the deck. They stay on top; the caller decides
    * what happens next, which is usually a player choice.
@@ -241,8 +249,17 @@ export interface EffectContext {
     characterName: string,
     options?: { level?: CharacterLevel; playerId?: string }
   ): boolean;
-  /** Switch the Leader to the named character, if they are in the back. */
-  switchLeaderTo(characterName: string, playerId?: string): boolean;
+  /**
+   * Switch the Leader to the named character, if they are in the back.
+   *
+   * Returns who was switched, which is not the same question as who was
+   * switched TO. Rule 906.2 makes both characters "switched", and the FAQ
+   * (#52, SD01-009 跃焰) settles what that means for the cards that ask:
+   * switching Chixia OUT of the Leader slot still counts her as "one of the
+   * switched characters", so the card's bonus applies. Empty when nothing
+   * moved — the character was already leading, or is not in play.
+   */
+  switchLeaderTo(characterName: string, playerId?: string): string[];
 
   // --- moving cards about ---
   /** Move cards from the trash into the Concerto area. */

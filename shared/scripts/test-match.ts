@@ -2024,6 +2024,46 @@ let game = newMatch();
     moved.asked.includes("BP01-008"),
     moved.asked.join(",") || "ไม่ถูกถาม"
   );
+
+  // Rule 906.2: "a character whose position changed as a result of a switch is
+  // said to be switched" — the Leader being displaced just as much as the back
+  // character coming forward. [Switch] (913.9.1) fires on being switched, with
+  // no requirement to end up leading.
+  let u = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  u.boards.p1.leader = { position: "leader", card: character("BP01-008"), under: [] };
+  u.boards.p1.back = [{ position: "back", card: character("BP01-024"), under: [] }];
+  const out2 = drive(u, "p1", { kind: "switch", toCardId: "BP01-024" });
+  check(
+    "[Switch] ของตัวที่ถูกสลับออกจาก Leader -> ทำงาน",
+    out2.asked.includes("BP01-008"),
+    out2.asked.join(",") || "ไม่ถูกถาม"
+  );
+}
+
+// --- Rule: an ability-driven switch is a switch ------------------------------
+//
+// 913.9.1 says [Switch] fires "when the card is switched" and says nothing
+// about how, and FAQ #52 (SD01-009) is itself about an ability-driven one. The
+// ctx helpers used to move the two characters silently, so every card that
+// reads "switch your Leader" swallowed the trigger.
+
+{
+  let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  s.boards.p1.leader = { position: "leader", card: character("BP01-008"), under: [] };
+  s.boards.p1.back = [{ position: "back", card: character("BP01-024"), under: [] }];
+  // BP01-063 "[Combo] Switch Leaders..." — any card whose text calls
+  // ctx.switchLeaderTo does; resolveTrigger is the shortest way to run one.
+  const fired = resolveTrigger(
+    s,
+    "combo",
+    [{ card: requireCard("SD01-009"), controllerId: "p1", zone: "actionZone" }],
+    ["Yangyang"]
+  );
+  check(
+    "สลับด้วยเอฟเฟกต์การ์ด -> [Switch] ของตัวที่ถูกสลับออกก็ทำงาน",
+    fired.pending?.cardId === "BP01-008",
+    fired.pending?.cardId ?? "ไม่ถูกถาม"
+  );
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

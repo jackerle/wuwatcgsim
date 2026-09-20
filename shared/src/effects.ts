@@ -169,6 +169,50 @@ function createContext(
   };
 
   /**
+   * Everything that has to happen after two characters trade places, wherever
+   * the switch came from.
+   *
+   * Both of them were "switched" — rule 906.2: "a character whose position
+   * changed as a result of a switch is said to be switched". That is not only
+   * the one arriving in front. The FAQ settles it for the cards that ask:
+   * #52 on SD01-009 跃焰 ("[Combo] Switch your Leader. If 「Chixia」 is one of
+   * the switched characters, this card deals +2") answers yes for a Chixia who
+   * was switched OUT of the Leader slot into the back.
+   *
+   * So this raises [Switch] (913.9.1, "triggers when the character card
+   * carrying it is switched") on both piles, and hands the caller both names
+   * for the cards that condition on who moved.
+   *
+   * Switches written into an ability are switches. The keyword rule says
+   * "when the card is switched" with no mention of how, and FAQ #52 is itself
+   * about an ability-driven one — the Action Phase rule move (603.1.2.1.1) is
+   * one source of these, not the only one.
+   *
+   * The whole pile on each side, not just the top card: a buried level keeps
+   * its skills (205.4), which is why a level up fires [Level up] on the cards
+   * underneath. Only [Enter] is restricted to the topmost card (603.1.2.2.1),
+   * and [Switch] carries no such restriction.
+   */
+  const fireSwitched = (
+    ownerId: string,
+    incoming: CharacterInstance,
+    outgoing: CharacterInstance | null
+  ): string[] => {
+    // Their new positions: the incoming card is the Leader by the time this
+    // runs, and the one it displaced is in the back.
+    const moved: { slot: CharacterInstance; zone: EffectZone }[] = [
+      { slot: incoming, zone: "leader" },
+      ...(outgoing ? [{ slot: outgoing, zone: "back" as const }] : []),
+    ];
+    for (const { slot, zone } of moved) {
+      for (const stacked of characterStack(slot)) {
+        fireHere(state, "switch", stacked, ownerId, zone, cursor, log);
+      }
+    }
+    return moved.map(({ slot }) => slot.card.name);
+  };
+
+  /**
    * Which cards to take out of a pile, asked of the player when there is a
    * real choice to make.
    *
@@ -405,7 +449,7 @@ function createContext(
         : 0;
       if (index < 0 || !board.back[index]) {
         log.push(LOG.noBackCharacter());
-        return;
+        return [];
       }
       const incoming = board.back[index];
       const outgoing = board.leader;
@@ -414,6 +458,7 @@ function createContext(
       if (outgoing) board.back[index] = { ...outgoing, position: "back" };
       else board.back.splice(index, 1);
       log.push(LOG.switchesLeader(board.playerId, incoming.card.id));
+      return fireSwitched(board.playerId, incoming, outgoing);
     },
     revealTop(count, playerId) {
       const board = boardOf(playerId);
@@ -644,7 +689,7 @@ function createContext(
         // saying about it; only a genuinely absent character is.
         const leading = board.leader?.card.name === characterName;
         if (!leading) log.push(LOG.notInPlayToSwitch(characterName));
-        return false;
+        return [];
       }
       const incoming = board.back[at];
       const outgoing = board.leader;
@@ -652,7 +697,7 @@ function createContext(
       if (outgoing) board.back[at] = { ...outgoing, position: "back" };
       else board.back.splice(at, 1);
       log.push(LOG.switchesLeader(board.playerId, characterName));
-      return true;
+      return fireSwitched(board.playerId, incoming, outgoing);
     },
 
     trashToConcerto(count, filter, playerId) {

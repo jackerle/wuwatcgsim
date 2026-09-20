@@ -344,8 +344,8 @@ export const SD01: CardDef[] = [
       {
         condition: ["combo"],
         text: {
-          th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น Chixia การ์ดใบนี้ได้รับ +2 ดาเมจ",
-          en: "[Combo] Switch Leaders; if you switch to Chixia, this card gains +2 damage",
+          th: "[Combo] เปลี่ยน Leader หาก Chixia เป็นตัวที่ถูกสลับ การ์ดใบนี้ได้รับ +2 ดาเมจ",
+          en: "[Combo] Switch Leaders; if 「Chixia」 is one of the switched characters, this card gains +2 damage",
         },
         resolve: (ctx) => {
             const back = ctx.board().back;
@@ -358,8 +358,10 @@ export const SD01: CardDef[] = [
               ]
             );
             if (!chosen) return;
-            ctx.switchLeaderTo(chosen);
-            if (chosen === "Chixia") { ctx.buff({ cardId: ctx.self.id }, "attack", 2, "battle"); }
+            // "if 「Chixia」 is one of the switched characters" — the character
+            // leaving the Leader slot is switched too, not only the one arriving
+            // (906.2, and FAQ #52 on SD01-009 answers exactly this).
+            if (ctx.switchLeaderTo(chosen).includes("Chixia")) { ctx.buff({ cardId: ctx.self.id }, "attack", 2, "battle"); }
           },
       },
     ],
@@ -458,8 +460,8 @@ export const SD01: CardDef[] = [
       {
         condition: ["combo"],
         text: {
-          th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น Yangyang นำการ์ด 1 ใบบนสุดของเด็ควางที่ Concerto area",
-          en: "[Combo] Switch Leaders; if you switch to Yangyang, put the top card of your deck into the Concerto area",
+          th: "[Combo] เปลี่ยน Leader หาก Yangyang เป็นตัวที่ถูกสลับ นำการ์ด 1 ใบบนสุดของเด็ควางที่ Concerto area",
+          en: "[Combo] Switch Leaders; if 「Yangyang」 is one of the switched characters, put the top card of your deck into the Concerto area",
         },
         resolve: (ctx) => {
             const back = ctx.board().back;
@@ -472,8 +474,10 @@ export const SD01: CardDef[] = [
               ]
             );
             if (!chosen) return;
-            ctx.switchLeaderTo(chosen);
-            if (chosen === "Yangyang") { ctx.topToConcerto(1); }
+            // "if 「Yangyang」 is one of the switched characters" — the character
+            // leaving the Leader slot is switched too, not only the one arriving
+            // (906.2, and FAQ #52 on SD01-009 answers exactly this).
+            if (ctx.switchLeaderTo(chosen).includes("Yangyang")) { ctx.topToConcerto(1); }
           },
       },
     ],
@@ -596,8 +600,8 @@ export const SD01: CardDef[] = [
       {
         condition: ["combo"],
         text: {
-          th: "[Combo] เปลี่ยน Leader หากเปลี่ยนเป็น Rover (F) จั่วการ์ด 1 ใบ",
-          en: "[Combo] Switch Leaders; if you switch to Rover (F), draw 1 card",
+          th: "[Combo] เปลี่ยน Leader หาก Rover (F) เป็นตัวที่ถูกสลับ จั่วการ์ด 1 ใบ",
+          en: "[Combo] Switch Leaders; if 「Rover (F)」 is one of the switched characters, draw 1 card",
         },
         resolve: (ctx) => {
             const back = ctx.board().back;
@@ -610,8 +614,10 @@ export const SD01: CardDef[] = [
               ]
             );
             if (!chosen) return;
-            ctx.switchLeaderTo(chosen);
-            if (chosen === "Rover (F)") { ctx.draw(1); }
+            // "if 「Rover (F)」 is one of the switched characters" — the character
+            // leaving the Leader slot is switched too, not only the one arriving
+            // (906.2, and FAQ #52 on SD01-009 answers exactly this).
+            if (ctx.switchLeaderTo(chosen).includes("Rover (F)")) { ctx.draw(1); }
           },
       },
     ],
