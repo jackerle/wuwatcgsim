@@ -147,6 +147,78 @@ export function makeCursor(answers: ChoiceAnswer[] = []): AnswerCursor {
   return { answers, next: 0 };
 }
 
+/**
+ * Which cards to take out of a pile, asked of the player when there is a
+ * real choice to make.
+ *
+ * "Take a red Encore card from your trash" is a decision when the trash
+ * holds three of them, and the engine has no business making it — it used
+ * to take the most recently binned one and say nothing. Asked only when it
+ * matters: fewer matches than the card wants (or exactly as many) leaves
+ * nothing to decide, so nothing is asked; neither do copies of one printed
+ * card, which are not a choice, they are the same card twice.
+ *
+ * Returns the cards themselves, still in the pile; the caller moves them.
+ *
+ * Standalone rather than a helper closed over one card's own effect context:
+ * match.ts asks the same question outside of any effect — which charged
+ * cards pay a cost is the player's choice too (rule 909.2, "any X cards"),
+ * not a card asking on its own behalf. `askingCardId` credits whichever card
+ * IS asking, effect or not.
+ *
+ * `ask` is the asking function itself rather than a cursor, so each caller
+ * can suspend its own way: an effect's `ask(cursor, choice)` throws
+ * NeedsChoice, which `runEffect` is set up to catch, while match.ts's
+ * `Run.ask` throws Suspended, which `step` is set up to catch. Same question,
+ * same selection logic, two callers that cannot share an exception type.
+ */
+export function pickCardsFrom(
+  ask: (choice: PendingChoice) => ChoiceAnswer,
+  askingCardId: string,
+  pile: ActionCard[],
+  count: number,
+  filter: CardFilter | undefined,
+  owner: string,
+  prompt: LocalizedText,
+  /** What the pick is for — see ChoiceTag. Paired with `prompt`. */
+  tag: ChoiceTag
+): ActionCard[] {
+  // Newest first, which is the order these piles are read in and the one
+  // the old silent behaviour used.
+  const candidates = [...pile]
+    .reverse()
+    .filter((c) => !filter || matchesFilter(filterableFor(c), filter));
+  if (candidates.length <= count) return candidates;
+  // Copies of one printed card are not a choice, they are the same card
+  // twice. This is also what keeps a card that already asked — "you MAY
+  // take a {Basic Attack}", then take the one they named — from asking a
+  // second time on the way through here.
+  if (new Set(candidates.map((c) => c.id)).size === 1) return candidates.slice(0, count);
+
+  const answer = ask({
+    kind: "pickCard",
+    playerId: owner,
+    cardId: askingCardId,
+    prompt,
+    options: candidates.map(cardOption),
+    min: count,
+    max: count,
+    tag,
+  });
+  const picked = Array.isArray(answer) ? answer : [answer].filter((v) => typeof v === "string");
+  const seen = new Set<number>();
+  const chosen: ActionCard[] = [];
+  for (const value of picked as string[]) {
+    const at = optionIndex(value);
+    if (seen.has(at) || !candidates[at]) continue;
+    seen.add(at);
+    chosen.push(candidates[at]);
+  }
+  // An answer that named nothing usable still has to move the game on, so
+  // fall back to what the engine would have taken on its own.
+  return chosen.length > 0 ? chosen : candidates.slice(0, count);
+}
+
 function createContext(
   state: MatchState,
   card: CardDef,
@@ -213,62 +285,18 @@ function createContext(
     return moved.map(({ slot }) => slot.card.name);
   };
 
-  /**
-   * Which cards to take out of a pile, asked of the player when there is a
-   * real choice to make.
-   *
-   * "Take a red Encore card from your trash" is a decision when the trash
-   * holds three of them, and the engine has no business making it — it used
-   * to take the most recently binned one and say nothing. Asked only when it
-   * matters: fewer matches than the card wants (or exactly as many) leaves
-   * nothing to decide, so nothing is asked.
-   *
-   * Returns the cards themselves, still in the pile; the caller moves them.
-   */
+  // This card's own version of pickCardsFrom (above): same question, with
+  // `cursor` and `card.id` filled in from this effect's own context instead
+  // of being passed by every call site below.
   const pickFrom = (
     pile: ActionCard[],
     count: number,
     filter: CardFilter | undefined,
     owner: string,
     prompt: LocalizedText,
-    /** What the pick is for — see ChoiceTag. Paired with `prompt`. */
     tag: ChoiceTag
-  ): ActionCard[] => {
-    // Newest first, which is the order these piles are read in and the one
-    // the old silent behaviour used.
-    const candidates = [...pile]
-      .reverse()
-      .filter((c) => !filter || matchesFilter(filterableFor(c), filter));
-    if (candidates.length <= count) return candidates;
-    // Copies of one printed card are not a choice, they are the same card
-    // twice. This is also what keeps a card that already asked — "you MAY
-    // take a {Basic Attack}", then take the one they named — from asking a
-    // second time on the way through here.
-    if (new Set(candidates.map((c) => c.id)).size === 1) return candidates.slice(0, count);
-
-    const answer = ask(cursor, {
-      kind: "pickCard",
-      playerId: owner,
-      cardId: card.id,
-      prompt,
-      options: candidates.map(cardOption),
-      min: count,
-      max: count,
-      tag,
-    });
-    const picked = Array.isArray(answer) ? answer : [answer].filter((v) => typeof v === "string");
-    const seen = new Set<number>();
-    const chosen: ActionCard[] = [];
-    for (const value of picked as string[]) {
-      const at = optionIndex(value);
-      if (seen.has(at) || !candidates[at]) continue;
-      seen.add(at);
-      chosen.push(candidates[at]);
-    }
-    // An answer that named nothing usable still has to move the game on, so
-    // fall back to what the engine would have taken on its own.
-    return chosen.length > 0 ? chosen : candidates.slice(0, count);
-  };
+  ): ActionCard[] =>
+    pickCardsFrom((choice) => ask(cursor, choice), card.id, pile, count, filter, owner, prompt, tag);
 
   /** Lifts specific cards out of a pile, by identity. */
   const lift = (pile: ActionCard[], cards: ActionCard[]): ActionCard[] => {

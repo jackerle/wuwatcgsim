@@ -74,6 +74,10 @@ export const PROMPT = {
     th: `เลือกการ์ดใน Concerto ที่จะทิ้ง ${count} ใบ`,
     en: `Bin ${count} card(s) from the Concerto area`,
   }),
+  payCost: (count: number, cardName: string) => ({
+    th: `เลือกการ์ดใน Concerto ${count} ใบ เพื่อจ่ายค่าใช้จ่ายของ ${cardName}`,
+    en: `Choose ${count} card(s) from the Concerto area to pay for ${cardName}`,
+  }),
   discard: (count: number) => ({
     th: `เลือกการ์ดในมือที่จะทิ้ง ${count} ใบ`,
     en: `Discard ${count} card(s) from hand`,

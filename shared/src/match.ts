@@ -30,7 +30,7 @@
 // partially-applied board for display only — never feed it back in.
 
 import { getCard } from "./cardDb";
-import { LOG, type LogLine } from "./log";
+import { LOG, PROMPT, type LogLine } from "./log";
 import { keywordsOf, type ChoiceAnswer, type PendingChoice } from "./cardDef";
 import { effectiveStats, type EffectTrigger } from "./cards";
 import {
@@ -40,6 +40,7 @@ import {
   expireModifiers,
   filterableFor,
   grantedFor,
+  pickCardsFrom,
   qualifyingModifiers,
   zoneBlocking,
   makeCursor,
@@ -344,6 +345,20 @@ class Run {
   }
 
   /**
+   * Asks the player something that is the rules' own question rather than a
+   * card's — which charged cards pay a cost, for instance (909.2: "any X
+   * cards"). Same replay contract as fireOn(): no answer yet rewinds the
+   * whole step and comes back out as `pending`, same as a card's question
+   * would, just without a trigger behind it.
+   */
+  ask(choice: PendingChoice): ChoiceAnswer {
+    if (this.cursor.next < this.cursor.answers.length) {
+      return this.cursor.answers[this.cursor.next++];
+    }
+    throw new Suspended(choice, null);
+  }
+
+  /**
    * Raises a trigger that the whole board gets to answer — the clash, the
    * start of a turn, a phase boundary. Both players' cards react.
    */
@@ -530,9 +545,32 @@ function canPay(board: PlayerBoard, cost: number): boolean {
   return board.competitionArea.length >= cost;
 }
 
-function payCost(board: PlayerBoard, cost: number): void {
-  // Oldest first, so the pile reads in the order it was charged.
-  const spent = board.competitionArea.splice(0, cost);
+/**
+ * Spends `cost` charged cards on `forCard` — rule 909.2: "move ANY X cards
+ * from the Concerto area to the trash". Which ones is the player's choice,
+ * asked the same way a card's own effect asks (pickCardsFrom, shared with
+ * effects.ts): only when it is a real one, meaning more cards are charged
+ * than the cost and they are not all copies of one printed card. Otherwise
+ * there is nothing to decide and it goes straight through.
+ */
+function payCost(run: Run, playerId: string, forCard: ActionCard, cost: number): void {
+  if (cost <= 0) return;
+  const board = run.board(playerId);
+  const pile = board.competitionArea;
+  const spent = pickCardsFrom(
+    (choice) => run.ask(choice),
+    forCard.id,
+    pile,
+    cost,
+    undefined,
+    playerId,
+    PROMPT.payCost(cost, forCard.name),
+    "concertoToTrash"
+  );
+  for (const spentCard of spent) {
+    const at = pile.indexOf(spentCard);
+    if (at >= 0) pile.splice(at, 1);
+  }
   board.trash.push(...spent);
 }
 
@@ -1251,7 +1289,7 @@ function playCombo(run: Run, playerId: string, cardId: string): void {
   }
   const blocked = playBlocking(run.state, card, playerId);
   if (blocked) run.reject(blocked);
-  payCost(board, costOf(run.state, card, playerId));
+  payCost(run, playerId, card, costOf(run.state, card, playerId));
   board.hand.splice(index, 1);
   zone.push(card);
   run.state.actionZone[playerId] = zone;
@@ -1304,9 +1342,8 @@ function playCombo(run: Run, playerId: string, cardId: string): void {
 function payOnReveal(run: Run, card: ActionCard, playerId: string): void {
   const cost = costOf(run.state, card, playerId);
   if (cost <= 0) return;
-  const board = run.board(playerId);
-  const available = board.competitionArea.length;
-  payCost(board, Math.min(cost, available));
+  const available = run.board(playerId).competitionArea.length;
+  payCost(run, playerId, card, Math.min(cost, available));
   run.note(
     available >= cost
       ? LOG.pays(playerId, cost, card.name)
