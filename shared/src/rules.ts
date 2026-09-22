@@ -65,9 +65,10 @@ export function validateDecks(
  * Phase — both names refer to the step where the two players reveal their
  * face-down cards simultaneously.
  *
- * "mulligan" is deliberately absent: it happens once, before turn 1, and the
- * turn cycle never reaches it again. nextPhase("mulligan") is therefore null,
- * and the engine moves out of it by hand once both players have chosen.
+ * "leaderSelect" and "mulligan" are deliberately absent: each happens once,
+ * before turn 1, and the turn cycle never reaches either again.
+ * nextPhase("leaderSelect")/nextPhase("mulligan") are therefore null, and the
+ * engine moves out of them by hand once both players have chosen.
  */
 export const TURN_PHASE_ORDER: readonly TurnPhase[] = [
   "draw",
@@ -78,6 +79,7 @@ export const TURN_PHASE_ORDER: readonly TurnPhase[] = [
 ] as const;
 
 export const PHASE_LABEL: Record<TurnPhase, { en: string; th: string }> = {
+  leaderSelect: { en: "Choose Leader", th: "เลือก Leader" },
   mulligan: { en: "Mulligan", th: "เปลี่ยนการ์ดในมือ" },
   draw: { en: "Draw Phase", th: "เฟสจั่ว" },
   action: { en: "Action Phase", th: "เฟสแอ็กชัน" },

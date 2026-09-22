@@ -62,7 +62,8 @@ function activeStep(state: MatchState): PhaseStepKey | null {
     case "end":
       return "end";
     default:
-      // The mulligan, which renders its own bar without a track.
+      // Leader Select and the mulligan, which render their own bar without a
+      // track — there is no turn yet for the track to describe.
       return null;
   }
 }
@@ -97,6 +98,10 @@ export interface ControlBarProps {
   waitingOn?: string | null;
   /** See MatchController.cancel — only shown to the move's actor. */
   onCancelChoice?: (() => void) | null;
+  chooseLeader?: {
+    pickedId: string | null;
+    onSubmit: () => void;
+  } | null;
   mulligan?: {
     picked: number;
     onSubmit: () => void;
@@ -118,6 +123,7 @@ export function ControlBar({
   names,
   waitingOn,
   onCancelChoice,
+  chooseLeader,
   mulligan,
   levelUp,
 }: ControlBarProps) {
@@ -321,6 +327,51 @@ export function ControlBar({
             "controlBar.gameOver",
             state.winnerId === "draw" ? t("controlBar.draw") : t("controlBar.wins", nameOf(state.winnerId))
           )}
+        </span>
+      </div>
+    );
+  }
+
+  if (state.phase === "leaderSelect") {
+    const chosen = Boolean(state.leaderChosen[viewer]);
+    const theirs = controls.includes(viewer);
+    const waitingFor = Object.keys(state.boards).filter((id) => !state.leaderChosen[id]);
+    const board = state.boards[viewer];
+    const pickedName = chooseLeader?.pickedId
+      ? [board?.leader, ...(board?.back ?? [])].find(
+          (slot) => slot?.card.id === chooseLeader.pickedId
+        )?.card.name
+      : undefined;
+    return (
+      <div className="control-bar simple">
+        <span className="control-phase">{t("controlBar.leaderSelectHeading")}</span>
+        <span className="control-actions">
+          {theirs && !chosen && chooseLeader && (
+            <>
+              <span className="control-hint">{t("controlBar.leaderSelectHint")}</span>
+              <button
+                type="button"
+                className="primary"
+                disabled={!chooseLeader.pickedId}
+                onClick={chooseLeader.onSubmit}
+              >
+                {pickedName ? t("controlBar.confirmLeader", pickedName) : t("controlBar.leaderSelectHint")}
+              </button>
+            </>
+          )}
+          {theirs && chosen && (
+            <span className="control-hint">
+              {waitingFor.length > 0
+                ? t("controlBar.chosenWaiting", waitingFor.map(nameOf).join(", "))
+                : t("controlBar.chosen")}
+            </span>
+          )}
+          {!theirs && (
+            <span className="control-hint">
+              {chosen ? t("controlBar.theyChose", nameOf(viewer)) : t("controlBar.waitingToPick", nameOf(viewer))}
+            </span>
+          )}
+          {error && <span className="control-error">{error}</span>}
         </span>
       </div>
     );

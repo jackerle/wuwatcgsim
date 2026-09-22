@@ -20,6 +20,17 @@ export interface SlotActions {
   onSwitch: (toCardId: string) => void;
 }
 
+/**
+ * Leader Select's own affordance: while it is on, a click picks this
+ * character as the Leader outright — no menu, and no other action is on
+ * offer yet, since the turn itself has not started.
+ */
+export interface PickableLeader {
+  /** Is this the character currently picked (not yet submitted)? */
+  picked: boolean;
+  onPick: () => void;
+}
+
 const previewOf = (card: CharacterCard) => ({
   cardId: card.id,
   imageId: card.imageId,
@@ -47,12 +58,15 @@ export function CharacterSlot({
   slot,
   label,
   actions,
+  pickable,
 }: {
   slot: CharacterInstance | null;
   /** Shown in an empty slot, and as the expanded panel's title. */
   label?: string;
   /** Omitted for a character nobody at this screen may move right now. */
   actions?: SlotActions;
+  /** Set during Leader Select — see PickableLeader. Overrides `actions`. */
+  pickable?: PickableLeader;
 }) {
   const { t } = useLang();
   const { setOpenPile } = usePileModal();
@@ -78,10 +92,17 @@ export function CharacterSlot({
     });
   };
 
-  const levelOptions = actions?.levelOptions ?? [];
-  const switchOptions = actions?.switchOptions ?? [];
-  // With nothing to decide, a click is the old one-step "show me the pile".
-  const open = levelOptions.length || switchOptions.length ? () => setMenu("root") : view;
+  const levelOptions = pickable ? [] : actions?.levelOptions ?? [];
+  const switchOptions = pickable ? [] : actions?.switchOptions ?? [];
+  // Leader Select overrides everything else a click could mean: there is
+  // nothing to decide but which character sits in the Leader slot.
+  // Otherwise, with nothing to decide, a click is the old one-step "show me
+  // the pile".
+  const open = pickable
+    ? pickable.onPick
+    : levelOptions.length || switchOptions.length
+      ? () => setMenu("root")
+      : view;
 
   const levelUp = (card: CharacterCard) => {
     setMenu(null);
@@ -127,13 +148,17 @@ export function CharacterSlot({
   return (
     <div className="character-slot-wrap" ref={rootRef}>
       <div
-        className={`character-slot clickable ${slot.position} ${menu ? "menu-open" : ""}`}
+        className={`character-slot clickable ${slot.position} ${menu ? "menu-open" : ""} ${
+          pickable ? "picking" : ""
+        } ${pickable?.picked ? "picked" : ""}`}
         onClick={open}
         role="button"
         title={
-          root.length > 1
-            ? t("characterSlot.multiActionTitle", slot.card.name)
-            : t("characterSlot.viewOnlyTitle", slot.card.name, pile.length)
+          pickable
+            ? t("characterSlot.pickAsLeaderTitle", slot.card.name)
+            : root.length > 1
+              ? t("characterSlot.multiActionTitle", slot.card.name)
+              : t("characterSlot.viewOnlyTitle", slot.card.name, pile.length)
         }
       >
         {pile.map((card, index) => (
@@ -147,7 +172,11 @@ export function CharacterSlot({
           </div>
         ))}
         <span className="character-level">Lv.{slot.card.level}</span>
-        {slot.position === "leader" && <span className="character-tag">Leader</span>}
+        {/* Leader Select has not been submitted yet, so the tag follows the
+            LOCAL pick rather than the board's still-default arrangement. */}
+        {(pickable ? pickable.picked : slot.position === "leader") && (
+          <span className="character-tag">Leader</span>
+        )}
         {pile.length > 1 && <span className="character-count">{pile.length}</span>}
       </div>
 

@@ -92,6 +92,13 @@ export const LOG = {
   // --- the opening ---
   goesFirst: (player: string) =>
     line(`สุ่มลำดับแล้ว — ${player} เป็นฝ่ายเริ่มก่อน`, `Coin flipped — ${player} goes first`),
+  picksLeader: (player: string, character: string) =>
+    line(`${player} เลือก ${character} เป็น Leader`, `${player} picks ${character} as Leader`),
+  leaderSelectOver: () =>
+    line(
+      "ทั้งสองฝ่ายเลือก Leader แล้ว — ไปต่อที่มือเริ่มต้น",
+      "Both sides have their Leader — on to the opening hand"
+    ),
   mulligans: (player: string, count: number) =>
     line(
       `${player} คืนการ์ด ${count} ใบเข้ากอง สับ แล้วจั่วใหม่ ${count} ใบ`,

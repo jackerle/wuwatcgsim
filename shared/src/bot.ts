@@ -25,6 +25,7 @@ import { ALL_CARDS } from "./cardDb";
 import { isActionCard, type ChoiceAnswer, type ChoiceOption, type PendingChoice } from "./cardDef";
 import { resolveCombat, type ActionCard, type CardColor, type MatchState, type PlayerBoard } from "./game";
 import {
+  canChooseLeader,
   canCommit,
   canMulligan,
   canPassCounter,
@@ -211,8 +212,13 @@ export function botIntents(view: MatchState, seat: Seat): MatchIntent[] {
   if (!board || view.winnerId) return [];
   const kinds = new Set(legalIntents(view, seat));
 
-  // The mulligan and the Counter Phase belong to both players at once, so
-  // they are asked before anything gated on whose turn it is.
+  // Leader Select, the mulligan, and the Counter Phase all belong to both
+  // players at once, so they are asked before anything gated on whose turn
+  // it is. The bot has no opinion on its Leader — the deck's own order
+  // already picked one — so it simply confirms whatever is already there.
+  if (canChooseLeader(view, seat)) {
+    return [{ kind: "chooseLeader", leaderId: board.leader!.card.id }];
+  }
   if (canMulligan(view, seat)) return [mulligan(view, seat, board)];
   if (canCommit(view, seat) && !view.committed[seat]) return counterMoves(view, seat, board);
 

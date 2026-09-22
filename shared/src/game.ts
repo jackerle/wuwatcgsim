@@ -145,12 +145,15 @@ export function characterStack(slot: CharacterInstance): CharacterCard[] {
 }
 
 /**
- * `mulligan` is the opening step, before turn 1: both players may put any
- * number of their five cards back, shuffle and draw that many again. It is
- * not part of the turn cycle — see TURN_PHASE_ORDER — and a match never
- * returns to it.
+ * `leaderSelect` and `mulligan` are the two opening steps, before turn 1.
+ * `leaderSelect` comes first: both players freely arrange their three Level 0
+ * starters between the Leader slot and the two Back slots (rule 101.4 — "in
+ * any order"). `mulligan` follows it: both players may put any number of
+ * their five cards back, shuffle and draw that many again. Neither is part
+ * of the turn cycle — see TURN_PHASE_ORDER — and a match never returns to
+ * either one.
  */
-export type TurnPhase = "mulligan" | "draw" | "action" | "counter" | "combo" | "end";
+export type TurnPhase = "leaderSelect" | "mulligan" | "draw" | "action" | "counter" | "combo" | "end";
 
 /** The one non-draw action a player may take per turn (at most once each). */
 export type ActionKind = "charge" | "levelUp" | "switch";
@@ -206,6 +209,12 @@ export interface MatchState {
    * in, whatever order they answered in.
    */
   mulliganDone: Record<string, boolean>;
+  /**
+   * Who has finished arranging their starting Leader, the step before the
+   * mulligan. Same shape, same reason: both players choose independently and
+   * the phase ends once everyone has.
+   */
+  leaderChosen: Record<string, boolean>;
   /**
    * Each player's Action Zone: starts with the one card revealed in the
    * Counter Phase, then grows as combo cards are added during the Combo
@@ -371,6 +380,7 @@ export function emptyMatchState(matchId: string, playerIds: string[]): MatchStat
     facedown: byPlayer(() => null),
     committed: byPlayer(() => false),
     mulliganDone: byPlayer(() => false),
+    leaderChosen: byPlayer(() => false),
     actionZone: byPlayer<ActionCard[]>(() => []),
     combo: null,
     lastBattleWinnerId: null,

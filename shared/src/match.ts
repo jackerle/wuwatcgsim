@@ -137,9 +137,10 @@ function emptyBoard(playerId: string): PlayerBoard {
 }
 
 /**
- * Builds the opening position: Leaders down, opening hands drawn, and the
- * board waiting on the mulligan — after which turn 1 belongs to
- * `startingPlayerId`, on its Draw Phase.
+ * Builds the opening position: three starters down (Leader picked by deck
+ * order, until the player says otherwise), opening hands drawn, and the
+ * board waiting on the Leader Select step — after which comes the mulligan,
+ * and then turn 1 belongs to `startingPlayerId`, on its Draw Phase.
  *
  * Decks are used in the order given, so shuffle before calling. Throws if
  * either deck is illegal — the caller should have run validateDecks first and
@@ -153,7 +154,7 @@ export function createMatch(setup: MatchSetup): MatchState {
     ),
     turnPlayerId: setup.startingPlayerId,
     startingPlayerId: setup.startingPlayerId,
-    phase: setup.skipMulligan ? "draw" : "mulligan",
+    phase: setup.skipMulligan ? "draw" : "leaderSelect",
     // Seeded from the match id so two matches do not deal the same randomness,
     // while one match stays perfectly replayable.
     rngSeed: hashSeed(setup.matchId),
@@ -199,6 +200,7 @@ export function createMatch(setup: MatchSetup): MatchState {
     state.facedown[player.playerId] = null;
     state.committed[player.playerId] = false;
     state.mulliganDone[player.playerId] = Boolean(setup.skipMulligan);
+    state.leaderChosen[player.playerId] = Boolean(setup.skipMulligan);
     state.actionZone[player.playerId] = [];
   }
 
@@ -214,6 +216,13 @@ export function createMatch(setup: MatchSetup): MatchState {
  * question, or is rejected with a reason.
  */
 export type MatchIntent =
+  /**
+   * Leader Select, the step before the mulligan: name which of the three
+   * starters (the current Leader or either Back character) takes the Leader
+   * slot. Naming the one already there is a legal answer — it is how a
+   * player who is happy with the default confirms and moves on.
+   */
+  | { kind: "chooseLeader"; leaderId: string }
   /**
    * Opening mulligan: put any number of the five cards back, shuffle, and
    * draw that many again. An empty list is the "keep this hand" answer, and
@@ -649,6 +658,8 @@ function apply(run: Run, playerId: string, intent: MatchIntent): void {
   if (run.state.winnerId) run.reject("The match is already over");
 
   switch (intent.kind) {
+    case "chooseLeader":
+      return chooseLeader(run, playerId, intent.leaderId);
     case "mulligan":
       return mulligan(run, playerId, intent.cardIds);
     case "startTurn":
@@ -679,6 +690,47 @@ function apply(run: Run, playerId: string, intent: MatchIntent): void {
     case "endTurn":
       return endTurn(run, playerId);
   }
+}
+
+// --- Leader Select -----------------------------------------------------
+
+/**
+ * One player's opening arrangement: name which of the three Level 0 starters
+ * — the one currently in the Leader slot, or either Back character — takes
+ * the Leader slot instead.
+ *
+ * Not `switchLeader`: that is a Switch action taken during a turn, spends the
+ * turn player's one Switch for it, and raises [Switch] for both characters
+ * involved. This happens before turn 1 even exists — the rules call it
+ * placement, not a switch (101.4, "in any order") — so it costs nothing and
+ * fires nothing. Naming the character already in the Leader slot is a legal,
+ * no-op answer: it is how a player happy with the default confirms it.
+ */
+function chooseLeader(run: Run, playerId: string, leaderId: string): void {
+  if (run.state.phase !== "leaderSelect") run.reject("There is no Leader to choose right now");
+  if (run.state.leaderChosen[playerId]) run.reject("You have already chosen your Leader");
+
+  const board = run.board(playerId);
+  const current = board.leader;
+  if (!current) run.reject("No starters are on the board yet");
+
+  if (current.card.id !== leaderId) {
+    const index = board.back.findIndex((slot) => slot.card.id === leaderId);
+    if (index < 0) run.reject(`${leaderId} is not one of your starting characters`);
+    const incoming = board.back[index];
+    board.back[index] = { ...current, position: "back" };
+    board.leader = { ...incoming, position: "leader" };
+    run.note(LOG.picksLeader(playerId, incoming.card.name), incoming.card.id);
+  }
+
+  run.state.leaderChosen[playerId] = true;
+  if (Object.keys(run.state.boards).every((id) => run.state.leaderChosen[id])) {
+    run.state.phase = "mulligan";
+    run.note(LOG.leaderSelectOver());
+  }
+  // Whichever character now holds the Leader slot, its Leader Skill and any
+  // passives scoped to "the active Leader" have to see the new arrangement.
+  run.settle();
 }
 
 // --- Mulligan --------------------------------------------------------------
@@ -1447,8 +1499,12 @@ export function legalIntents(state: MatchState, playerId: string): MatchIntent["
   const board = state.boards[playerId];
   if (!board) return [];
 
-  // The mulligan is not part of anybody's turn: both players answer it, in
-  // whatever order they get to it, so it is checked before the turn gate.
+  // Leader Select and the mulligan both come before the turn cycle: both
+  // players answer each independently, in whatever order they get to it, so
+  // they are checked before the turn gate.
+  if (state.phase === "leaderSelect") {
+    return state.leaderChosen[playerId] ? [] : ["chooseLeader"];
+  }
   if (state.phase === "mulligan") {
     return state.mulliganDone[playerId] ? [] : ["mulligan"];
   }
@@ -1515,6 +1571,17 @@ export function legalIntents(state: MatchState, playerId: string): MatchIntent["
 export function canMulligan(state: MatchState, playerId: string): boolean {
   if (state.winnerId || state.phase !== "mulligan") return false;
   return Boolean(state.boards[playerId]) && !state.mulliganDone[playerId];
+}
+
+/**
+ * Whether this player still owes their opening Leader arrangement.
+ *
+ * Same reasoning as canMulligan(): both players answer this on their own,
+ * before either has a "turn" to speak of.
+ */
+export function canChooseLeader(state: MatchState, playerId: string): boolean {
+  if (state.winnerId || state.phase !== "leaderSelect") return false;
+  return Boolean(state.boards[playerId]) && !state.leaderChosen[playerId];
 }
 
 /**

@@ -58,6 +58,13 @@ export function PlayGame({
    * confirm goes through.
    */
   const [levelUp, setLevelUp] = useState<CharacterCard | null>(null);
+  /**
+   * A Leader picked but not yet submitted — see the `chooseLeader` control
+   * bar branch. Null means "still the default", not "nothing picked": the
+   * default IS a legal, already-placed answer (see chooseLeader's own docs),
+   * so the fallback below reads the board's own arrangement.
+   */
+  const [pickedLeaderId, setPickedLeaderId] = useState<string | null>(null);
 
   const state = match.shown;
   const turnPlayer = state.turnPlayerId;
@@ -72,6 +79,15 @@ export function PlayGame({
    * before turn 1, and dimming the whole hand would say the wrong thing).
    */
   const mulliganing = state.phase === "mulligan" && !state.mulliganDone[bottom];
+
+  /**
+   * Leader Select, still owed by whoever's board this is: the step before
+   * the mulligan, where each side arranges their three starters.
+   */
+  const choosingLeader = state.phase === "leaderSelect" && !state.leaderChosen[bottom];
+  const bottomLeaderId = state.boards[bottom]?.leader?.card.id ?? null;
+  /** The pick this client would submit right now — the default until touched. */
+  const effectiveLeaderId = pickedLeaderId ?? bottomLeaderId;
 
   /**
    * A click on your own hand means whatever the phase says it means: pick a
@@ -125,7 +141,7 @@ export function PlayGame({
    * when this client is the one playing it.
    */
   const actionsFor = (slot: CharacterInstance) => {
-    if (state.phase === "mulligan") return undefined;
+    if (state.phase === "mulligan" || state.phase === "leaderSelect") return undefined;
     if (turnPlayer !== bottom || !match.controls.includes(bottom) || levelUp) return undefined;
     const options = levelUpOptions(state, bottom, slot.card.id);
     const back = state.boards[bottom]?.back ?? [];
@@ -210,6 +226,7 @@ export function PlayGame({
               onRestart={() => {
                 setSelected([]);
                 setLevelUp(null);
+                setPickedLeaderId(null);
                 match.restart();
               }}
               onLeave={onLeave}
@@ -246,6 +263,19 @@ export function PlayGame({
               names={match.names}
               waitingOn={match.askingSeat && match.askingSeat !== bottom ? match.askingSeat : null}
               onCancelChoice={match.canCancel ? match.cancel : null}
+              chooseLeader={
+                choosingLeader
+                  ? {
+                      pickedId: effectiveLeaderId,
+                      onSubmit: () => {
+                        if (effectiveLeaderId) {
+                          send(bottom, { kind: "chooseLeader", leaderId: effectiveLeaderId });
+                        }
+                        setPickedLeaderId(null);
+                      },
+                    }
+                  : null
+              }
               mulligan={
                 mulliganing
                   ? {
@@ -288,6 +318,11 @@ export function PlayGame({
               actionsFor={actionsFor}
               handMenuFor={handMenuFor}
               dealKey={state.matchId}
+              leaderPick={
+                choosingLeader
+                  ? { pickedId: effectiveLeaderId, onPick: setPickedLeaderId }
+                  : undefined
+              }
             />
 
             <PileModal />

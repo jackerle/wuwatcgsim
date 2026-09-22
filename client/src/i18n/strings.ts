@@ -254,6 +254,15 @@ export const STRINGS = {
   },
   "controlBar.draw": { th: "เสมอ", en: "Draw" },
   "controlBar.wins": { th: (name: string) => `${name} ชนะ`, en: (name: string) => `${name} wins` },
+  "controlBar.leaderSelectHeading": { th: "เลือก Leader", en: "Choose your Leader" },
+  "controlBar.leaderSelectHint": {
+    th: "แตะตัวละครที่จะให้เป็น Leader",
+    en: "Tap a character to make them Leader",
+  },
+  "controlBar.confirmLeader": {
+    th: (name: string) => `ยืนยัน Leader: ${name}`,
+    en: (name: string) => `Confirm Leader: ${name}`,
+  },
   "controlBar.mulliganHeading": {
     th: (name: string) => `เปลี่ยนการ์ดในมือ · ${name} เริ่มก่อน`,
     en: (name: string) => `Mulligan · ${name} goes first`,
@@ -370,6 +379,10 @@ export const STRINGS = {
   "characterSlot.wholePileHint": { th: (n: number) => `กองการ์ดทั้งหมด (${n} ใบ)`, en: (n: number) => `Whole pile (${n} cards)` },
   "characterSlot.levelUp": { th: "เลเวลอัป", en: "Level Up" },
   "characterSlot.playableHint": { th: (n: number) => `${n} ใบที่ลงได้`, en: (n: number) => `${n} playable` },
+  "characterSlot.pickAsLeaderTitle": {
+    th: (name: string) => `เลือก ${name} เป็น Leader`,
+    en: (name: string) => `Pick ${name} as Leader`,
+  },
   "characterSlot.switch": { th: "สลับ", en: "Switch" },
   "characterSlot.switchFromLeaderHint": {
     th: "เอาตัวหลังขึ้นมาเป็น Leader",

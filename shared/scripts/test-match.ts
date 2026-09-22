@@ -263,10 +263,12 @@ function drive(
   );
 }
 
-// --- The opening mulligan --------------------------------------------------
+// --- Leader Select -----------------------------------------------------
 //
-// Five cards, put back as many as you like, shuffle, draw the same number
-// again. Both players answer it before turn 1 starts, in either order.
+// Before the mulligan, both players may freely arrange their three Level 0
+// starters between the Leader slot and the two Back slots (rule 101.4, "in
+// any order"). Naming the character already in the Leader slot is how a
+// player happy with the deck's default order confirms and moves on.
 
 function mulliganMatch(): MatchState {
   return createMatch({
@@ -279,9 +281,79 @@ function mulliganMatch(): MatchState {
   });
 }
 
+/** Both sides confirm whichever Leader is already up, to reach the mulligan. */
+function pastLeaderSelect(state: MatchState): MatchState {
+  let s = state;
+  for (const playerId of Object.keys(s.boards)) {
+    s = step(s, playerId, { kind: "chooseLeader", leaderId: s.boards[playerId].leader!.card.id }).state;
+  }
+  return s;
+}
+
 {
   const s = mulliganMatch();
-  check("แจกการ์ดแล้วเริ่มที่เฟสเปลี่ยนการ์ด", s.phase === "mulligan", s.phase);
+  check("แจกการ์ดแล้วเริ่มที่เฟสเลือก Leader", s.phase === "leaderSelect", s.phase);
+  check("Leader เริ่มต้นเป็นตัวแรกตามลำดับเด็ค", s.boards.p1.leader?.card.id === "BP01-005");
+  check("ยังไม่มีใครเลือก", !s.leaderChosen.p1 && !s.leaderChosen.p2);
+  check(
+    "ระหว่างเลือก Leader ยังเปลี่ยนมือไม่ได้",
+    step(s, "p1", { kind: "mulligan", cardIds: [] }).error !== null
+  );
+  check(
+    "ระหว่างเลือก Leader ยังเริ่มเทิร์นไม่ได้",
+    step(s, "p1", { kind: "startTurn" }).error !== null
+  );
+  check(
+    "ทั้งสองฝ่ายมีสิทธิ์เลือก Leader ไม่ใช่แค่เจ้าของเทิร์น",
+    legalIntents(s, "p1").includes("chooseLeader") && legalIntents(s, "p2").includes("chooseLeader")
+  );
+  check(
+    "เลือกตัวที่ไม่ได้อยู่ในสนามไม่ได้",
+    step(s, "p1", { kind: "chooseLeader", leaderId: "not-a-real-card" }).error !== null
+  );
+}
+
+{
+  // Confirming the default: naming the character already in the Leader slot
+  // leaves the roster untouched but still counts as having chosen.
+  let s = mulliganMatch();
+  const before = s.boards.p1.leader!.card.id;
+  s = step(s, "p1", { kind: "chooseLeader", leaderId: before }).state;
+  check("ยืนยัน Leader เดิม -> ตัวเดิมยังเป็น Leader", s.boards.p1.leader?.card.id === before);
+  check("ยืนยันแล้ว -> ถือว่าเลือกแล้ว", s.leaderChosen.p1 === true);
+  check("อีกฝ่ายยังไม่เลือก -> ยังไม่เข้าเฟสเปลี่ยนการ์ด", s.phase === "leaderSelect", s.phase);
+  check("เลือกซ้ำไม่ได้", step(s, "p1", { kind: "chooseLeader", leaderId: before }).error !== null);
+
+  s = step(s, "p2", { kind: "chooseLeader", leaderId: s.boards.p2.leader!.card.id }).state;
+  check("ทั้งคู่เลือกแล้ว -> เข้าเฟสเปลี่ยนการ์ด", s.phase === "mulligan", s.phase);
+}
+
+{
+  // Swapping in a Back character: it takes the Leader slot, the old Leader
+  // moves to Back, and the roster is still the same three characters.
+  let s = mulliganMatch();
+  const backCharacter = s.boards.p1.back[0].card;
+  const oldLeaderId = s.boards.p1.leader!.card.id;
+  s = step(s, "p1", { kind: "chooseLeader", leaderId: backCharacter.id }).state;
+  check("สลับ Leader ได้ตามใจ -> ตัวที่เลือกขึ้นมาเป็น Leader", s.boards.p1.leader?.card.id === backCharacter.id);
+  check(
+    "Leader เดิมย้ายไปอยู่ตำแหน่งหลังแทน",
+    s.boards.p1.back.some((slot) => slot.card.id === oldLeaderId)
+  );
+  check(
+    "ยังเป็นตัวละครคนละตัวกัน 3 ตัวเท่าเดิม",
+    new Set([s.boards.p1.leader!.card.name, ...s.boards.p1.back.map((b) => b.card.name)]).size === 3
+  );
+}
+
+// --- The opening mulligan --------------------------------------------------
+//
+// Five cards, put back as many as you like, shuffle, draw the same number
+// again. Both players answer it before turn 1 starts, in either order.
+
+{
+  const s = pastLeaderSelect(mulliganMatch());
+  check("เลือก Leader ครบแล้วเข้าเฟสเปลี่ยนการ์ด", s.phase === "mulligan", s.phase);
   check("ยังไม่มีใครเลือก", !s.mulliganDone.p1 && !s.mulliganDone.p2);
   check(
     "ระหว่างเปลี่ยนการ์ด ยังเริ่มเทิร์นไม่ได้",
@@ -299,7 +371,7 @@ function mulliganMatch(): MatchState {
 
 {
   // Keeping the hand: a real answer, and it must not move a single card.
-  let s = mulliganMatch();
+  let s = pastLeaderSelect(mulliganMatch());
   const before = s.boards.p1.hand.map((card) => card.id).join(",");
   const deckBefore = s.boards.p1.actionDeck.length;
   s = step(s, "p1", { kind: "mulligan", cardIds: [] }).state;
@@ -316,7 +388,7 @@ function mulliganMatch(): MatchState {
 
 {
   // Putting cards back: the hand stays five, the deck stays forty minus five.
-  let s = mulliganMatch();
+  let s = pastLeaderSelect(mulliganMatch());
   const handBefore = s.boards.p1.hand.length;
   const deckBefore = s.boards.p1.actionDeck.length;
   const putBack = s.boards.p1.hand.slice(0, 3).map((card) => card.id);
@@ -335,7 +407,7 @@ function mulliganMatch(): MatchState {
   check("อีกฝ่ายไม่ถูกแตะ", s.boards.p2.hand.length === INITIAL_HAND_SIZE);
 
   // Whole hand back is legal — that is the worst opening the rules allow for.
-  let all = mulliganMatch();
+  let all = pastLeaderSelect(mulliganMatch());
   all = step(all, "p2", {
     kind: "mulligan",
     cardIds: all.boards.p2.hand.map((card) => card.id),
@@ -344,7 +416,7 @@ function mulliganMatch(): MatchState {
 
   check(
     "คืนการ์ดที่ไม่ได้อยู่ในมือไม่ได้",
-    step(mulliganMatch(), "p1", { kind: "mulligan", cardIds: ["BP01-999"] }).error !== null
+    step(pastLeaderSelect(mulliganMatch()), "p1", { kind: "mulligan", cardIds: ["BP01-999"] }).error !== null
   );
 }
 

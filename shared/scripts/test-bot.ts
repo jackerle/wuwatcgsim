@@ -299,6 +299,9 @@ function dumbStep(session: MatchSession, seat: Seat): boolean {
   const board = view.boards[seat];
   if (!board) return false;
   const tries: Parameters<MatchSession["apply"]>[1][] = [
+    // Dumb, not blind: it always just confirms whichever starter is already
+    // in the Leader slot rather than trying to arrange them.
+    { kind: "chooseLeader", leaderId: board.leader?.card.id ?? "" },
     { kind: "mulligan", cardIds: [] },
     { kind: "startTurn" },
     { kind: "toBattle" },

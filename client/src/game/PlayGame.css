@@ -596,12 +596,21 @@
   color: #5c6377;
 }
 
-.character-slot.leader .character-layer.top {
+/* :not(.picking) — Leader Select shows its own ring (below) instead. Without
+   this, the slot still holding the board's pre-choice default would keep its
+   gold ring right alongside the green one on whatever is locally picked,
+   reading as two different Leaders at once. */
+.character-slot.leader:not(.picking) .character-layer.top {
   box-shadow: 0 0 0 2px #f0b23f;
 }
 
 .character-slot.clickable {
   cursor: pointer;
+}
+
+/* Leader Select: the local pick, not yet submitted. */
+.character-slot.picked .character-layer.top {
+  box-shadow: 0 0 0 2px #6fe38a;
 }
 
 /* --- The menu a card opens ----------------------------------------------

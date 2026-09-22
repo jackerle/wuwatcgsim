@@ -81,7 +81,7 @@ const ENCORE = ["BP01-015", "BP01-013", "BP01-030", "BP01-033"].map(character);
       state.turnPlayerId === state.startingPlayerId,
     state.startingPlayerId
   );
-  check("แจกแล้วเริ่มที่เฟสเปลี่ยนการ์ด", state.phase === "mulligan", state.phase);
+  check("แจกแล้วเริ่มที่เฟสเลือก Leader", state.phase === "leaderSelect", state.phase);
   check("ทั้งคู่มีการ์ดในมือ", state.boards.p1.hand.length > 0 && state.boards.p2.hand.length > 0);
   check(
     "สองฝั่งจั่วไม่เหมือนกัน",
@@ -114,6 +114,39 @@ const ENCORE = ["BP01-015", "BP01-013", "BP01-030", "BP01-033"].map(character);
   check("สุ่มแล้วได้ทั้งสองฝั่ง ไม่ใช่ฝั่งเดิมตลอด", opened.size === SEATS.length, [...opened].join(","));
 }
 
+// --- Leader Select over a session -------------------------------------------
+//
+// Both seats answer it on their own, neither is the "turn player" for it, and
+// the mulligan does not open until both have arranged their starters.
+
+{
+  const session = MatchSession.deal("leader", PICKS, 4242);
+  check("แจกแล้วอยู่ที่เฟสเลือก Leader", session.state.phase === "leaderSelect", session.state.phase);
+  check(
+    "log บอกว่าใครเริ่มก่อน",
+    session.log.some((line) => line.th.includes(session.state.startingPlayerId)),
+    session.log[0]?.th ?? ""
+  );
+  check(
+    "ระหว่างเลือก Leader เริ่มเทิร์นไม่ได้",
+    !session.apply(session.state.startingPlayerId as Seat, { kind: "startTurn" })
+  );
+
+  const leaderId = session.state.boards.p2.leader!.card.id;
+  check(
+    "ฝ่ายที่ไม่ใช่เจ้าของเทิร์นก็เลือก Leader ได้",
+    session.apply("p2", { kind: "chooseLeader", leaderId }),
+    session.errorFor("p2") ?? ""
+  );
+  check("ยังไม่เข้าเฟสเปลี่ยนการ์ด เพราะอีกฝ่ายยังไม่เลือก", session.state.phase === "leaderSelect");
+  check("เลือกซ้ำไม่ได้", !session.apply("p2", { kind: "chooseLeader", leaderId }));
+  check(
+    "อีกฝ่ายเลือกแล้วเข้าเฟสเปลี่ยนการ์ด",
+    session.apply("p1", { kind: "chooseLeader", leaderId: session.state.boards.p1.leader!.card.id })
+  );
+  check("เข้าเฟสเปลี่ยนการ์ด", session.state.phase === "mulligan", session.state.phase);
+}
+
 // --- The opening mulligan over a session -----------------------------------
 //
 // Both seats answer it, neither is the "turn player" for it, and the match
@@ -121,12 +154,10 @@ const ENCORE = ["BP01-015", "BP01-013", "BP01-030", "BP01-033"].map(character);
 
 {
   const session = MatchSession.deal("mull", PICKS, 4242);
-  check("แจกแล้วอยู่ที่เฟสเปลี่ยนการ์ด", session.state.phase === "mulligan", session.state.phase);
-  check(
-    "log บอกว่าใครเริ่มก่อน",
-    session.log.some((line) => line.th.includes(session.state.startingPlayerId)),
-    session.log[0]?.th ?? ""
-  );
+  for (const seat of SEATS) {
+    session.apply(seat, { kind: "chooseLeader", leaderId: session.state.boards[seat].leader!.card.id });
+  }
+  check("เลือก Leader ครบแล้วอยู่ที่เฟสเปลี่ยนการ์ด", session.state.phase === "mulligan", session.state.phase);
   check(
     "ระหว่างเปลี่ยนการ์ด เริ่มเทิร์นไม่ได้",
     !session.apply(session.state.startingPlayerId as Seat, { kind: "startTurn" })

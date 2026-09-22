@@ -1,7 +1,7 @@
 import { KEYWORD_COLOR } from "@wuwatcg/shared";
 import type { ActionCard, CharacterCard, CharacterInstance, PlayerBoard } from "@wuwatcg/shared";
 import type { HoverPreviewCard } from "./HoverPreviewContext";
-import { CharacterSlot, type SlotActions } from "./CharacterSlot";
+import { CharacterSlot, type PickableLeader, type SlotActions } from "./CharacterSlot";
 import type { CardMenuItem } from "./CardMenu";
 import { Hand } from "./Hand";
 import { ChargeArea } from "./ChargeArea";
@@ -48,6 +48,7 @@ export function PlayerZone({
   dealKey,
   actionsFor,
   handMenuFor,
+  leaderPick,
 }: {
   board: PlayerBoard;
   name: string;
@@ -82,6 +83,13 @@ export function PlayerZone({
   actionsFor?: (slot: CharacterInstance) => SlotActions | undefined;
   /** What each card in hand can be told to do — see Hand. */
   handMenuFor?: (card: ActionCard, index: number) => CardMenuItem[] | undefined;
+  /**
+   * Leader Select in progress for this board: which of the three starters is
+   * currently picked, and what to call when another one is clicked. Omitted
+   * once this board has submitted, or for a board that is not this screen's
+   * to choose — see CharacterSlot's `pickable`.
+   */
+  leaderPick?: { pickedId: string | null; onPick: (cardId: string) => void };
 }) {
   const { t } = useLang();
   const poolCards = board.characterPool.map(toCharacterPreview);
@@ -139,14 +147,24 @@ export function PlayerZone({
         />
         <div className="characters-group">
           {([board.back[0] ?? null, board.leader, board.back[1] ?? null] as const).map(
-            (slot, index) => (
-              <CharacterSlot
-                key={slot?.card.id ?? `empty-${index}`}
-                slot={slot}
-                label={index === 1 ? "Leader" : t("common.back.position")}
-                actions={slot ? actionsFor?.(slot) : undefined}
-              />
-            )
+            (slot, index) => {
+              const pickable: PickableLeader | undefined =
+                leaderPick && slot
+                  ? {
+                      picked: slot.card.id === leaderPick.pickedId,
+                      onPick: () => leaderPick.onPick(slot.card.id),
+                    }
+                  : undefined;
+              return (
+                <CharacterSlot
+                  key={slot?.card.id ?? `empty-${index}`}
+                  slot={slot}
+                  label={index === 1 ? "Leader" : t("common.back.position")}
+                  actions={slot ? actionsFor?.(slot) : undefined}
+                  pickable={pickable}
+                />
+              );
+            }
           )}
         </div>
         <Pile

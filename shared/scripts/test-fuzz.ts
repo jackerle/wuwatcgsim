@@ -36,6 +36,18 @@ for (let g = 0; g < 25; g += 1) {
 
     if (s.question) { s.answer(s.question.choice.playerId as Seat, s.question.choice.options[0]?.value ?? false); }
     else switch (s.state.phase) {
+      // Both seats arrange their starters before anything else, cycling
+      // through the three so the "swap in a Back character" path — not just
+      // "confirm the default" — actually gets walked.
+      case "leaderSelect":
+        for (const seat of ["p1", "p2"] as Seat[]) {
+          if (s.state.leaderChosen[seat]) continue;
+          const board = s.state.boards[seat];
+          const options = [board.leader, ...board.back].filter((slot) => slot !== null);
+          const pick = options[g % options.length];
+          if (pick) s.apply(seat, { kind: "chooseLeader", leaderId: pick.card.id });
+        }
+        break;
       // Both seats answer the opening mulligan, putting back a different
       // number each game so the shuffle-and-redraw path is actually walked.
       case "mulligan":
