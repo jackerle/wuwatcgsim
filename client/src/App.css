@@ -44,6 +44,18 @@
   background: #10131a;
 }
 
+/* Portrait: the board still fills exactly one screen, but the panels that sit
+   beside it in landscape go underneath instead, so the page scrolls down to
+   them — see the portrait block in Board.css. */
+@media (orientation: portrait) {
+  .board-page {
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
+    padding: 0.25rem;
+  }
+}
+
 .card {
   width: 100%;
   max-width: 360px;

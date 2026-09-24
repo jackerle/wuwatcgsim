@@ -373,6 +373,11 @@ export const STRINGS = {
   "detailPanel.placeholder": { th: "ชี้เมาส์ที่การ์ดเพื่อดูรายละเอียด", en: "Hover a card to see its details" },
   "detailPanel.manualTag": { th: "ผู้เล่นทำเอง", en: "Do it yourself" },
   "detailPanel.noEffect": { th: "การ์ดใบนี้ไม่มีเอฟเฟค", en: "This card has no effect" },
+  "levelUpFx.title": {
+    th: (player: string, name: string, level: number) => `${player} เลเวลอัป ${name} เป็น Lv.${level}`,
+    en: (player: string, name: string, level: number) => `${player} levelled ${name} up to Lv.${level}`,
+  },
+  "cardPeek.closeHint": { th: "แตะหรือคลิกที่ใดก็ได้เพื่อปิด", en: "Tap or click anywhere to close" },
 
   // --- CharacterSlot.tsx ---------------------------------------------------
   "characterSlot.view": { th: "ดู", en: "View" },

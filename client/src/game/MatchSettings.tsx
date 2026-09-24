@@ -17,7 +17,10 @@ export function MatchSettings({
   onConcede: () => void;
   canRestart: boolean;
   onRestart: () => void;
-  /** Online only — leaving is owned by App/socket lifecycle, not the controller. */
+  /**
+   * Online and vs-bot. Owned by whoever started the match (App's socket
+   * lifecycle, BotGame's setup screen), not the controller.
+   */
   onLeave?: (() => void) | null;
 }) {
   const { t } = useLang();

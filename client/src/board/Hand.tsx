@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { ActionCard } from "@wuwatcg/shared";
 import { CardImage } from "./CardImage";
 import { CardMenu, useDismiss, type CardMenuItem } from "./CardMenu";
@@ -87,7 +87,12 @@ export function Hand({
   }, [cards.length, faceDown]);
 
   return (
-    <div className={`hand ${faceDown ? "face-down" : ""}`}>
+    // The count goes to CSS so a full hand shrinks its cards to stay on one
+    // row instead of wrapping — see .hand-card in Board.css.
+    <div
+      className={`hand ${faceDown ? "face-down" : ""}`}
+      style={{ "--hand-count": Math.max(cards.length, 1) } as CSSProperties}
+    >
       {cards.map((card, index) => {
         // Staggered slightly so drawing several cards at once reads as a
         // dealt sequence rather than everything popping in at once.

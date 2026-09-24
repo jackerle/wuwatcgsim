@@ -803,3 +803,54 @@
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* --- Portrait: see the matching block in Board.css ---------------------- */
+@media (orientation: portrait) {
+  .control-bar {
+    padding: 4px 4px 3px;
+  }
+
+  /* Phase track on its own line across the top, turn heading and the verb
+     button sharing the line under it — side by side, the three need about
+     twice the width a phone has. */
+  .control-main-row {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    row-gap: 4px;
+  }
+
+  .phase-track {
+    order: -1;
+    flex: 1 0 100%;
+    justify-content: center;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .phase-track-step {
+    padding: 2px 5px;
+  }
+
+  .control-side {
+    flex: 0 1 auto;
+  }
+
+  .control-side-end {
+    margin-left: auto;
+  }
+
+  .control-bar.simple {
+    flex-wrap: wrap;
+  }
+
+  /* A menu opened on a card at the edge of a narrow screen must not hang
+     off it. */
+  .card-menu {
+    min-width: 140px;
+    max-width: 70vw;
+  }
+
+  .card-menu button {
+    white-space: normal;
+  }
+}

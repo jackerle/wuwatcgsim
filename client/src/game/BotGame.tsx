@@ -20,9 +20,17 @@ import { useLang } from "../i18n/LanguageContext";
 import "../menu/MainMenu.css";
 
 /** The hook cannot be called conditionally, so the match gets its own shell. */
-function BotMatch({ deck, botDeck }: { deck: DeckList; botDeck: DeckList }) {
+function BotMatch({
+  deck,
+  botDeck,
+  onLeave,
+}: {
+  deck: DeckList;
+  botDeck: DeckList;
+  onLeave: () => void;
+}) {
   const match = useBotMatch({ deck, botDeck });
-  return <PlayGame match={match} />;
+  return <PlayGame match={match} onLeave={onLeave} />;
 }
 
 const randomDeck = (decks: DeckList[]): DeckList | null =>
@@ -49,7 +57,10 @@ export function BotGame({ onBack }: { onBack: () => void }) {
   if (playing && deck && botDeck) {
     return (
       <main className="page board-page">
-        <BotMatch deck={deck} botDeck={botDeck} />
+        {/* Leaving goes back to the deck picks, the way leaving an online
+            room goes back to the room list — so a rematch, or the same
+            matchup with a different deck, is one click away. */}
+        <BotMatch deck={deck} botDeck={botDeck} onLeave={() => setPlaying(false)} />
       </main>
     );
   }

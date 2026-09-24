@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type HTMLAttributes } from "react";
 import { allImageIds, getCard } from "@wuwatcg/shared";
 import { useHoverPreview, type HoverPreviewCard } from "./HoverPreviewContext";
+import { useLongPress } from "./useLongPress";
 
 /**
  * Every image on file for a card, best first.
@@ -28,11 +29,14 @@ export function CardArt({
   className,
   onMouseEnter,
   onMouseLeave,
+  pressHandlers,
 }: {
   card: HoverPreviewCard;
   className?: string;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  /** Pointer handlers for press-and-hold — see useLongPress. */
+  pressHandlers?: HTMLAttributes<HTMLElement>;
 }) {
   const candidates = imageCandidates(card);
   const [attempt, setAttempt] = useState(0);
@@ -51,6 +55,7 @@ export function CardArt({
         title={card.name}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
+        {...pressHandlers}
       >
         {card.name}
       </span>
@@ -65,26 +70,33 @@ export function CardArt({
       onError={() => setAttempt((n) => n + 1)}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      draggable={false}
+      {...pressHandlers}
     />
   );
 }
 
 /**
  * A card's art, wired to push its full detail to the shared Preview/Detail
- * panels on hover. Use this everywhere a card shows up on the board (hand,
+ * panels on hover, and to open it full-size (CardPeek) on a touch hold. Use this everywhere a card shows up on the board (hand,
  * characters, piles, action slots).
  *
  * The panels themselves want CardArt instead — hovering the big preview must
  * not re-drive the hover state that is drawing it.
  */
 export function CardImage({ card, className }: { card: HoverPreviewCard; className?: string }) {
-  const { setHovered } = useHoverPreview();
+  const { setHovered, setPeeked } = useHoverPreview();
+  const pressHandlers = useLongPress(() => {
+    setHovered(card);
+    setPeeked(card);
+  });
   return (
     <CardArt
       card={card}
       className={className}
       onMouseEnter={() => setHovered(card)}
       onMouseLeave={() => setHovered(null)}
+      pressHandlers={pressHandlers}
     />
   );
 }

@@ -22,13 +22,24 @@ export interface HoverPreviewCard {
 interface HoverPreviewContextValue {
   hovered: HoverPreviewCard | null;
   setHovered: (card: HoverPreviewCard | null) => void;
+  /**
+   * The card a touch screen is holding open full-size — hover has no touch
+   * equivalent, so pressing and holding a card is how a phone reads it. See
+   * CardPeek.
+   */
+  peeked: HoverPreviewCard | null;
+  setPeeked: (card: HoverPreviewCard | null) => void;
 }
 
 const HoverPreviewContext = createContext<HoverPreviewContextValue | null>(null);
 
 export function HoverPreviewProvider({ children }: { children: ReactNode }) {
   const [hovered, setHovered] = useState<HoverPreviewCard | null>(null);
-  const value = useMemo(() => ({ hovered, setHovered }), [hovered]);
+  const [peeked, setPeeked] = useState<HoverPreviewCard | null>(null);
+  const value = useMemo(
+    () => ({ hovered, setHovered, peeked, setPeeked }),
+    [hovered, peeked]
+  );
   return <HoverPreviewContext.Provider value={value}>{children}</HoverPreviewContext.Provider>;
 }
 

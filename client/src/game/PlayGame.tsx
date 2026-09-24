@@ -28,6 +28,8 @@ import { LevelUpConfirm } from "../board/LevelUpConfirm";
 import type { CardMenuItem } from "../board/CardMenu";
 import { HoverPreviewPanel } from "../board/HoverPreviewPanel";
 import { DetailPanel } from "../board/DetailPanel";
+import { CardPeek } from "../board/CardPeek";
+import { LevelUpFx } from "../board/LevelUpFx";
 import { ChatPanel } from "../board/ChatPanel";
 import { ControlBar } from "./ControlBar";
 import { MatchLog } from "./MatchLog";
@@ -42,7 +44,7 @@ export function PlayGame({
   onLeave,
 }: {
   match: MatchController;
-  /** Online only: App owns the socket/route lifecycle for leaving a room. */
+  /** Online and vs-bot: whoever started the match owns what leaving it means. */
   onLeave?: () => void;
 }) {
   const { t } = useLang();
@@ -325,6 +327,7 @@ export function PlayGame({
               }
             />
 
+            <LevelUpFx state={state} nameOf={nameOf} />
             <PileModal />
             <ChoiceDialog
               choice={match.pending}
@@ -378,6 +381,7 @@ export function PlayGame({
             </div>
           </div>
         </div>
+        <CardPeek />
       </PileModalProvider>
     </HoverPreviewProvider>
   );
