@@ -27,11 +27,45 @@
 
 /* The language toggle — pinned to the viewport corner rather than inside
    `.menu`, so it reads as a setting for the page, not one more menu item. */
-.lang-switch {
+/* Music and language, together in the top-right corner. */
+.menu-corner {
   position: fixed;
   top: 0.9rem;
   right: 0.9rem;
   z-index: 10;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.music-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  padding: 0;
+  border: 1px solid #3a3f4d;
+  border-radius: 8px;
+  background: rgba(20, 24, 34, 0.9);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.music-toggle.on {
+  color: #8fb3ff;
+}
+
+.music-toggle.off {
+  color: #6b7285;
+}
+
+.music-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e6e8ef;
+}
+
+.lang-switch {
   display: inline-flex;
   border: 1px solid #3a3f4d;
   border-radius: 8px;

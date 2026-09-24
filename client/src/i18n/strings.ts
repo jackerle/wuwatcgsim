@@ -381,6 +381,10 @@ export const STRINGS = {
   "boardEvent.damage": { th: (n: number) => `โดนตี -${n}`, en: (n: number) => `Hit -${n}` },
   "boardEvent.heal": { th: (n: number) => `ฮีล +${n}`, en: (n: number) => `Heal +${n}` },
   "boardEvent.toHand": { th: (n: number) => `ได้การ์ด +${n}`, en: (n: number) => `+${n} card(s) to hand` },
+  "music.on": { th: "เสียง: เปิด", en: "Sound: On" },
+  "music.off": { th: "เสียง: ปิด", en: "Sound: Off" },
+  "music.turnOn": { th: "เปิดเสียง", en: "Turn sound on" },
+  "music.turnOff": { th: "ปิดเสียง", en: "Turn sound off" },
   "cardPeek.closeHint": { th: "แตะหรือคลิกที่ใดก็ได้เพื่อปิด", en: "Tap or click anywhere to close" },
 
   // --- CharacterSlot.tsx ---------------------------------------------------

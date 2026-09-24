@@ -3,9 +3,12 @@ import type { ActionCard, MatchState } from "@wuwatcg/shared";
 import { CardArt } from "./CardImage";
 import { clashRevealBetween, type ClashReveal } from "./clashReveal";
 import { useLang } from "../i18n/LanguageContext";
+import { playCardSfx } from "../audio/sfx";
 
 /** How long the reveal stays on screen, fade-out included. Matches Board.css. */
 const FX_MS = 1900;
+/** When the cards start turning over: 16% into clash-fx-flip in Board.css. */
+const FLIP_SOUND_MS = 300;
 
 
 /**
@@ -62,7 +65,11 @@ export function ClashRevealFx({
   useEffect(() => {
     if (!reveal) return;
     const timer = window.setTimeout(() => setReveal(null), FX_MS);
-    return () => window.clearTimeout(timer);
+    const flip = window.setTimeout(playCardSfx, FLIP_SOUND_MS);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(flip);
+    };
   }, [reveal]);
 
   const playing = reveal !== null;

@@ -2,6 +2,7 @@
 
 import { useLang } from "../i18n/LanguageContext";
 import { LanguageSwitch } from "./LanguageSwitch";
+import { MusicToggle } from "../audio/MusicToggle";
 import "./MainMenu.css";
 
 export function MainMenu({
@@ -23,7 +24,10 @@ export function MainMenu({
 
   return (
     <main className="page menu-page">
-      <LanguageSwitch />
+      <div className="menu-corner">
+        <MusicToggle />
+        <LanguageSwitch />
+      </div>
       <div className="menu">
         <h1 className="menu-title">WuWa TCG</h1>
         <p className="menu-sub">{t("mainMenu.subtitle")}</p>

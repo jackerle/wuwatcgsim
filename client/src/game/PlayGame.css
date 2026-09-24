@@ -352,6 +352,14 @@
   border-color: #4b5d87;
 }
 
+.match-settings-menu button.match-settings-music {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #2a334b;
+  border-radius: 5px 5px 0 0;
+}
+
 .match-settings-menu button.danger {
   color: #ffb4b4;
 }

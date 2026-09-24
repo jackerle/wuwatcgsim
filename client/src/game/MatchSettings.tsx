@@ -8,6 +8,8 @@
 import { useState } from "react";
 import { useDismiss } from "../board/CardMenu";
 import { useLang } from "../i18n/LanguageContext";
+import { setMusicMuted, useMusicMuted } from "../audio/bgm";
+import { SpeakerIcon } from "../audio/MusicToggle";
 
 export function MatchSettings({
   onConcede,
@@ -27,6 +29,7 @@ export function MatchSettings({
   const { t } = useLang();
   const [open, setOpen] = useState(false);
   const rootRef = useDismiss(open, () => setOpen(false));
+  const musicMuted = useMusicMuted();
   const pick = (action: () => void) => {
     setOpen(false);
     action();
@@ -46,6 +49,18 @@ export function MatchSettings({
       </button>
       {open && (
         <div className="match-settings-menu" role="menu" aria-label={t("playGame.settings")}>
+          {/* A toggle, so the menu stays open: it is flipped and heard, not
+              an action that moves the screen on. */}
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={!musicMuted}
+            className="match-settings-music"
+            onClick={() => setMusicMuted(!musicMuted)}
+          >
+            <SpeakerIcon muted={musicMuted} />
+            {musicMuted ? t("music.off") : t("music.on")}
+          </button>
           <button type="button" className="danger" role="menuitem" onClick={() => pick(onConcede)}>
             {t("controlBar.concede")}
           </button>

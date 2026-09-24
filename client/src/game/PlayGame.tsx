@@ -33,6 +33,7 @@ import { CardPeek } from "../board/CardPeek";
 import { LevelUpFx } from "../board/LevelUpFx";
 import { ClashRevealFx } from "../board/ClashRevealFx";
 import { useBoardEvents } from "./boardEvents";
+import { useCardSfx } from "../audio/useCardSfx";
 import { ChatPanel } from "../board/ChatPanel";
 import { ControlBar } from "./ControlBar";
 import { MatchLog } from "./MatchLog";
@@ -92,6 +93,7 @@ export function PlayGame({
    * player's Life, after any cut-in covering the board has finished.
    */
   const boardEvents = useBoardEvents(match.log, state.matchId, fxPlaying);
+  useCardSfx(state);
   const eventsFor = (seat: string) => boardEvents.active.filter((event) => event.seat === seat);
   const shownLifeOf = (seat: string) => (state.boards[seat]?.life ?? 0) + (boardEvents.lifeLag[seat] ?? 0);
 
