@@ -249,7 +249,6 @@ export const STRINGS = {
   },
   "controlBar.draw": { th: "เสมอ", en: "Draw" },
   "controlBar.wins": { th: (name: string) => `${name} ชนะ`, en: (name: string) => `${name} wins` },
-  "controlBar.leaderSelectHeading": { th: "เลือก Leader", en: "Choose your Leader" },
   "controlBar.leaderSelectHint": {
     th: "แตะตัวละครที่จะให้เป็น Leader",
     en: "Tap a character to make them Leader",
@@ -261,10 +260,6 @@ export const STRINGS = {
   "controlBar.mulliganHeading": {
     th: (name: string) => `เปลี่ยนการ์ดในมือ · ${name} เริ่มก่อน`,
     en: (name: string) => `Mulligan · ${name} goes first`,
-  },
-  "controlBar.mulliganHint": {
-    th: "เลือกการ์ดที่จะคืน แล้วจั่วใหม่แทนเท่าจำนวนนั้น",
-    en: "Pick cards to return — draw that many new ones",
   },
   "controlBar.clearSelection": { th: "ล้างที่เลือก", en: "Clear Selection" },
   "controlBar.mulliganSubmit": {

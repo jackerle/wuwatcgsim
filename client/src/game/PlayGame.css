@@ -1,3 +1,7 @@
+/* Same faces as the menus (MainMenu.css), plus Kanit so Thai text gets a
+   matching display face instead of dropping to the system font. */
+@import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Kanit:wght@400;500;600&family=Cinzel:wght@600;700&display=swap");
+
 /* The playable screen's own chrome: the control bar, the log, and the bits
    of a card slot that only the real game needs. Board.css still owns the
    board layout itself. */
@@ -18,7 +22,12 @@
      separates the phase tabs from their hint. A second bottom rule turns the
      hint into a boxed strip, so deliberately leave this edge borderless. */
   border-bottom: 0;
+  font-family: "Rajdhani", "Kanit", var(--sans);
   font-size: calc(var(--board-text) * 1.25);
+}
+
+.control-bar button {
+  font-family: inherit;
 }
 
 /* Main play uses a compact two-line control: a clean phase-navigation line,
@@ -42,10 +51,14 @@
   min-width: 0;
 }
 
+/* The compact bar (Leader Select, mulligan, Level Up, game over) has no
+   track to anchor it, so everything in it sits on the board's centre line. */
 .control-bar.simple {
   flex-direction: row;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 14px;
+  min-height: 48px;
 }
 
 /* Match-level controls deliberately do not live here: they are in the gear
@@ -549,6 +562,129 @@
 .control-error {
   color: #ff9d9d;
   font-size: calc(var(--board-text) * 1.15);
+}
+
+/* --- Compact bar -------------------------------------------------------- */
+
+.control-bar.simple .control-actions {
+  flex: 0 1 auto;
+  justify-content: center;
+  gap: 10px;
+  padding: 4px 6px 6px;
+}
+
+/* The phase name reads as a small gold label, not a sentence. */
+.control-bar.simple .control-phase {
+  color: #e8c98a;
+  font-size: calc(var(--board-text) * 1.2);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 6px rgba(232, 201, 138, 0.25);
+}
+
+.control-bar.simple .control-phase.control-gameover {
+  font-family: "Cinzel", "Kanit", serif;
+  font-size: calc(var(--board-text) * 2);
+  letter-spacing: 0.08em;
+  text-transform: none;
+  background: linear-gradient(180deg, #fff3d0, #d9a74a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 10px rgba(217, 167, 74, 0.35));
+}
+
+/* The one button that moves the pre-game on — dressed like the turn's verb
+   button (.control-primary-move) so both read as "the thing to press". */
+.control-bar.simple button {
+  padding: 7px 18px;
+  border-radius: 9px;
+  border-color: rgba(180, 197, 240, 0.28);
+  background: rgba(20, 26, 40, 0.8);
+  color: #cdd3e4;
+  font-size: calc(var(--board-text) * 1.35);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  transition: transform 120ms ease, filter 160ms ease, background 160ms ease;
+}
+
+.control-bar.simple button.primary {
+  --move-a: #3f6ae0;
+  --move-b: #2a4bb0;
+  --move-glow: rgba(90, 140, 255, 0.55);
+  padding: 8px 26px;
+  border: 1px solid color-mix(in srgb, var(--move-a) 70%, #fff);
+  background: linear-gradient(180deg, var(--move-a), var(--move-b));
+  color: #fff;
+  font-size: calc(var(--board-text) * 1.5);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 4px 14px var(--move-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  animation: move-breathe 2.2s ease-in-out infinite;
+}
+
+.control-bar.simple button.primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--move-a), var(--move-b));
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+
+.control-bar.simple button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.97);
+}
+
+/* Nothing picked yet: the button carries the instruction instead, so it
+   reads as a quiet dashed prompt rather than a greyed-out control. */
+.control-bar.simple button.primary:disabled {
+  opacity: 1;
+  border: 1px dashed rgba(232, 201, 138, 0.45);
+  background: rgba(20, 26, 40, 0.7);
+  color: #e8c98a;
+  text-shadow: none;
+  box-shadow: none;
+  animation: none;
+  cursor: default;
+}
+
+/* Waiting on the other seat: a softly pulsing dot says "still going". */
+.control-bar.simple .control-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #b9c6e8;
+  font-size: calc(var(--board-text) * 1.25);
+  letter-spacing: 0.04em;
+}
+
+.control-bar.simple .control-hint::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #7aa2ff;
+  box-shadow: 0 0 8px #7aa2ff;
+  animation: hint-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes hint-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-bar.simple button.primary,
+  .control-bar.simple .control-hint::before {
+    animation: none;
+  }
 }
 
 /* Two columns: the card that caused the line, then the line. Not a numbered

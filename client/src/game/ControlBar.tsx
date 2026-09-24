@@ -325,7 +325,7 @@ export function ControlBar({
     return (
       <div className="control-bar simple">
         {leading}
-        <span className="control-phase">
+        <span className="control-phase control-gameover">
           {t(
             "controlBar.gameOver",
             state.winnerId === "draw" ? t("controlBar.draw") : t("controlBar.wins", nameOf(state.winnerId))
@@ -348,20 +348,16 @@ export function ControlBar({
     return (
       <div className="control-bar simple">
         {leading}
-        <span className="control-phase">{t("controlBar.leaderSelectHeading")}</span>
         <span className="control-actions">
           {theirs && !chosen && chooseLeader && (
-            <>
-              <span className="control-hint">{t("controlBar.leaderSelectHint")}</span>
-              <button
-                type="button"
-                className="primary"
-                disabled={!chooseLeader.pickedId}
-                onClick={chooseLeader.onSubmit}
-              >
-                {pickedName ? t("controlBar.confirmLeader", pickedName) : t("controlBar.leaderSelectHint")}
-              </button>
-            </>
+            <button
+              type="button"
+              className="primary"
+              disabled={!chooseLeader.pickedId}
+              onClick={chooseLeader.onSubmit}
+            >
+              {pickedName ? t("controlBar.confirmLeader", pickedName) : t("controlBar.leaderSelectHint")}
+            </button>
           )}
           {theirs && chosen && (
             <span className="control-hint">
@@ -392,7 +388,6 @@ export function ControlBar({
         <span className="control-actions">
           {theirs && !chosen && mulligan && (
             <>
-              <span className="control-hint">{t("controlBar.mulliganHint")}</span>
               {mulligan.picked > 0 && (
                 <button type="button" onClick={onClearSelection}>
                   {t("controlBar.clearSelection")}
