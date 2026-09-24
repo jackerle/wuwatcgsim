@@ -1588,20 +1588,11 @@
   opacity: 0.55;
 }
 
-/* Touch only. The browser's own long-press behaviour — the image callout,
-   text selection — would fight the hold that opens a card; and the little
-   badges drawn over the art are made see-through to it, so a hold that lands
-   on the cost or Damage/Speed strip still reaches the card underneath. */
+/* Touch only: the little badges drawn over the art are made see-through to
+   a press, so a hold that lands on the cost or Damage/Speed strip still
+   reaches the card underneath. (Text selection and the image callout, which
+   would also fight the hold, are off app-wide — see index.css.) */
 @media (hover: none) {
-  .game-board img {
-    -webkit-touch-callout: none;
-  }
-
-  .game-board {
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
   .stat-pill,
   .stat-row,
   .character-level,
@@ -1616,8 +1607,8 @@
    LevelUpFx: the card that was on top, the card played onto it, then the
    whole thing fades. Scoped to the board like the other dialogs, and a click
    skips it. An ability's question waits for it to finish (PlayGame); the
-   z-index above the dialogs is only a backstop for one that is already open. The 2.6s total is FX_MS in LevelUpFx.tsx; change both
-   together. */
+   z-index above the dialogs is only a backstop for one that is already
+   open. The 2.6s total is FX_MS in LevelUpFx.tsx; change both together. */
 
 .levelup-fx {
   position: absolute;

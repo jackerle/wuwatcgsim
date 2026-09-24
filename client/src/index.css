@@ -81,6 +81,35 @@ body {
   margin: 0;
 }
 
+/* No text selection anywhere — this is a game, not a document. On a phone a
+   press and hold is how a card is opened (CardPeek) and a card is dragged,
+   and the browser's own reaction to the same press — highlighting a word,
+   popping the copy/share bubble, the image callout — landed on top of both.
+   The tap flash is the same kind of noise. What you type into is the
+   exception: names, chat, deck codes. */
+html {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* The room code is there to be copied and sent to a friend: one tap takes
+   the whole code. */
+.room-code {
+  -webkit-user-select: all;
+  user-select: all;
+  -webkit-touch-callout: default;
+}
+
 h1,
 h2 {
   font-family: var(--heading);
