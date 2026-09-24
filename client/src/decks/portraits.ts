@@ -1,7 +1,7 @@
 // Small shared lookup: which card art represents a character.
 //
-// Used anywhere a character needs a face rather than just a name — the deck
-// list's thumbnails and the builder's character picker both want the same
+// Used anywhere a character needs a face rather than just a name — the
+// builder's character picker and the share image both want the same
 // card, so this lives here instead of being copied into each screen.
 
 import { cardsFor } from "@wuwatcg/shared";

@@ -364,31 +364,315 @@
   letter-spacing: 0;
 }
 
-.stats-bar {
+/* --- Life panel (PlayerStats) --------------------------------------------
+   Name, [Advantage] and a health bar, in each half's outer right corner: it
+   sits in the hand row, which is the bottom edge of the screen for this side
+   and the top edge for the mirrored one. Spans the Deck/Trash column and the
+   one beside it, the room the hand leaves free. */
+.player-stats {
+  position: relative;
+  grid-column: 3 / -1;
+  justify-self: end;
+  align-self: center;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  justify-content: center;
-  gap: 0.3rem;
-  min-width: 100px;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.player-stats-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
 .player-name {
   font-weight: 600;
-  font-size: calc(var(--board-text) * 1.55);
-}
-
-.stat {
-  font-size: calc(var(--board-text) * 1.5);
-  opacity: 0.9;
+  font-size: calc(var(--board-text) * 1.45);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 10em;
 }
 
-/* Tops .stats-bar, above the player's name, and only while that player
-   actually holds it — an always-present badge that greys out would make the
-   two boards look identical at a glance, which is the one thing this is for.
-   The text colour comes from KEYWORD_COLOR in PlayerZone; only the frame is
-   here, tinted off the same purple. */
+.hp {
+  --hp-color: #4ade80;
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 0.35rem;
+  row-gap: 3px;
+  padding: 4px 8px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(20, 30, 54, 0.95), rgba(10, 16, 30, 0.95));
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+.hp-mid {
+  --hp-color: #fbbf24;
+}
+
+.hp-low {
+  --hp-color: #f87171;
+}
+
+.hp-heart {
+  color: var(--hp-color);
+  font-size: calc(var(--board-text) * 1.5);
+  line-height: 1;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--hp-color) 60%, transparent));
+}
+
+.hp-value {
+  justify-self: end;
+  min-width: 2ch;
+  font-size: calc(var(--board-text) * 2);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+.hp-track {
+  grid-column: 1 / -1;
+  width: calc(var(--board-text) * 7);
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hp-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--hp-color) 70%, #000), var(--hp-color));
+  transition: width 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* A hit: the panel jolts and flashes red. A heal: it glows green. */
+.hp-damage {
+  animation: hp-hit 520ms ease-out;
+}
+
+@keyframes hp-hit {
+  0% {
+    transform: translateX(0);
+    box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.95), 0 0 26px rgba(248, 113, 113, 0.8);
+    background: rgba(127, 29, 29, 0.95);
+  }
+  15% {
+    transform: translateX(-6px);
+  }
+  30% {
+    transform: translateX(5px);
+  }
+  45% {
+    transform: translateX(-3px);
+  }
+  60% {
+    transform: translateX(2px);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.hp-heal {
+  animation: hp-heal 900ms ease-out;
+}
+
+@keyframes hp-heal {
+  0% {
+    box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.9), 0 0 24px rgba(74, 222, 128, 0.7);
+  }
+  100% {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* The number that floats up off the panel: -3 in red, +1 in green. */
+.hp-float {
+  position: absolute;
+  right: 6px;
+  top: -4px;
+  font-size: calc(var(--board-text) * 2.1);
+  font-weight: 900;
+  pointer-events: none;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
+  animation: hp-float 1.2s ease-out both;
+}
+
+.hp-float-damage {
+  color: #f87171;
+}
+
+.hp-float-heal {
+  color: #4ade80;
+}
+
+@keyframes hp-float {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.7);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-6px) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-34px) scale(1);
+  }
+}
+
+/* What happened and which card did it, beside the panel. Out of the flow,
+   so the panel never moves to make room, and never in the way of a click. */
+.stat-events {
+  position: absolute;
+  right: calc(100% + 8px);
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.stat-event {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 3px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(10, 16, 30, 0.92);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  /* 1.8s is BOARD_EVENT_MS in boardEvents.ts; change both together. */
+  animation: stat-event 1.8s ease both;
+}
+
+.stat-event-damage {
+  border-color: rgba(248, 113, 113, 0.6);
+}
+
+.stat-event-heal {
+  border-color: rgba(74, 222, 128, 0.6);
+}
+
+.stat-event-toHand {
+  border-color: rgba(125, 170, 255, 0.6);
+}
+
+@keyframes stat-event {
+  0% {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  12%,
+  80% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+}
+
+.stat-event-thumb {
+  flex-shrink: 0;
+  width: calc(var(--board-text) * 2.3);
+  height: calc(var(--board-text) * 3.2);
+  border-radius: 4px;
+  overflow: hidden;
+  background: #12182c;
+}
+
+.stat-event-thumb img,
+.stat-event-thumb .card-art-missing {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  font-size: calc(var(--board-text) * 0.6);
+}
+
+.stat-event-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.stat-event-text strong {
+  font-size: calc(var(--board-text) * 1.2);
+  color: #fff;
+}
+
+.stat-event-damage strong {
+  color: #fca5a5;
+}
+
+.stat-event-heal strong {
+  color: #86efac;
+}
+
+.stat-event-toHand strong {
+  color: #bcd2ff;
+}
+
+.stat-event-text small {
+  font-size: calc(var(--board-text) * 0.95);
+  color: #aab0c0;
+}
+
+/* The far side's panel is at the TOP edge of the board: its callouts hang
+   down from it and its number drops, instead of both rising off the screen. */
+.player-zone.mirrored .stat-events {
+  top: 0;
+  bottom: auto;
+}
+
+.player-zone.mirrored .hp-float {
+  top: auto;
+  bottom: -4px;
+  animation-name: hp-float-down;
+}
+
+@keyframes hp-float-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.7);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(34px) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hp-damage,
+  .hp-float {
+    animation-name: none;
+  }
+}
+
+/* Beside the name, and only while that player actually holds it. An
+   always-present badge that greys out would make the two boards look
+   identical at a glance, which is the one thing this is for. The text colour
+   comes from KEYWORD_COLOR in PlayerStats; only the frame is here, tinted
+   off the same purple. */
 .advantage-badge {
   font-size: calc(var(--board-text) * 1.2);
   font-weight: 700;
@@ -1101,16 +1385,15 @@
    A tall, narrow screen (a phone held upright) has height to spare and no
    width, so the landscape layout — board and panels side by side, cards
    sized off the viewport height — squeezes the board into a sliver. Here the
-   board takes the whole first screen and the panels sit below it (the page
-   scrolls to them), and cards size off the WIDTH instead: the widest row is
+   board is the whole screen and the side panels are not shown at all: a
+   press and hold on a card (CardPeek) stands in for Preview/Detail. Cards
+   size off the WIDTH instead: the widest row is
    the characters row, Pool + three characters + Trash, so five cards and
    their gaps have to fit across. */
 @media (orientation: portrait) {
   .game-ui {
-    height: auto;
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
-    gap: 0.5rem;
+    grid-template-rows: 1fr;
   }
 
   .game-board {
@@ -1130,7 +1413,6 @@
     --board-text: clamp(9px, 1.1svh, 13px);
 
     box-sizing: border-box;
-    height: calc(100svh - 0.5rem);
     padding: 0.4rem 0.5rem;
     border-radius: 12px;
     gap: 0.25rem;
@@ -1147,7 +1429,7 @@
   }
 
   .zone-top-row {
-    grid-template-columns: auto minmax(0, 1fr) var(--card-w) auto;
+    grid-template-columns: auto minmax(0, 1fr) var(--card-w);
   }
 
   .characters-row {
@@ -1162,19 +1444,19 @@
   /* The hand spans the whole row; the empty spacer the landscape grid needs
      to line it up under the Action Area has no job here. */
   .hand-row {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .player-stats {
+    grid-column: auto;
   }
 
   .hand-row > div:empty {
     display: none;
   }
 
-  /* Face-down is the opponent's hand, at the top of the screen where the
-     settings gear sits in the corner — kept clear of it on both sides so the
-     row stays centred. */
   .hand.face-down {
     min-height: calc(var(--hand-card-h) * 0.64);
-    padding: 0 40px;
   }
 
   .charge-area {
@@ -1205,21 +1487,29 @@
     margin-left: calc(var(--card-w) * -0.55);
   }
 
-  .stats-bar {
-    min-width: 0;
-  }
-
   .player-name {
-    max-width: 24vw;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: 22vw;
   }
 
-  /* Below the board, in the order they are wanted: the card being looked
-     at, then chat and the log. */
+  .hp-track {
+    width: calc(var(--board-text) * 5.5);
+  }
+
+  /* Beside the panel is the hand here — the hand spans the row — so the
+     callouts go over the Trash column instead: above the near panel, below
+     the far one. */
+  .stat-events {
+    right: 0;
+    bottom: calc(100% + 6px);
+  }
+
+  .player-zone.mirrored .stat-events {
+    top: calc(100% + 6px);
+    bottom: auto;
+  }
+
   .right-panel {
-    height: 90svh;
+    display: none;
   }
 
   .pile-modal-grid {
@@ -1324,9 +1614,9 @@
 
 /* --- Level Up cut-in ------------------------------------------------------
    LevelUpFx: the card that was on top, the card played onto it, then the
-   whole thing fades. Scoped to the board like the other dialogs but above
-   them (a Level Up often opens an ability's question), and a click skips it
-   — see LevelUpFx. The 2.6s total is FX_MS in LevelUpFx.tsx; change both
+   whole thing fades. Scoped to the board like the other dialogs, and a click
+   skips it. An ability's question waits for it to finish (PlayGame); the
+   z-index above the dialogs is only a backstop for one that is already open. The 2.6s total is FX_MS in LevelUpFx.tsx; change both
    together. */
 
 .levelup-fx {
@@ -1495,6 +1785,175 @@
   .levelup-fx-arrow,
   .levelup-fx-to,
   .levelup-fx-title {
+    animation: none;
+  }
+}
+
+/* --- Clash reveal ---------------------------------------------------------
+   ClashRevealFx: both committed cards, face-down, turn over together; then
+   the winner lights up and it all fades. The opponent's card is on top and
+   yours below, the way the board itself is laid out. Under two seconds —
+   1.9s here is FX_MS in ClashRevealFx.tsx; change both together. A click
+   skips it, and questions wait for it the same way they wait for the Level
+   Up cut-in. */
+
+.clash-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 350;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 16px;
+  background: radial-gradient(ellipse at center, rgba(12, 18, 36, 0.94), rgba(4, 8, 18, 0.86));
+  cursor: pointer;
+  animation: clash-fx-veil 1.9s ease both;
+}
+
+@keyframes clash-fx-veil {
+  0% {
+    opacity: 0;
+  }
+  8%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.clash-fx-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* The opponent's name reads above their card, yours below your own — each
+   on the outside, next to that player's half of the board. */
+.clash-fx-side:last-child {
+  flex-direction: column-reverse;
+}
+
+.clash-fx-name {
+  color: #cbd5f5;
+  font-size: calc(var(--board-text) * 1.3);
+  font-weight: 600;
+}
+
+.clash-fx-card {
+  width: calc(var(--card-w) * 1.45);
+  height: calc(var(--card-h) * 1.45);
+  perspective: 900px;
+}
+
+.clash-fx-flip {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: clash-fx-flip 1.9s cubic-bezier(0.45, 0, 0.2, 1) both;
+}
+
+@keyframes clash-fx-flip {
+  0%,
+  16% {
+    transform: rotateY(0deg);
+  }
+  40%,
+  100% {
+    transform: rotateY(180deg);
+  }
+}
+
+.clash-fx-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  backface-visibility: hidden;
+}
+
+.clash-fx-front {
+  transform: rotateY(180deg);
+}
+
+.clash-fx-front img,
+.clash-fx-front .card-art-missing {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Laid nothing: an empty place where the card would be, not a card back —
+   there is nothing to turn over. */
+.clash-fx-none {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: #8d93a5;
+  font-size: calc(var(--board-text) * 1.2);
+}
+
+/* After the flip: the winner's card glows, and the result line comes up. */
+.clash-fx-side.winner .clash-fx-front {
+  animation: clash-fx-win 1.9s ease both;
+}
+
+@keyframes clash-fx-win {
+  0%,
+  42% {
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  }
+  52%,
+  100% {
+    border-color: #f0b23f;
+    box-shadow: 0 0 28px 6px rgba(240, 178, 63, 0.6);
+  }
+}
+
+.clash-fx-result {
+  margin: 0.2rem 0;
+  color: #fbe3ad;
+  font-size: calc(var(--board-text) * 1.6);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+  animation: clash-fx-result 1.9s ease both;
+}
+
+@keyframes clash-fx-result {
+  0%,
+  40% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  50%,
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Less motion: no turning over, the cards are simply face-up. */
+@media (prefers-reduced-motion: reduce) {
+  .clash-fx-flip {
+    animation: none;
+    transform: rotateY(180deg);
+  }
+
+  .clash-fx-result,
+  .clash-fx-side.winner .clash-fx-front {
     animation: none;
   }
 }

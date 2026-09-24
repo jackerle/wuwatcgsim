@@ -1,8 +1,9 @@
 // Match-management controls deliberately live outside the phase navigation.
 //
 // Concede, deal again and leave a room are about the match as a whole, not
-// this turn. Keeping them in a small board-corner gear menu leaves Draw >
-// Main > Battle > Judgement > End as the entire phase track.
+// this turn. Keeping them in a small gear menu at the control bar's left edge
+// (ControlBar's `leading`) leaves Draw > Main > Battle > Judgement > End as
+// the entire phase track.
 
 import { useState } from "react";
 import { useDismiss } from "../board/CardMenu";

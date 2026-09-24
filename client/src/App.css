@@ -44,14 +44,11 @@
   background: #10131a;
 }
 
-/* Portrait: the board still fills exactly one screen, but the panels that sit
-   beside it in landscape go underneath instead, so the page scrolls down to
-   them — see the portrait block in Board.css. */
+/* Portrait: the board is the whole screen, with the side panels hidden —
+   see the portrait block in Board.css. Only the padding changes here. */
 @media (orientation: portrait) {
   .board-page {
-    height: auto;
-    min-height: 100svh;
-    overflow: visible;
+    height: 100svh;
     padding: 0.25rem;
   }
 }

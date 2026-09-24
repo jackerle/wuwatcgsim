@@ -3,8 +3,8 @@
 // those tabs.
 //
 // To the right of the track sits ONE button, and it is the only control here:
-// whatever this client's next move actually is, named as a verb — Start Turn,
-// Go Battle, Pass, Reveal, End Turn. The track beside it is now read-only (see
+// whatever this client's next move actually is, named as a verb —
+// Go Battle, Pass, End Turn. The track beside it is now read-only (see
 // PhaseTrack), so the bar answers "where is the turn" and "what do I press" in
 // two places that cannot be mistaken for each other.
 //
@@ -19,7 +19,6 @@ import {
   canCommitAnything,
   canPassCounter,
   legalIntents,
-  MAX_ACTIONS_PER_TURN,
   type CharacterCard,
   type MatchIntent,
   type MatchState,
@@ -111,6 +110,12 @@ export interface ControlBarProps {
     picked: number;
     onCancel: () => void;
   } | null;
+  /**
+   * Drawn at the bar's left edge in every state of the bar — the settings
+   * gear lives here, mid-board on the left, so it is reachable whatever the
+   * phase, including once the match is over.
+   */
+  leading?: ReactNode;
 }
 
 export function ControlBar({
@@ -126,6 +131,7 @@ export function ControlBar({
   chooseLeader,
   mulligan,
   levelUp,
+  leading,
 }: ControlBarProps) {
   const { t } = useLang();
   const [confirming, setConfirming] = useState<{
@@ -148,37 +154,27 @@ export function ControlBar({
     onClearSelection();
   };
 
-  const actionsLeft =
-    MAX_ACTIONS_PER_TURN - (state.boards[me]?.actionsTakenThisTurn.length ?? 0);
   const phaseMoves: Partial<Record<PhaseStepKey, StepMove>> = {};
   const phaseWaiting: Partial<Record<PhaseStepKey, string>> = {};
 
-  if (allowed.includes("startTurn")) {
-    phaseMoves.draw = {
-      onPick: () => act({ kind: "startTurn" }),
-      title: t("controlBar.drawTitle"),
-    };
-  }
+  // No move for the Draw Phase: PlayGame starts the turn by itself (see its
+  // auto-draw), and a button pressed in the moment it fires would only send a
+  // second startTurn for the engine to refuse.
 
   if (allowed.includes("toBattle")) {
     phaseMoves.battle = {
-      onPick: () =>
-        setConfirming({
-          prompt: t("controlBar.toBattlePrompt"),
-          detail: actionsLeft > 0 ? t("controlBar.toBattleDetail", actionsLeft) : undefined,
-          confirmLabel: t("controlBar.toBattleConfirm"),
-          onYes: () => act({ kind: "toBattle" }),
-        }),
+      // Straight through, no "are you sure": the button says exactly where
+      // it goes, and asking every single turn trained people to click past
+      // the question without reading it.
+      onPick: () => act({ kind: "toBattle" }),
       title: t("controlBar.toBattleTitle"),
     };
   }
 
-  if (allowed.includes("resolveCounter")) {
-    phaseMoves.judgement = {
-      onPick: () => act({ kind: "resolveCounter" }),
-      title: t("controlBar.judgementTitle"),
-    };
-  } else if (state.phase === "counter" && mine) {
+  // No move for the reveal: once both sides have chosen, PlayGame turns the
+  // cards up by itself (see its autoMove). Until then the step shows as
+  // waiting.
+  if (!allowed.includes("resolveCounter") && state.phase === "counter" && mine) {
     phaseWaiting.judgement = t("controlBar.judgementWaiting");
   }
 
@@ -248,35 +244,40 @@ export function ControlBar({
   /**
    * The verb on the button beside the track, keyed by the step a move leads
    * TO — which is what makes the mapping trivial: the move out of Main lands
-   * on Battle, so it is "Go Battle"; the one that turns the cards up lands on
-   * Judgement, so it is "Reveal".
+   * on Battle, so it is "Go Battle". Judgement has no button: the reveal
+   * happens by itself once both sides have chosen.
    *
    * English in both languages, like the tab labels it sits beside.
    *
    * `main` is the one step with no entry: no move leads TO the Main Phase, so
-   * there is never a button for it. `end` is here because it has to be — the
+   * there is never a button for it. Neither is `draw` any more — the turn
+   * starts by itself. `end` is here because it has to be — the
    * track stopped being pressable, so this button is the only way to end a
    * turn. It was briefly dropped while the End tab could still be clicked.
    */
   const PRIMARY_LABEL: Partial<Record<PhaseStepKey, string>> = {
-    draw: "Start Turn",
     battle: "Go Battle",
-    judgement: "Reveal",
     end: "End Turn",
   };
   // Track order, so the choice is deterministic. In practice at most one step
   // is ever pressable at a time — legalIntents() offers one phase move per
   // phase — but ordering it means a future phase with two cannot pick at
   // random depending on key insertion order.
-  const PRIMARY_ORDER: PhaseStepKey[] = ["draw", "battle", "judgement", "end"];
+  const PRIMARY_ORDER: PhaseStepKey[] = ["battle", "end"];
   const primaryStep = PRIMARY_ORDER.find((key) => phaseMoves[key] && PRIMARY_LABEL[key]);
   /**
    * Pass wins whenever it is offered, and cannot race the phase moves: it is
    * only ever available in the Battle Phase before this viewer has answered,
-   * and none of the phase moves are legal in that window (Reveal needs both
-   * sides in; endTurn is not a Battle Phase move at all).
+   * and none of the phase moves are legal in that window (endTurn is not a
+   * Battle Phase move at all).
    */
-  const primary: { label: string; title: string; onPick: () => void; pass?: boolean } | null =
+  const primary: {
+    label: string;
+    title: string;
+    onPick: () => void;
+    pass?: boolean;
+    step?: PhaseStepKey;
+  } | null =
     onPass
       ? { label: "Pass", title: t("controlBar.passTitle"), onPick: onPass, pass: true }
       : primaryStep
@@ -284,6 +285,7 @@ export function ControlBar({
             label: PRIMARY_LABEL[primaryStep]!,
             title: phaseMoves[primaryStep]!.title,
             onPick: phaseMoves[primaryStep]!.onPick,
+            step: primaryStep,
           }
         : null;
 
@@ -322,6 +324,7 @@ export function ControlBar({
   if (state.winnerId) {
     return (
       <div className="control-bar simple">
+        {leading}
         <span className="control-phase">
           {t(
             "controlBar.gameOver",
@@ -344,6 +347,7 @@ export function ControlBar({
       : undefined;
     return (
       <div className="control-bar simple">
+        {leading}
         <span className="control-phase">{t("controlBar.leaderSelectHeading")}</span>
         <span className="control-actions">
           {theirs && !chosen && chooseLeader && (
@@ -383,6 +387,7 @@ export function ControlBar({
     const waitingFor = Object.keys(state.boards).filter((id) => !state.mulliganDone[id]);
     return (
       <div className="control-bar simple">
+        {leading}
         <span className="control-phase">{t("controlBar.mulliganHeading", nameOf(state.startingPlayerId))}</span>
         <span className="control-actions">
           {theirs && !chosen && mulligan && (
@@ -420,6 +425,7 @@ export function ControlBar({
     const { card, picked, onCancel } = levelUp;
     return (
       <div className="control-bar simple">
+        {leading}
         <span className="control-phase">{t("controlBar.levelUpHeading", card.name, card.level)}</span>
         <span className="control-actions">
           <span className="control-hint">{t("controlBar.levelUpHint", picked, card.level)}</span>
@@ -434,6 +440,7 @@ export function ControlBar({
 
   return (
     <div className="control-bar">
+      {leading}
       <div className="control-main-row">
         {/* Equal-width sides keep the five read-only phase labels on the
             board's centre line, with the turn heading left and the one verb
@@ -460,7 +467,7 @@ export function ControlBar({
           {primary && (
             <button
               type="button"
-              className={`control-primary-move${primary.pass ? " control-pass" : ""}`}
+              className={`control-primary-move ${primary.pass ? "control-pass" : `control-move-${primary.step}`}`}
               title={primary.title}
               onClick={primary.onPick}
             >

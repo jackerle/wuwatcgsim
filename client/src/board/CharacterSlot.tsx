@@ -2,6 +2,7 @@ import { useState } from "react";
 import { characterStack, type CharacterCard, type CharacterInstance } from "@wuwatcg/shared";
 import { CardImage } from "./CardImage";
 import { CardMenu, useDismiss, type CardMenuItem } from "./CardMenu";
+import { useDrag, useDropTarget } from "./DragContext";
 import { usePileModal } from "./PileModalContext";
 import { useLang } from "../i18n/LanguageContext";
 
@@ -59,6 +60,7 @@ export function CharacterSlot({
   label,
   actions,
   pickable,
+  draggable,
 }: {
   slot: CharacterInstance | null;
   /** Shown in an empty slot, and as the expanded panel's title. */
@@ -67,11 +69,18 @@ export function CharacterSlot({
   actions?: SlotActions;
   /** Set during Leader Select — see PickableLeader. Overrides `actions`. */
   pickable?: PickableLeader;
+  /**
+   * Your own board: this character can be dragged onto another slot, and
+   * another dragged onto it, to switch the Leader — see DragContext.
+   */
+  draggable?: boolean;
 }) {
   const { t } = useLang();
   const { setOpenPile } = usePileModal();
   const [menu, setMenu] = useState<"root" | "level" | "switch" | null>(null);
   const rootRef = useDismiss(menu !== null, () => setMenu(null));
+  const drag = useDrag();
+  const { dropProps, dropClass } = useDropTarget(draggable && slot ? `char:${slot.card.id}` : undefined);
 
   if (!slot) {
     return (
@@ -146,12 +155,17 @@ export function CharacterSlot({
   }
 
   return (
-    <div className="character-slot-wrap" ref={rootRef}>
+    <div className="character-slot-wrap" ref={rootRef} {...dropProps}>
       <div
         className={`character-slot clickable ${slot.position} ${menu ? "menu-open" : ""} ${
           pickable ? "picking" : ""
-        } ${pickable?.picked ? "picked" : ""}`}
+        } ${pickable?.picked ? "picked" : ""} ${draggable && !pickable ? "draggable" : ""} ${dropClass}`}
         onClick={open}
+        onPointerDown={
+          draggable && !pickable
+            ? (event) => drag.press(event, { kind: "character", slot }, previewOf(slot.card))
+            : undefined
+        }
         role="button"
         title={
           pickable

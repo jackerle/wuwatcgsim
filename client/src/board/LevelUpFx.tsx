@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CharacterCard, MatchState } from "@wuwatcg/shared";
 import { CardArt } from "./CardImage";
 import { useLang } from "../i18n/LanguageContext";
@@ -54,25 +54,33 @@ function levelUpsBetween(before: MatchState, after: MatchState): Omit<LevelUpEve
  * then the card played onto it, then the whole thing fades away.
  *
  * The match does not wait for it — the bot or the other player keeps going
- * underneath. It sits above the board's dialogs, because a Level Up so often
- * triggers an ability that asks something (Sanhua's does) and the question
- * would otherwise hide the cut-in entirely. Being on top, it also has to
- * catch clicks — one aimed at a dialog nobody can see yet would land blind —
- * so a click is simply "skip". Several at once play one after another.
+ * underneath. A Level Up often triggers an ability that asks something
+ * (Sanhua's does); PlayGame holds that question back until this is over
+ * (onPlayingChange), so the player sees the cause before being asked about
+ * it. A click skips it. Several at once play one after another.
  */
 export function LevelUpFx({
   state,
   nameOf,
+  onPlayingChange,
 }: {
   state: MatchState;
   nameOf: (seat: string) => string;
+  /**
+   * Told when the animation starts and stops, so the screen can hold back an
+   * ability's question until it is over — see PlayGame.
+   */
+  onPlayingChange?: (playing: boolean) => void;
 }) {
   const { t } = useLang();
   const previous = useRef<MatchState | null>(null);
   const nextKey = useRef(0);
   const [queue, setQueue] = useState<LevelUpEvent[]>([]);
 
-  useEffect(() => {
+  // Layout effects, not plain ones: they run before the browser paints, so
+  // the frame where the new state has arrived but the animation has not
+  // started never shows — the question it holds back would flash up in it.
+  useLayoutEffect(() => {
     const before = previous.current;
     previous.current = state;
     // A new deal is not a Level Up, whatever the boards look like.
@@ -91,6 +99,11 @@ export function LevelUpFx({
     const timer = window.setTimeout(() => setQueue((current) => current.slice(1)), FX_MS);
     return () => window.clearTimeout(timer);
   }, [showing]);
+
+  const playing = Boolean(showing);
+  useLayoutEffect(() => {
+    onPlayingChange?.(playing);
+  }, [playing, onPlayingChange]);
 
   if (!showing) return null;
 

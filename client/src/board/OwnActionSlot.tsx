@@ -1,5 +1,6 @@
 import type { ActionCard } from "@wuwatcg/shared";
 import { CardImage } from "./CardImage";
+import { useDropTarget } from "./DragContext";
 import { useLang } from "../i18n/LanguageContext";
 
 /**
@@ -14,6 +15,7 @@ export function OwnActionSlot({
   revealed,
   committed = false,
   hideFacedown,
+  dropId,
 }: {
   /** Committed but not yet turned up. */
   facedown: ActionCard | null;
@@ -23,8 +25,11 @@ export function OwnActionSlot({
   committed?: boolean;
   /** True for the opponent's side — a committed card shows only its back. */
   hideFacedown?: boolean;
+  /** Set on your own board: a card dragged here from hand is laid down. */
+  dropId?: string;
 }) {
   const { t } = useLang();
+  const { dropProps, dropClass } = useDropTarget(dropId);
   const cards = revealed.length > 0 ? revealed : [];
   // This label is deliberately public-state only. It makes both sides of the
   // clash legible at a glance — including an opponent who has passed — while
@@ -40,7 +45,7 @@ export function OwnActionSlot({
           : null;
 
   return (
-    <div className="own-action-slot">
+    <div className={`own-action-slot ${dropClass}`} {...dropProps}>
       <div className="action-slot-cards">
         {cards.length > 0 ? (
           cards.map((card, index) => (

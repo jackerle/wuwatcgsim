@@ -169,6 +169,12 @@ export const STRINGS = {
     th: (n: number) => `การ์ดตัวละคร ${n} ใบ (ทุกเลเวลของทั้งสามตัว) ถูกใส่ให้อัตโนมัติ`,
     en: (n: number) => `${n} character cards (every level of all three) are added automatically`,
   },
+  "deckBuilder.coverHint": {
+    th: (n: number, max: number) => `แตะการ์ดเพื่อเลือกเป็นหน้าปกเด็ค — เลือกแล้ว ${n}/${max} (ยังไม่เลือก = ใช้เลเวลสูงสุดของแต่ละตัว)`,
+    en: (n: number, max: number) => `Tap cards to put them on the deck's cover — ${n}/${max} picked (none = each character's highest level)`,
+  },
+  "deckBuilder.coverAdd": { th: "ใส่เป็นหน้าปกเด็ค", en: "Put on the deck cover" },
+  "deckBuilder.coverRemove": { th: "เอาออกจากหน้าปกเด็ค", en: "Take off the deck cover" },
   "deckBuilder.leaderLevelsHeading": { th: "เลเวลของตัวละคร", en: "Character Levels" },
   "deckBuilder.availableCards": { th: "การ์ดที่เลือกได้", en: "Available Cards" },
   "deckBuilder.availableCardsCount": { th: (n: number) => `(${n} แบบ)`, en: (n: number) => `(${n} kinds)` },
@@ -206,18 +212,7 @@ export const STRINGS = {
   },
 
   // --- ControlBar.tsx -----------------------------------------------------
-  "controlBar.drawTitle": { th: "จั่วการ์ดของเทิร์นนี้ — เข้าเฟสหลักต่อเอง", en: "Draw this turn's card — then continue into the Main Phase" },
-  "controlBar.toBattlePrompt": { th: "ไปเฟสประลองเลยไหม", en: "Go to the Battle Phase now?" },
-  "controlBar.toBattleDetail": {
-    th: (actionsLeft: number) => `เหลือแอ็กชันอีก ${actionsLeft} อย่าง — ออกจากเฟสหลักแล้วย้อนกลับไม่ได้`,
-    en: (actionsLeft: number) => `${actionsLeft} action(s) left — you can't come back once you leave the Main Phase`,
-  },
-  "controlBar.toBattleConfirm": { th: "ไปเฟสประลอง", en: "Go to Battle" },
   "controlBar.toBattleTitle": { th: "ปิดเฟสหลัก แล้วเปิดเฟสประลอง", en: "Close the Main Phase and open the Battle Phase" },
-  "controlBar.judgementTitle": {
-    th: "เปิดการ์ดทั้งสองฝ่าย ตัดสินผล แล้วเข้าการโจมตีต่อเนื่อง",
-    en: "Reveal both sides, settle the result, then go into the Combo",
-  },
   "controlBar.judgementWaiting": { th: "ต้องเลือกให้ครบทั้งสองฝ่ายก่อน", en: "Both sides need to commit first" },
   "controlBar.skipCounter": { th: "ข้ามเฟสประลอง", en: "Skip Battle" },
   "controlBar.skipCounterTitle": {
@@ -377,6 +372,15 @@ export const STRINGS = {
     th: (player: string, name: string, level: number) => `${player} เลเวลอัป ${name} เป็น Lv.${level}`,
     en: (player: string, name: string, level: number) => `${player} levelled ${name} up to Lv.${level}`,
   },
+  "clashFx.noCard": { th: "ไม่ลงการ์ด", en: "No card" },
+  "clashFx.wins": {
+    th: (name: string) => `${name} ชนะ`,
+    en: (name: string) => `${name} wins`,
+  },
+  "clashFx.draw": { th: "เสมอ", en: "Draw" },
+  "boardEvent.damage": { th: (n: number) => `โดนตี -${n}`, en: (n: number) => `Hit -${n}` },
+  "boardEvent.heal": { th: (n: number) => `ฮีล +${n}`, en: (n: number) => `Heal +${n}` },
+  "boardEvent.toHand": { th: (n: number) => `ได้การ์ด +${n}`, en: (n: number) => `+${n} card(s) to hand` },
   "cardPeek.closeHint": { th: "แตะหรือคลิกที่ใดก็ได้เพื่อปิด", en: "Tap or click anywhere to close" },
 
   // --- CharacterSlot.tsx ---------------------------------------------------

@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useLang } from "../i18n/LanguageContext";
 
 /**
@@ -10,6 +11,11 @@ import { useLang } from "../i18n/LanguageContext";
  *
  * Reuses the engine question dialog's chrome — to a player these are the
  * same kind of moment, so they should not look like different software.
+ *
+ * Portalled onto the board itself. It is opened from the control bar, and
+ * drawn inside it the backdrop was sized to the bar (which positions the
+ * settings gear) and picked up the bar's own button and font rules — the
+ * text no longer sat in its box.
  */
 export function ConfirmDialog({
   prompt,
@@ -28,7 +34,7 @@ export function ConfirmDialog({
   onCancel: () => void;
 }) {
   const { t } = useLang();
-  return (
+  const dialog = (
     <div className="choice-backdrop" role="dialog" aria-modal="true">
       <div className="choice-dialog">
         <p className="choice-prompt">{prompt}</p>
@@ -44,4 +50,6 @@ export function ConfirmDialog({
       </div>
     </div>
   );
+  const board = document.querySelector(".game-board");
+  return board ? createPortal(dialog, board) : dialog;
 }

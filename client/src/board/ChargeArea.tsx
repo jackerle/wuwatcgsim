@@ -1,5 +1,6 @@
 import type { ActionCard } from "@wuwatcg/shared";
 import { CardImage } from "./CardImage";
+import { useDropTarget } from "./DragContext";
 import type { HoverPreviewCard } from "./HoverPreviewContext";
 import { usePileModal } from "./PileModalContext";
 import { useLang } from "../i18n/LanguageContext";
@@ -25,8 +26,16 @@ function previewOf(card: ActionCard): HoverPreviewCard {
  * top card plus the authoritative count; clicking opens the same pile modal
  * Pool and Trash use, with every card in the exact stored/spend order.
  */
-export function ChargeArea({ cards }: { cards: ActionCard[] }) {
+export function ChargeArea({
+  cards,
+  dropId,
+}: {
+  cards: ActionCard[];
+  /** Set on your own board: a card dragged here from hand is charged. */
+  dropId?: string;
+}) {
   const { t } = useLang();
+  const { dropProps, dropClass } = useDropTarget(dropId);
   const { setOpenPile } = usePileModal();
   const previews = cards.map(previewOf);
   const top = previews[0] ?? null; // first to be spent, matching payCost()
@@ -34,7 +43,8 @@ export function ChargeArea({ cards }: { cards: ActionCard[] }) {
 
   return (
     <div
-      className="charge-area charge-area-clickable"
+      className={`charge-area charge-area-clickable ${dropClass}`}
+      {...dropProps}
       onClick={open}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {

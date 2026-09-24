@@ -133,3 +133,17 @@ export function rememberBotDeckId(id: string): void {
     // Best effort — losing it only costs one extra click next time.
   }
 }
+
+/**
+ * A deck as this browser keeps it: the deck itself, plus the one thing that
+ * is only about how it looks here — the cards on its cover.
+ *
+ * Kept out of DeckList (shared) on purpose: a cover changes nothing about the
+ * deck, is not part of a share code, and the server never needs to hear of
+ * it. It rides along in the same saved object, so it is saved, duplicated and
+ * deleted with the deck for free.
+ */
+export type SavedDeck = DeckList & {
+  /** Up to three character card ids, in the order shown. */
+  cover?: string[];
+};

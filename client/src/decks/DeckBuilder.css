@@ -279,6 +279,42 @@
   font-size: 0.4rem;
 }
 
+/* A button now (it picks the cover), so it drops the button chrome. */
+button.leader-level-card {
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+/* On the cover: a gold frame and its place in the cover's order. */
+.leader-level-card.on-cover {
+  border-color: #f0b23f;
+  box-shadow: 0 0 0 2px rgba(240, 178, 63, 0.35), 0 6px 14px rgba(0, 0, 0, 0.4);
+}
+
+/* Three are picked already: the rest read as not takeable until one comes
+   off. */
+.leader-level-card.cover-full {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.leader-cover-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #f0b23f;
+  color: #1b1d24;
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
 .leader-level-badge {
   position: absolute;
   left: 3px;
@@ -599,12 +635,21 @@
 /* --- Saved deck list ---------------------------------------------------- */
 
 .deck-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: min(92%, 680px);
+  /* Decks as cards in a grid: three across on a wide screen, two on a
+     smaller one, one on a phone — the column count is just how many
+     420px-wide cards fit. */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  align-items: start;
+  gap: 16px;
+  width: min(96%, 1400px);
   margin: 0 auto;
   padding: 24px 0 40px;
+}
+
+.deck-list-head,
+.deck-list > .deck-empty {
+  grid-column: 1 / -1;
 }
 
 .deck-list-head {
@@ -616,17 +661,33 @@
 
 .deck-list-head h1 {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 1.6rem;
+  /* The page is always dark; the global h1 colour follows the OS theme and
+     came out dark-on-dark in light mode. */
+  color: #eef2ff;
 }
 
+/* The cover across the top, the name and details under it, then the status
+   and the edit · duplicate · delete buttons along the bottom. */
 .deck-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "cover cover cover"
+    "main main main"
+    "status . actions";
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 14px 16px 10px;
   border: 1px solid #2c2f3a;
-  border-radius: 10px;
-  background: #171b25;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1a1f2c 0%, #141824 100%);
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.deck-row:hover {
+  border-color: #3a4260;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 .deck-row.selectable {
@@ -642,46 +703,83 @@
   background: #232014;
 }
 
-.deck-row-portraits {
+.deck-row-status {
+  grid-area: status;
   display: flex;
-  flex-shrink: 0;
-  gap: 4px;
+  width: 40px;
+  height: 40px;
 }
 
-.deck-row-portrait {
+.deck-row-status svg {
+  width: 100%;
+  height: 100%;
+}
+
+.deck-row-status.ok {
+  color: #4ade80;
+}
+
+.deck-row-status.bad {
+  color: #fbbf24;
+}
+
+/* The cover: three cards side by side, close up on the art. */
+.deck-cover {
+  grid-area: cover;
+  display: flex;
+  gap: 6px;
+}
+
+.deck-cover-card {
   display: block;
-  width: 34px;
-  aspect-ratio: 5 / 7;
-  border-radius: 5px;
+  flex: 1;
+  min-width: 0;
+  aspect-ratio: 0.72;
+  border-radius: 9px;
   overflow: hidden;
-  border: 1px solid #2c2f3a;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   background: #10192e;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
 }
 
-.deck-row-portrait img,
-.deck-row-portrait .card-art-missing {
+.deck-cover-card img,
+.deck-cover-card .card-art-missing {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  font-size: 0.32rem;
+  font-size: 0.5rem;
+  /* Zoomed in on the character: the printed frame, name bar and ability
+     text are what makes a card, but it is the face that makes a cover. */
+  transform: scale(1.4);
+  transform-origin: 50% 32%;
+  transition: transform 0.25s ease;
 }
 
-.deck-row-portrait-empty {
+.deck-row:hover .deck-cover-card img {
+  transform: scale(1.48);
+}
+
+.deck-cover-empty {
   display: block;
   width: 100%;
   height: 100%;
   border: 1px dashed #3a3f4d;
+  border-radius: 9px;
   box-sizing: border-box;
 }
 
 .deck-row-main {
-  flex: 1;
+  grid-area: main;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .deck-row-name {
-  font-weight: 600;
+  font-size: 1.15rem;
+  font-weight: 700;
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -705,10 +803,15 @@
 }
 
 .deck-row-sub {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   opacity: 0.65;
 }
 
+.deck-row-why {
+  color: #fbbf24;
+}
+
+/* The Lobby's "ready / not ready" pill. */
 .deck-row-badge {
   flex-shrink: 0;
   padding: 2px 9px;
@@ -726,9 +829,49 @@
 }
 
 .deck-row-actions {
+  grid-area: actions;
   display: flex;
-  gap: 6px;
-  flex-shrink: 0;
+  align-items: center;
+}
+
+/* Icon buttons with a rule between each, like the list's mock-up. */
+.deck-row-actions .deck-icon-button + .deck-icon-button {
+  border-left: 2px solid #3a3f4d;
+}
+
+.deck-row-actions button.deck-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: #aab0c0;
+}
+
+.deck-row-actions button.deck-icon-button svg {
+  width: 30px;
+  height: 30px;
+  transition: transform 0.12s ease;
+}
+
+.deck-row-actions button.deck-icon-button:hover {
+  color: #fff;
+}
+
+.deck-row-actions button.deck-icon-button:hover svg {
+  transform: scale(1.12);
+}
+
+.deck-row-actions button.deck-icon-button.danger {
+  color: #f26b6b;
+}
+
+.deck-row-actions button.deck-icon-button.danger:hover {
+  color: #ff9d9d;
 }
 
 .deck-row-actions button {
@@ -753,5 +896,28 @@
 
   .deck-side {
     display: none;
+  }
+}
+
+/* A phone: the same card, a little tighter. */
+@media (max-width: 640px) {
+  .deck-row {
+    gap: 10px;
+    padding: 12px 12px 8px;
+  }
+
+  .deck-row-status {
+    width: 30px;
+    height: 30px;
+  }
+
+  .deck-row-actions button.deck-icon-button {
+    width: 52px;
+    height: 44px;
+  }
+
+  .deck-row-actions button.deck-icon-button svg {
+    width: 24px;
+    height: 24px;
   }
 }

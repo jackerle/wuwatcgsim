@@ -1,4 +1,3 @@
-import { KEYWORD_COLOR } from "@wuwatcg/shared";
 import type { ActionCard, CharacterCard, CharacterInstance, PlayerBoard } from "@wuwatcg/shared";
 import type { HoverPreviewCard } from "./HoverPreviewContext";
 import { CharacterSlot, type PickableLeader, type SlotActions } from "./CharacterSlot";
@@ -7,6 +6,8 @@ import { Hand } from "./Hand";
 import { ChargeArea } from "./ChargeArea";
 import { OwnActionSlot } from "./OwnActionSlot";
 import { Pile } from "./Pile";
+import { PlayerStats } from "./PlayerStats";
+import type { BoardEvent } from "../game/boardEvents";
 import { useLang } from "../i18n/LanguageContext";
 
 function toActionPreview(card: ActionCard): HoverPreviewCard {
@@ -49,6 +50,8 @@ export function PlayerZone({
   actionsFor,
   handMenuFor,
   leaderPick,
+  shownLife,
+  events,
 }: {
   board: PlayerBoard;
   name: string;
@@ -90,8 +93,17 @@ export function PlayerZone({
    * to choose — see CharacterSlot's `pickable`.
    */
   leaderPick?: { pickedId: string | null; onPick: (cardId: string) => void };
+  /**
+   * The Life to draw, when it should differ from the board's: held back
+   * while a hit waits for a cut-in to finish — see useBoardEvents.
+   */
+  shownLife?: number;
+  /** This player's hits, heals and ability draws playing right now. */
+  events?: BoardEvent[];
 }) {
   const { t } = useLang();
+  // The side this screen plays — the one face-up at the bottom.
+  const own = !mirrored && !hideHand && Boolean(onHandCardClick);
   const poolCards = board.characterPool.map(toCharacterPreview);
   const trashCards = board.trash.map(toActionPreview);
 
@@ -99,43 +111,23 @@ export function PlayerZone({
     <div className={`player-zone ${mirrored ? "mirrored" : ""}`}>
       {/*
         Each row below shares the same grid-template-columns (see
-        .zone-row in Board.css): left col | main col | right col | stats
+        .zone-row in Board.css): left col | main col | right col | spare
         col. That's what makes ChargeArea/Pool share one X (left col) and
-        Deck/Trash share another (right col) across different rows.
+        Deck/Trash share another (right col) across different rows. The
+        spare column is the Life panel's, in the hand row.
       */}
       <div className="zone-row zone-top-row">
-        <ChargeArea cards={board.competitionArea} />
+        {/* Only your own board takes drops: nothing is ever dragged onto
+            the other player's. */}
+        <ChargeArea cards={board.competitionArea} dropId={own ? "charge" : undefined} />
         <OwnActionSlot
           facedown={facedown ?? null}
           revealed={actionZone ?? []}
           committed={committed}
           hideFacedown={hideHand}
+          dropId={own ? "commit" : undefined}
         />
         <Pile label="Deck" count={board.actionDeck.length} />
-        <div className="stats-bar">
-          {/*
-            Above the name, and "Adv" in both languages rather than the
-            localized keyword: this row is narrow, and the Thai
-            "แอดวานเทจ" is long enough to push the name and Life
-            around when it appears mid-game. The colour still comes from
-            KEYWORD_COLOR, so the badge and the [Advantage] tag printed in
-            every ability's text can never drift to two purples. The tooltip
-            carries the full wording, in the player's own language.
-          */}
-          {advantage && (
-            <span
-              className="advantage-badge"
-              style={{ color: KEYWORD_COLOR.advantage }}
-              title={t("playerZone.advantageTitle")}
-            >
-              ◈Adv
-            </span>
-          )}
-          <span className="player-name">{name}</span>
-          <span className="stat" title="Life">
-            ❤ {board.life}
-          </span>
-        </div>
       </div>
 
       <div className="zone-row characters-row">
@@ -162,6 +154,7 @@ export function PlayerZone({
                   label={index === 1 ? "Leader" : t("common.back.position")}
                   actions={slot ? actionsFor?.(slot) : undefined}
                   pickable={pickable}
+                  draggable={own}
                 />
               );
             }
@@ -186,6 +179,16 @@ export function PlayerZone({
           onCardClick={hideHand ? undefined : onHandCardClick}
           menuFor={hideHand ? undefined : handMenuFor}
           dealKey={dealKey}
+          draggable={own}
+        />
+        {/* The hand row is each half's outer edge — the bottom of the screen
+            for this side, the top for the mirrored one — so the Life panel
+            sits in that corner. */}
+        <PlayerStats
+          name={name}
+          life={shownLife ?? board.life}
+          advantage={advantage}
+          events={events ?? []}
         />
       </div>
     </div>

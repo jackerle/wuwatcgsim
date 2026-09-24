@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { ActionCard } from "@wuwatcg/shared";
 import { CardImage } from "./CardImage";
 import { CardMenu, useDismiss, type CardMenuItem } from "./CardMenu";
+import { useDrag } from "./DragContext";
 
 const COLOR_LABEL: Record<ActionCard["color"], string> = {
   red: "R",
@@ -18,6 +19,7 @@ export function Hand({
   menuFor,
   unplayable,
   dealKey,
+  draggable,
 }: {
   cards: ActionCard[];
   faceDown?: boolean;
@@ -55,7 +57,10 @@ export function Hand({
    * hand — so this is what tells the animation below not to play on arrival.
    */
   dealKey?: string | number;
+  /** Your own hand: its cards can be dragged to where they go — see DragContext. */
+  draggable?: boolean;
 }) {
+  const drag = useDrag();
   // Every path that adds cards to a hand appends to the end of the array
   // (see draw/return/search in shared/src/effects.ts and match.ts), so
   // "new since last render" is just "index >= the length hand had before".
@@ -111,6 +116,16 @@ export function Hand({
           );
         }
 
+        const preview = {
+          cardId: card.id,
+          imageId: card.imageId,
+          name: card.name,
+          kind: "action" as const,
+          cost: card.cost,
+          color: card.color,
+          damage: card.damage,
+          speed: card.speed,
+        };
         const items = menuFor?.(card, index);
         const open = openAt === index && items && items.length > 0;
         const click = items?.length
@@ -132,24 +147,16 @@ export function Hand({
                 click ? "clickable" : ""
               } ${unplayable?.(card, index) ? "unplayable" : ""} ${
                 justDrawn ? "just-drawn" : ""
-              } ${open ? "menu-open" : ""}`}
+              } ${open ? "menu-open" : ""} ${draggable ? "draggable" : ""}`}
               style={style}
               title={unplayable?.(card, index) ?? undefined}
               onClick={click}
+              onPointerDown={
+                draggable ? (event) => drag.press(event, { kind: "hand", card, index }, preview) : undefined
+              }
               role={click ? "button" : undefined}
             >
-              <CardImage
-                card={{
-                  cardId: card.id,
-                  imageId: card.imageId,
-                  name: card.name,
-                  kind: "action",
-                  cost: card.cost,
-                  color: card.color,
-                  damage: card.damage,
-                  speed: card.speed,
-                }}
-              />
+              <CardImage card={preview} />
               <span className={`stat-pill cost color-${card.color}`}>{card.cost}</span>
               <span className="stat-pill color-badge">{COLOR_LABEL[card.color]}</span>
               <span className="stat-row">

@@ -12,8 +12,8 @@ import { useLang } from "../i18n/LanguageContext";
  * and any tap or click closes it.
  *
  * Fixed to the whole viewport rather than scoped to the board like the other
- * dialogs: on a phone the side panels are a scroll away, and this is the one
- * place the card can be read at all.
+ * dialogs: in portrait the side panels are not shown at all, so this is the
+ * one place the card can be read.
  */
 export function CardPeek() {
   const { t } = useLang();

@@ -31,6 +31,8 @@ import { DetailPanel } from "../board/DetailPanel";
 import { ImagePreloadPill } from "../board/ImagePreloadPill";
 import { portraitOf } from "./portraits";
 import { ShareDeckDialog } from "./ShareDeckDialog";
+import { COVER_SIZE } from "./cover";
+import type { SavedDeck } from "./storage";
 import { useLang } from "../i18n/LanguageContext";
 import "./DeckBuilder.css";
 
@@ -41,8 +43,8 @@ export function DeckBuilder({
   onSave,
   onCancel,
 }: {
-  deck: DeckList;
-  onSave: (deck: DeckList) => void;
+  deck: SavedDeck;
+  onSave: (deck: SavedDeck) => void;
   onCancel: () => void;
 }) {
   return (
@@ -57,12 +59,12 @@ function Builder({
   onSave,
   onCancel,
 }: {
-  deck: DeckList;
-  onSave: (deck: DeckList) => void;
+  deck: SavedDeck;
+  onSave: (deck: SavedDeck) => void;
   onCancel: () => void;
 }) {
   const { t, lang } = useLang();
-  const [deck, setDeck] = useState<DeckList>(initial);
+  const [deck, setDeck] = useState<SavedDeck>(initial);
   const [transfer, setTransfer] = useState<"import" | "export" | null>(null);
   const [sharing, setSharing] = useState(false);
   const { setHovered } = useHoverPreview();
@@ -174,7 +176,19 @@ function Builder({
                 <p className="deck-note">
                   {t("deckBuilder.characterCardsNote", chosenCharacterCards.length)}
                 </p>
-                <LeaderLevels characters={deck.characters} onHover={setHovered} />
+                <LeaderLevels
+                  characters={deck.characters}
+                  onHover={setHovered}
+                  cover={deck.cover ?? []}
+                  onToggleCover={(id) =>
+                    setDeck((current) => {
+                      const cover = current.cover ?? [];
+                      if (cover.includes(id)) return { ...current, cover: cover.filter((c) => c !== id) };
+                      if (cover.length >= COVER_SIZE) return current;
+                      return { ...current, cover: [...cover, id] };
+                    })
+                  }
+                />
               </>
             )}
 
@@ -245,15 +259,21 @@ function Builder({
  * Every printed level of each chosen character, laid out so the player can
  * see the whole ladder — not just the Lv.0 they picked from — before they
  * commit to the character. Every level goes into the deck automatically
- * (deckToSetup levels them up as the match calls for it), so this is purely
- * informational: nothing here is clickable to add or remove.
+ * (deckToSetup levels them up as the match calls for it), so a click here
+ * never adds or removes one. What a click does do is pick the deck's cover:
+ * up to three of these, any level, shown on the deck list (see cover.ts).
  */
 function LeaderLevels({
   characters,
   onHover,
+  cover,
+  onToggleCover,
 }: {
   characters: readonly string[];
   onHover: ReturnType<typeof useHoverPreview>["setHovered"];
+  /** The cover picks so far, in order. */
+  cover: readonly string[];
+  onToggleCover: (cardId: string) => void;
 }) {
   const { t } = useLang();
   if (characters.length === 0) return null;
@@ -261,6 +281,7 @@ function LeaderLevels({
   return (
     <div className="leader-levels">
       <h3 className="deck-heading">{t("deckBuilder.leaderLevelsHeading")}</h3>
+      <p className="deck-note">{t("deckBuilder.coverHint", cover.length, COVER_SIZE)}</p>
       <div className="leader-levels-rows">
         {characters.map((name) => {
           const levels = [...cardsFor(name).characters].sort((a, b) => a.level - b.level);
@@ -268,25 +289,34 @@ function LeaderLevels({
             <div className="leader-levels-row" key={name}>
               <span className="leader-levels-name">{name}</span>
               <div className="leader-levels-cards">
-                {levels.map((card) => (
-                  <div
-                    key={card.id}
-                    className={`leader-level-card level-${card.level}`}
-                    onMouseEnter={() =>
-                      onHover({
-                        cardId: card.id,
-                        imageId: card.imageId,
-                        name,
-                        kind: "character",
-                        level: card.level,
-                      })
-                    }
-                    onMouseLeave={() => onHover(null)}
-                  >
-                    <CardArt card={{ cardId: card.id, imageId: card.imageId, name, kind: "character" }} />
-                    <span className="leader-level-badge">Lv.{card.level}</span>
-                  </div>
-                ))}
+                {levels.map((card) => {
+                  const at = cover.indexOf(card.id);
+                  const full = at < 0 && cover.length >= COVER_SIZE;
+                  return (
+                    <button
+                      type="button"
+                      key={card.id}
+                      className={`leader-level-card level-${card.level} ${at >= 0 ? "on-cover" : ""} ${full ? "cover-full" : ""}`}
+                      onClick={() => onToggleCover(card.id)}
+                      aria-pressed={at >= 0}
+                      title={at >= 0 ? t("deckBuilder.coverRemove") : t("deckBuilder.coverAdd")}
+                      onMouseEnter={() =>
+                        onHover({
+                          cardId: card.id,
+                          imageId: card.imageId,
+                          name,
+                          kind: "character",
+                          level: card.level,
+                        })
+                      }
+                      onMouseLeave={() => onHover(null)}
+                    >
+                      <CardArt card={{ cardId: card.id, imageId: card.imageId, name, kind: "character" }} />
+                      <span className="leader-level-badge">Lv.{card.level}</span>
+                      {at >= 0 && <span className="leader-cover-badge">{at + 1}</span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           );

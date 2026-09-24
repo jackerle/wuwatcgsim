@@ -6,7 +6,9 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 6px 12px 5px;
+  /* The settings gear sits in the left edge (see .match-settings). */
+  position: relative;
+  padding: 6px 8px 5px 44px;
   /* Let the board gradient continue through the phase bar. The old solid
      slate fill created the apparent lower divider even after border-bottom
      was removed. The only intentional separator is control-status's line. */
@@ -21,9 +23,20 @@
 
 /* Main play uses a compact two-line control: a clean phase-navigation line,
    then one short live-status line. Keeping them separate means "waiting for
-   X" never pushes, truncates or masquerades as a sixth phase tab. */
+   X" never pushes, truncates or masquerades as a sixth phase tab.
+
+   Three columns: the turn heading, the phase track dead centre, and the verb
+   button out at the bar's right edge. The side columns are equal shares of
+   what the track leaves, so the track stays on the board's centre line
+   whatever the heading or the button says. A bar too narrow for all three
+   side by side switches to two lines — see the container query below. */
+.control-bar {
+  container: control-bar / inline-size;
+}
+
 .control-main-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -35,23 +48,58 @@
   gap: 8px;
 }
 
-/* The two sides share a basis, so the centre track stays centred even if the
-   turn heading is long. Match-level controls deliberately do not live here:
-   they live in the board-corner gear menu. */
+/* Match-level controls deliberately do not live here: they are in the gear
+   menu pinned to the bar's left edge (.match-settings). */
 .control-side {
-  flex: 1 1 0;
   min-width: 0;
   display: flex;
   align-items: center;
-  overflow: hidden;
 }
 
-/* flex-start, not flex-end: Pass belongs BESIDE the track it was pulled out
-   of, so it hugs the last tab instead of drifting to the bar's far edge. The
-   side still holds the same flex basis as the left one, so the track stays
-   centred whether or not Pass is showing. */
 .control-side-end {
-  justify-content: flex-start;
+  justify-content: flex-end;
+  /* Room for the verb button's glow. */
+  padding: 4px 0;
+}
+
+/* Too narrow for heading | track | button on one line (a small landscape
+   window, and every phone held upright): the track takes the first line to
+   itself, centred, and the heading and button share the second — heading
+   left, button at the right edge. The gear drops to that second line too.
+   The row reaches back into the bar's left padding, which is the gear's
+   room on one line but only needed on the second here. */
+@container control-bar (max-width: 1000px) {
+  .control-main-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    row-gap: 4px;
+    margin-left: -36px;
+  }
+
+  /* Two classes deep: the plain .phase-track rule further down the file
+     would otherwise win on order and keep the track from taking its line. */
+  .control-main-row > .phase-track {
+    order: -1;
+    flex: 1 0 100%;
+    justify-content: center;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .control-main-row > .control-side:first-of-type {
+    padding-left: 38px;
+  }
+
+  .control-side-end {
+    margin-left: auto;
+  }
+
+  .match-settings {
+    top: auto;
+    bottom: 3px;
+    transform: none;
+  }
 }
 
 /* The one verb button beside the track. Deliberately not a
@@ -62,16 +110,90 @@
    `.control-bar button:hover:not(:disabled)` would otherwise outrank a plain
    class hover and paint it grey-blue. */
 .control-bar button.control-primary-move {
+  --move-a: #3f6ae0;
+  --move-b: #2a4bb0;
+  --move-glow: rgba(90, 140, 255, 0.55);
+  position: relative;
+  overflow: hidden;
   margin-left: 10px;
-  padding: 3px 12px;
-  border-radius: 6px;
-  border: 1px solid #4d79ef;
-  background: #33509f;
-  color: #eaf0ff;
-  font-size: calc(var(--board-text) * 1.15);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  padding: 7px 20px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--move-a) 70%, #fff);
+  background: linear-gradient(180deg, var(--move-a), var(--move-b));
+  color: #fff;
+  font-size: calc(var(--board-text) * 1.5);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   white-space: nowrap;
+  box-shadow: 0 4px 14px var(--move-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: transform 120ms ease, box-shadow 160ms ease, filter 160ms ease;
+  /* A slow breathing glow: this is the button that moves the turn on, and
+     it should be the easiest thing on the board to find. */
+  animation: move-breathe 2.2s ease-in-out infinite;
+}
+
+/* A sheen that sweeps across now and then. */
+.control-bar button.control-primary-move::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.35) 48%,
+    transparent 66%
+  );
+  transform: translateX(-120%);
+  animation: move-sheen 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes move-breathe {
+  0%,
+  100% {
+    box-shadow: 0 4px 14px var(--move-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+  50% {
+    box-shadow: 0 4px 24px 3px var(--move-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+}
+
+@keyframes move-sheen {
+  0%,
+  55% {
+    transform: translateX(-120%);
+  }
+  85%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+/* One colour per move, so the button says which one it is before it is
+   read: into the clash is red, ending the turn is the calm blue. */
+.control-bar button.control-move-battle {
+  --move-a: #e0473f;
+  --move-b: #a8242a;
+  --move-glow: rgba(240, 80, 70, 0.55);
+}
+
+.control-bar button.control-move-end {
+  --move-a: #3f6ae0;
+  --move-b: #2a4bb0;
+  --move-glow: rgba(90, 140, 255, 0.5);
+}
+
+.control-bar button.control-primary-move:active {
+  transform: translateY(1px) scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-bar button.control-primary-move,
+  .control-bar button.control-primary-move::after {
+    animation: none;
+  }
 }
 
 /* The Action Phase's second exit sits to the LEFT of the primary button, quieter
@@ -96,8 +218,9 @@
 }
 
 .control-bar button.control-primary-move:hover:not(:disabled) {
-  background: #4162c4;
-  border-color: #8aa8ff;
+  background: linear-gradient(180deg, var(--move-a), var(--move-b));
+  filter: brightness(1.12);
+  transform: translateY(-1px);
   color: #fff;
 }
 
@@ -105,15 +228,23 @@
    turn, so it keeps the shape and drops the blue. Amber, not red: declining a
    clash is an ordinary play, not a mistake. */
 .control-bar button.control-primary-move.control-pass {
+  --move-glow: rgba(184, 146, 47, 0.25);
   border-color: #7a6330;
   background: #33291a;
   color: #e8c98a;
+  text-shadow: none;
+  animation: none;
+}
+
+.control-bar button.control-primary-move.control-pass::after {
+  display: none;
 }
 
 .control-bar button.control-primary-move.control-pass:hover:not(:disabled) {
   background: #453521;
   border-color: #b8922f;
   color: #ffe6b0;
+  filter: none;
 }
 
 .control-phase {
@@ -149,13 +280,15 @@
   font-size: calc(var(--board-text) * 0.94) !important;
 }
 
-/* A board-corner home for match-level actions. It is intentionally outside
-   the phase bar: leaving a room, conceding and dealing again are never a
-   phase of the turn. */
+/* Match-level actions — leaving a room, conceding, dealing again. They are
+   never a phase of the turn, so they are not in the bar's flow: the gear is
+   pinned to the bar's left edge, mid-board, where either hand can reach it
+   and nothing in a corner (the Life panels) is under it. */
 .match-settings {
   position: absolute;
-  top: 0.65rem;
-  right: 0.75rem;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
   z-index: 65;
 }
 
@@ -188,7 +321,7 @@
 .match-settings-menu {
   position: absolute;
   top: calc(100% + 6px);
-  right: 0;
+  left: 0;
   z-index: 1;
   display: flex;
   flex-direction: column;
@@ -806,37 +939,10 @@
 
 /* --- Portrait: see the matching block in Board.css ---------------------- */
 @media (orientation: portrait) {
-  .control-bar {
-    padding: 4px 4px 3px;
-  }
-
-  /* Phase track on its own line across the top, turn heading and the verb
-     button sharing the line under it — side by side, the three need about
-     twice the width a phone has. */
-  .control-main-row {
-    flex-wrap: wrap;
-    justify-content: space-between;
-    row-gap: 4px;
-  }
-
-  .phase-track {
-    order: -1;
-    flex: 1 0 100%;
-    justify-content: center;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
+  /* The two-line control bar itself is the container query above — a
+     phone is always narrower than it. Only the tighter tabs are here. */
   .phase-track-step {
     padding: 2px 5px;
-  }
-
-  .control-side {
-    flex: 0 1 auto;
-  }
-
-  .control-side-end {
-    margin-left: auto;
   }
 
   .control-bar.simple {
@@ -852,5 +958,62 @@
 
   .card-menu button {
     white-space: normal;
+  }
+}
+
+/* --- Drag and drop (DragContext) -----------------------------------------
+   The card under the finger, the places it can go lighting up, and the one
+   it is over lighting up more. */
+
+.hand-card.draggable,
+.character-slot.draggable {
+  /* The browser would otherwise take a touch that moves as a scroll and
+     cancel the drag under it. */
+  touch-action: none;
+}
+
+.drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1200;
+  width: calc(var(--card-w, 70px) * 1.05);
+  aspect-ratio: 0.72;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 18px rgba(122, 162, 255, 0.55);
+  pointer-events: none;
+  opacity: 0.95;
+}
+
+.drag-ghost img,
+.drag-ghost .card-art-missing {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.drop-target {
+  outline: 2px dashed rgba(122, 200, 255, 0.85);
+  outline-offset: 3px;
+  animation: drop-pulse 1s ease-in-out infinite;
+}
+
+.drop-target.drop-over {
+  outline: 3px solid #7ad3ff;
+  background-color: rgba(122, 211, 255, 0.14);
+  box-shadow: 0 0 22px rgba(122, 211, 255, 0.6);
+  animation: none;
+}
+
+@keyframes drop-pulse {
+  0%,
+  100% {
+    outline-color: rgba(122, 200, 255, 0.45);
+  }
+  50% {
+    outline-color: rgba(122, 200, 255, 1);
   }
 }
