@@ -112,7 +112,7 @@ export function PlayGame({
    *                     a card down or passed, turning them up is all that is
    *                     left to do.
    *   nothing to follow endTurn — the Combo Step or End Phase with no
-   *                     follow-up the player could make (see nothingLeftToDo).
+   *                     follow-up window open (see nothingLeftToDo).
    *                     ControlBar shows no End Turn then, so this is the only
    *                     way the turn moves on — at once, since there is
    *                     nothing to wait for.
