@@ -1179,7 +1179,12 @@ function resolveCounter(run: Run): void {
   run.state.actionZone[opponent] = theirs ? [theirs] : [];
   if (mine) run.state = recordCardPlayed(run.state, turnPlayer, mine);
   if (theirs) run.state = recordCardPlayed(run.state, opponent, theirs);
-  // Turning a card up is what plays it, so this is where it gets paid for.
+  // Turning a card up is what plays it, so this is where it gets paid for —
+  // at its cost as it stands now it is face up. Passives are rebuilt from the
+  // zones a card can be seen in, and face-down is not one of them, so a
+  // discount like "[Advantage] this card's cost -1" (BP01-062) went missing
+  // for the whole time the card lay face-down. Settling first puts it back.
+  run.settle();
   if (mine) payOnReveal(run, mine, turnPlayer);
   if (theirs) payOnReveal(run, theirs, opponent);
   // One line per side rather than one for both: each gets to carry its own

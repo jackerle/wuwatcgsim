@@ -2428,5 +2428,37 @@ let game = newMatch();
   );
 }
 
+// --- A cost discount still counts once the card is face-down ----------------
+
+{
+  // BP01-062 Cosmos Rave: cost 2, "[Advantage] this card's cost -1". The
+  // discount is a passive, rebuilt from the zones a card can sit in — and
+  // face-down was not one of them, so by the reveal it had gone and the card
+  // was paid for at the full 2. Advantage itself is untouched by the battle:
+  // it was settled when the turn began.
+  const base = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  for (const outcome of ["แพ้สีฟ้า", "ชนะสีเขียว"] as const) {
+    const s = structuredClone(base);
+    s.phase = "counter";
+    s.advantageIds = ["p1"];
+    s.boards.p1.hand = [action("BP01-062")];
+    s.boards.p1.competitionArea = [action("BP01-044"), action("BP01-047")];
+    s.boards.p2.hand = [action(outcome === "แพ้สีฟ้า" ? "BP01-045" : "BP01-047")];
+    const c1 = step(s, "p1", { kind: "commit", cardId: "BP01-062" });
+    const c2 = step(c1.state, "p2", { kind: "commit", cardId: s.boards.p2.hand[0].id });
+    const { result } = drive(c2.state, "p1", { kind: "resolveCounter" });
+    check(
+      `BP01-062 มี Advantage (${outcome}) -> จ่าย cost 1 ไม่ใช่ 2`,
+      result.state.boards.p1.competitionArea.length === 1,
+      `Concerto เหลือ ${result.state.boards.p1.competitionArea.length}`
+    );
+    check(
+      `BP01-062 (${outcome}) -> Advantage ยังอยู่ทั้งเทิร์น`,
+      result.state.advantageIds.includes("p1"),
+      result.state.advantageIds.join(",")
+    );
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
