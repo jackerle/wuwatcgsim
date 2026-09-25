@@ -116,6 +116,20 @@ export const STRINGS = {
     th: "หรือรอให้ใครสักคนเจอห้องนี้ในลิสต์",
     en: "or wait for someone to find this room in the list",
   },
+  "lobby.notifyAsk": { th: "แจ้งเตือนเมื่อมีคนเข้าห้อง", en: "Notify me when someone joins" },
+  "lobby.notifyOn": {
+    th: "จะแจ้งเตือนบนเครื่องเมื่อมีคนเข้าห้อง",
+    en: "You'll get a desktop notification when someone joins",
+  },
+  "lobby.notifyBlocked": {
+    th: "เบราว์เซอร์บล็อกการแจ้งเตือนของเว็บนี้ไว้ เปิดได้ที่การตั้งค่าเว็บไซต์",
+    en: "Notifications are blocked for this site — allow them in your browser's site settings",
+  },
+  "lobby.notifyTitle": { th: "มีคนเข้าห้องแล้ว", en: "Someone joined your room" },
+  "lobby.notifyBody": {
+    th: (name: string, code: string) => `${name} เข้าห้อง ${code} แล้ว เลือกเด็คแล้วเริ่มเกมได้เลย`,
+    en: (name: string, code: string) => `${name} joined room ${code}. Pick your deck and start the game.`,
+  },
   "lobby.you": { th: "(คุณ)", en: "(you)" },
   "lobby.noDeckPicked": { th: "ยังไม่ได้เลือกเด็ค", en: "Hasn't picked a deck yet" },
   "lobby.deckPicked": { th: "เลือกเด็คแล้ว", en: "Deck chosen" },

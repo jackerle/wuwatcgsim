@@ -12,6 +12,7 @@ import { socket } from "../socket";
 import { DeckManager } from "../decks/DeckManager";
 import { allDecks, rememberDeckId, rememberedDeckId } from "../decks/storage";
 import { useLang } from "../i18n/LanguageContext";
+import { useJoinNotice } from "./joinNotice";
 import "./MainMenu.css";
 
 /**
@@ -53,6 +54,11 @@ export function Lobby({
   );
   const [deckError, setDeckError] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
+
+  const notice = useJoinNotice(room, me, (name) => ({
+    title: t("lobby.notifyTitle"),
+    body: t("lobby.notifyBody", name, room.code),
+  }));
 
   const isHost = player?.isHost ?? false;
   const both = room.players.length === room.maxPlayers;
@@ -110,6 +116,15 @@ export function Lobby({
               {room.visibility === "public" && ` ${t("lobby.orWaitInList")}`}
             </p>
           )}
+          {!both && notice.permission === "default" && (
+            <div className="play-row">
+              <button type="button" onClick={notice.ask}>
+                {t("lobby.notifyAsk")}
+              </button>
+            </div>
+          )}
+          {!both && notice.permission === "granted" && <p className="room-row-sub">{t("lobby.notifyOn")}</p>}
+          {!both && notice.permission === "denied" && <p className="room-row-sub">{t("lobby.notifyBlocked")}</p>}
           {room.players.map((p) => {
             const isReady = isSeatReady(p.seat);
             return (

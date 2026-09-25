@@ -1,7 +1,7 @@
 {
   "name": "wuwatcgsim",
   "private": true,
-  "version": "1.1.0",
+  "version": "0.1.0",
   "description": "Web-based simulator for the Wuthering Waves TCG mini-game",
   "workspaces": [
     "client",
