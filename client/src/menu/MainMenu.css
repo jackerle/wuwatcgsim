@@ -120,6 +120,40 @@
   text-decoration: underline;
 }
 
+/* Discord icon on its own line, the credit under it. */
+.menu-credit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.menu-credit a.menu-discord {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #7a82a0;
+  transition: color 150ms ease, transform 150ms ease;
+}
+
+.menu-discord-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* The link is the icon plus its words; underlining the whole row reads as
+   clutter, so hover is the colour change alone. */
+.menu-credit a.menu-discord:hover {
+  text-decoration: none;
+}
+
+/* Discord's own blurple on hover. */
+.menu-credit a.menu-discord:hover {
+  color: #5865f2;
+  transform: translateY(-2px);
+}
+
 .menu-title {
   margin: 0;
   text-align: center;

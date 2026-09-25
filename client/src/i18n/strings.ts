@@ -77,6 +77,10 @@ export const STRINGS = {
   "mainMenu.vsBot": { th: "เล่นกับบอท — ไม่ต้องมีคู่แข่ง", en: "Play against the bot — no opponent needed" },
   "mainMenu.langSwitchTitle": { th: "เปลี่ยนภาษา", en: "Change language" },
   "mainMenu.credit": { th: "สร้างโดย", en: "Made by" },
+  "mainMenu.discordJoin": {
+    th: "เข้าร่วม Discord เพื่อรับข่าวสาร",
+    en: "Join our Discord for information",
+  },
 
   // --- PlayMenu.tsx -------------------------------------------------------
   "playMenu.title": { th: "เล่นออนไลน์", en: "Play Online" },
