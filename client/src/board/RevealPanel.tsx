@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ActionCard, MatchState, RevealEntry } from "@wuwatcg/shared";
 import { CardImage } from "./CardImage";
 import { useLang } from "../i18n/LanguageContext";
@@ -27,7 +27,8 @@ const keyOf = (state: MatchState, entry: RevealEntry, index: number) =>
  * Cards an ability has turned face-up for both players — the top of a deck,
  * a card taken to hand, a whole hand — held on the board for the rest of the
  * phase (the engine drops them when the phase moves on; see RevealEntry).
- * Not modal: the game carries on underneath, and each one can be closed.
+ * Not modal: the game carries on underneath, and each one can be closed —
+ * by its × or by clicking anywhere outside the panel, which closes them all.
  */
 export function RevealPanel({
   state,
@@ -45,10 +46,28 @@ export function RevealPanel({
   const open = (state.reveals ?? [])
     .map((entry, index) => ({ entry, key: keyOf(state, entry, index) }))
     .filter(({ entry, key }) => entry.phase && !closed.includes(key));
-  if (hidden || open.length === 0) return null;
+  const shown = !hidden && open.length > 0;
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const openKeys = useRef<string[]>([]);
+  openKeys.current = open.map(({ key }) => key);
+
+  // A click outside the panel dismisses what's showing. The click still goes
+  // through to whatever it landed on, since the panel isn't modal.
+  useEffect(() => {
+    if (!shown) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (panelRef.current?.contains(e.target as Node)) return;
+      setClosed((c) => [...c, ...openKeys.current]);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [shown]);
+
+  if (!shown) return null;
 
   return (
-    <div className="reveal-panel" aria-live="polite">
+    <div ref={panelRef} className="reveal-panel" aria-live="polite">
       {open.map(({ entry, key }) => (
         <section key={key} className="reveal-entry">
           <header className="reveal-head">
