@@ -20,6 +20,8 @@
     "test:session": "tsx scripts/test-session.ts",
     "test:fuzz": "tsx scripts/test-fuzz.ts",
     "test:bot": "tsx scripts/test-bot.ts",
+    "bench:bot": "tsx scripts/bot-arena.ts",
+    "stats:bot": "tsx scripts/bot-stats.ts",
     "test:decklist": "tsx scripts/test-decklist.ts"
   },
   "devDependencies": {

@@ -11,7 +11,8 @@
 //
 // Run with: npm run test:bot
 
-import { botAnswer, botIntents, botStep } from "../src/bot";
+import { botAnswer, botIntents } from "../src/bot";
+import { botChoose, botStep, type BotOptions } from "../src/botSearch";
 import { ALL_CARDS } from "../src/cardDb";
 import { HIDDEN_CARD_ID } from "../src/game";
 import { isActionCard, type PendingChoice } from "../src/cardDef";
@@ -49,11 +50,11 @@ function deal(game: number): MatchSession {
  * everything the bot offered, or it offered nothing at all. One is a bug in
  * the policy, not a slow game, so it is counted rather than waited out.
  */
-function playOut(session: MatchSession): { moves: number; stuck: number } {
+function playOut(session: MatchSession, options: BotOptions = {}): { moves: number; stuck: number } {
   let moves = 0;
   let stuck = 0;
   while (!session.winnerId && moves < MOVE_BUDGET) {
-    const moved = SEATS.some((seat) => botStep(session, seat));
+    const moved = SEATS.some((seat) => botStep(session, seat, options));
     moves += 1;
     if (!moved) {
       stuck += 1;
@@ -68,15 +69,19 @@ function playOut(session: MatchSession): { moves: number; stuck: number } {
 
 // --- It plays games, and they end ------------------------------------------
 
+// Mostly with the search off: it plays the same moves bot.ts offers, only in
+// a different order, and a whole game of it takes seconds. A few games with
+// it on check the search itself never leaves the bot without a move.
 {
   const GAMES = 20;
+  const SEARCHED = 3;
   let finished = 0;
   let everStuck = 0;
   let totalTurns = 0;
   let totalMoves = 0;
   for (let game = 0; game < GAMES; game += 1) {
     const session = deal(game);
-    const { moves, stuck } = playOut(session);
+    const { moves, stuck } = playOut(session, { search: game < SEARCHED });
     if (session.winnerId) finished += 1;
     if (stuck > 0) everStuck += 1;
     totalTurns += session.state.turnNumber;
@@ -99,9 +104,13 @@ function playOut(session: MatchSession): { moves: number; stuck: number } {
 
 // --- Every move it offers is one the engine takes ---------------------------
 
-{
+for (const [label, choose] of [
+  ["", botIntents],
+  [" (คิดล่วงหน้า)", botChoose],
+] as const) {
   // Nothing the bot proposes FIRST should be refused: the fallbacks further
-  // down its list are a safety net, not the plan.
+  // down its list are a safety net, not the plan. The search reorders that
+  // list, so it is held to the same.
   let firstChoiceTaken = 0;
   let decisions = 0;
   const session = deal(101);
@@ -116,20 +125,20 @@ function playOut(session: MatchSession): { moves: number; stuck: number } {
         if (session.answer(seat, botAnswer(update.view, seat, update.pending))) moved = true;
         continue;
       }
-      const [first] = botIntents(update.view, seat);
+      const [first] = choose(update.view, seat);
       if (!first) continue;
       decisions += 1;
       if (session.apply(seat, first)) {
         firstChoiceTaken += 1;
         moved = true;
-      } else if (botStep(session, seat)) {
+      } else if (botStep(session, seat, { search: false })) {
         moved = true;
       }
     }
     if (!moved) break;
   }
   check(
-    "ตัวเลือกแรกของบอทถูกกฎเสมอ",
+    `ตัวเลือกแรกของบอทถูกกฎเสมอ${label}`,
     decisions > 0 && firstChoiceTaken === decisions,
     `${firstChoiceTaken}/${decisions}`
   );
@@ -142,10 +151,13 @@ function playOut(session: MatchSession): { moves: number; stuck: number } {
   // opening where every answer is forced.
   const session = deal(202);
   for (let i = 0; i < 40 && !session.winnerId; i += 1) {
-    for (const seat of SEATS) botStep(session, seat);
+    for (const seat of SEATS) botStep(session, seat, { search: false });
   }
 
   const before = JSON.stringify(botIntents(session.updateFor("p2").view, "p2"));
+  // The search fills the hidden hand in with guesses; they must come from
+  // what is public, or this is where a peek would show.
+  const searchedBefore = JSON.stringify(botChoose(session.updateFor("p2").view, "p2"));
 
   // Now swap p1's whole hand for different cards, without touching anything
   // p2 is entitled to see: same number of cards, same trash, same board.
@@ -167,9 +179,11 @@ function playOut(session: MatchSession): { moves: number; stuck: number } {
   session.state.boards.p1.hand = swapped;
 
   const after = JSON.stringify(botIntents(session.updateFor("p2").view, "p2"));
+  const searchedAfter = JSON.stringify(botChoose(session.updateFor("p2").view, "p2"));
 
   check("การทดสอบนี้เปลี่ยนไพ่ในมือฝ่ายตรงข้ามจริง", changed);
   check("เปลี่ยนไพ่ในมือผู้เล่นแล้ว บอทตัดสินใจเหมือนเดิม — แปลว่ามันมองไม่เห็น", before === after);
+  check("บอทที่คิดล่วงหน้าก็ตัดสินใจเหมือนเดิมเช่นกัน", searchedBefore === searchedAfter);
 }
 
 // --- And the player cannot see the bot's hand either -------------------------
@@ -180,7 +194,7 @@ function playOut(session: MatchSession): { moves: number; stuck: number } {
   // filter, pointed the other way.
   const session = deal(505);
   for (let i = 0; i < 30 && !session.winnerId; i += 1) {
-    for (const seat of SEATS) botStep(session, seat);
+    for (const seat of SEATS) botStep(session, seat, { search: false });
   }
   const shown = session.updateFor("p1").view;
   const botHand = shown.boards.p2.hand;
@@ -261,7 +275,9 @@ function playOut(session: MatchSession): { moves: number; stuck: number } {
 
 {
   // Not a tuning target, a floor: a bot that cannot beat "always the first
-  // card in hand" is not making decisions, it is shuffling them.
+  // card in hand" is not making decisions, it is shuffling them. bot.ts on
+  // its own, since the search only reorders what bot.ts offers — how much
+  // that is worth is `npm run bench:bot`'s question, and a slow one.
   let botWins = 0;
   const GAMES = 16;
   for (let game = 0; game < GAMES; game += 1) {
@@ -273,7 +289,7 @@ function playOut(session: MatchSession): { moves: number; stuck: number } {
     let guard = 0;
     while (!session.winnerId && guard < MOVE_BUDGET) {
       guard += 1;
-      const moved = botStep(session, botSeat) || dumbStep(session, dumbSeat);
+      const moved = botStep(session, botSeat, { search: false }) || dumbStep(session, dumbSeat);
       if (!moved) break;
     }
     if (session.winnerId === botSeat) botWins += 1;

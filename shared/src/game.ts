@@ -386,6 +386,28 @@ export interface ZoneLimit {
 }
 
 /**
+ * A deep copy of plain match data — what structuredClone does, several times
+ * faster.
+ *
+ * The engine copies the whole match on every step, every trigger and every
+ * effect that runs, so the copy is most of what a step costs; the bot, which
+ * plays thousands of steps to choose one move, spends most of its time here.
+ * MatchState is plain objects, arrays and primitives by design (it has to
+ * survive a socket), which is all this handles — and all it needs to.
+ */
+export function cloneData<T>(value: T): T {
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    const out = new Array(value.length);
+    for (let i = 0; i < value.length; i += 1) out[i] = cloneData(value[i]);
+    return out as T;
+  }
+  const out: Record<string, unknown> = {};
+  for (const key in value) out[key] = cloneData((value as Record<string, unknown>)[key]);
+  return out as T;
+}
+
+/**
  * Advances the seed and returns a whole number below `bound`.
  *
  * Deterministic on purpose: the same state always produces the same draw, so

@@ -12,3 +12,4 @@ export * from "./deckList";
 export * from "./starterDecks";
 export * from "./session";
 export * from "./bot";
+export * from "./botSearch";

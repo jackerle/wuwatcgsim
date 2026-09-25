@@ -2405,5 +2405,28 @@ let game = newMatch();
   );
 }
 
+// --- [At start of own turn] belongs to the turn player ----------------------
+
+{
+  // SD01-001 (Rover (F) Lv.2): "[At start of own turn] draw 1". Fired
+  // board-wide, the copy on the OTHER player's board drew on this turn too.
+  const s = newMatch();
+  s.boards.p1.leader!.card = character("SD01-001");
+  s.boards.p2.leader!.card = character("SD01-001");
+  const handP1 = s.boards.p1.hand.length;
+  const handP2 = s.boards.p2.hand.length;
+  const after = drive(s, "p1", { kind: "startTurn" }).result.state;
+  check(
+    "SD01-001: เจ้าของเทิร์นจั่วเพิ่ม 1 ใบ (เทิร์นแรกจั่ว 1 + สกิล 1)",
+    after.boards.p1.hand.length === handP1 + 2,
+    `${handP1} -> ${after.boards.p1.hand.length}`
+  );
+  check(
+    "SD01-001: ฝ่ายที่ไม่ใช่เจ้าของเทิร์นไม่จั่ว",
+    after.boards.p2.hand.length === handP2,
+    `${handP2} -> ${after.boards.p2.hand.length}`
+  );
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

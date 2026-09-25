@@ -35,13 +35,14 @@ const BOT: Seat = "p2";
 /**
  * How long the bot sits on a move before making it.
  *
- * Not difficulty — it decides in well under a millisecond — but legibility: a
- * turn is roughly ten moves, and a bot that played them all in one frame would
- * redraw the board four times between blinks and leave the player reading the
- * log to find out what happened. Long enough to follow, short enough not to be
- * waiting on.
+ * Not difficulty — the thinking itself, playing its options out (see
+ * botSearch.ts), comes on top of this and takes a tenth to half a second —
+ * but legibility: a turn is roughly ten moves, and a bot that played them all
+ * in one frame would redraw the board four times between blinks and leave the
+ * player reading the log to find out what happened. Together with the
+ * thinking, long enough to follow, short enough not to be waiting on.
  */
-const THINKING_MS = 400;
+const THINKING_MS = 250;
 
 /**
  * How many refused moves in a row before the bot is declared stuck.

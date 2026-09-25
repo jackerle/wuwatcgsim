@@ -7,6 +7,7 @@
 import type { ActionCard, CharacterLevel } from "./game";
 import {
   characterStack,
+  cloneData,
   emptyTurnLog,
   HAND_LIMIT,
   shuffleWithState,
@@ -291,7 +292,7 @@ export function applyEndPhase(
   discardChoice?: (hand: PlayerBoard["hand"], keep: number) => PlayerBoard["hand"],
   { discardToLimit = true }: { discardToLimit?: boolean } = {}
 ): MatchState {
-  const next = structuredClone(state);
+  const next = cloneData(state);
   const board = next.boards[playerId];
   if (!board) return next;
 
@@ -323,7 +324,7 @@ export function applyEndPhase(
 
 /** Wipes the log. Call at the start of every turn. */
 export function resetTurnLog(state: MatchState): MatchState {
-  const next = structuredClone(state);
+  const next = cloneData(state);
   next.turnLog = emptyTurnLog();
   // "Next round your opponent cannot use follow-up attacks" was booked when
   // the ability resolved; this is the turn it starts applying.
@@ -338,7 +339,7 @@ export function recordCardPlayed(
   playerId: string,
   card: ActionCard
 ): MatchState {
-  const next = structuredClone(state);
+  const next = cloneData(state);
   const played = (next.turnLog.cardsPlayed[playerId] ??= []);
   played.push(card);
   return next;
@@ -355,7 +356,7 @@ export function recordCharacterPlayed(
   playerId: string,
   cardId: string
 ): MatchState {
-  const next = structuredClone(state);
+  const next = cloneData(state);
   const played = (next.turnLog.charactersPlayed[playerId] ??= []);
   if (!played.includes(cardId)) played.push(cardId);
   return next;
@@ -363,7 +364,7 @@ export function recordCharacterPlayed(
 
 /** Records damage that did not come from a card effect, e.g. combat damage. */
 export function recordDamage(state: MatchState, playerId: string, amount: number): MatchState {
-  const next = structuredClone(state);
+  const next = cloneData(state);
   next.turnLog.damageTaken[playerId] = (next.turnLog.damageTaken[playerId] ?? 0) + amount;
   // Counted even when the amount came out at zero: a hit that was reduced to
   // nothing still happened, and an ability that only softens the first one

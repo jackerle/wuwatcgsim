@@ -41,7 +41,7 @@ import type { CardKeyword, ContinuousKeyword, EffectTrigger } from "./cards";
 import { getCard } from "./cardDb";
 import { LOG, PROMPT, type LogLine } from "./log";
 import { canStackOnto, recordCharacterPlayed, takeFromDeck } from "./rules";
-import { characterStack, nextRandom, shuffleWithState } from "./game";
+import { characterStack, cloneData, nextRandom, shuffleWithState } from "./game";
 import type {
   ActionCard,
   CharacterInstance,
@@ -297,7 +297,7 @@ function createContext(
    */
   const show = (entry: Omit<RevealEntry, "phase" | "sourceCardId">): void => {
     if (derived || entry.cards.length === 0) return;
-    (state.reveals ??= []).push(structuredClone({ ...entry, sourceCardId: card.id, controllerId }));
+    (state.reveals ??= []).push(cloneData({ ...entry, sourceCardId: card.id, controllerId }));
   };
   const names = (cards: ActionCard[]) => cards.map((c) => c.name);
 
@@ -321,7 +321,7 @@ function createContext(
     const fresh = (state.reveals ?? []).filter(
       (entry) => !entry.phase && entry.sourceCardId === card.id && entry.controllerId === controllerId
     );
-    return ask(cursor, fresh.length > 0 ? { ...choice, revealed: structuredClone(fresh) } : choice);
+    return ask(cursor, fresh.length > 0 ? { ...choice, revealed: cloneData(fresh) } : choice);
   };
 
   // This card's own version of pickCardsFrom (above): same question, with
@@ -1132,7 +1132,13 @@ function runEffect(
   state: MatchState,
   source: EffectSource,
   derived: boolean,
-  cursor: AnswerCursor = { answers: [], next: 0 }
+  cursor: AnswerCursor = { answers: [], next: 0 },
+  /**
+   * Keep a copy to roll back to if the effect throws. Off only for a caller
+   * that holds its own untouched copy and starts over when an effect comes
+   * back "failed" or "awaiting" — see recomputeContinuous.
+   */
+  rollback = true
 ): { state: MatchState; entry: ResolvedEffect; pending?: PendingChoice } {
   const base = {
     cardId: source.card.id,
@@ -1140,17 +1146,19 @@ function runEffect(
     effect,
   };
   const log: LogLine[] = [];
-  const before = structuredClone(state);
   const ctx = createContext(state, source.card, source.controllerId, log, derived, cursor, effect, source.uid);
 
+  // Conditions only read the board, so there is nothing to undo until the
+  // effect itself runs. Copying the match up front cost a full clone for
+  // every passive that turned out not to apply — most of them, on most sweeps.
   const blocked = conditionBlocking(effect.condition, ctx, source.zone);
   if (blocked) {
-    return { state: before, entry: { ...base, status: "skipped", reason: blocked, log: [] } };
+    return { state, entry: { ...base, status: "skipped", reason: blocked, log: [] } };
   }
 
   if (isManual(effect)) {
     return {
-      state: before,
+      state,
       entry: {
         ...base,
         status: "manual",
@@ -1160,6 +1168,7 @@ function runEffect(
     };
   }
 
+  const before = rollback ? cloneData(state) : state;
   try {
     effect.resolve!(ctx);
     return { state, entry: { ...base, status: "applied", log } };
@@ -1217,7 +1226,7 @@ export function resolveTriggerWith(
   sources: EffectSource[],
   cursor: AnswerCursor
 ): TriggerResult {
-  let working: MatchState = structuredClone(state);
+  let working: MatchState = cloneData(state);
   const resolved: ResolvedEffect[] = [];
 
   for (const source of sources) {
@@ -1277,7 +1286,23 @@ export function recomputeContinuous(
   state: MatchState,
   resolve: (cardId: string) => CardDef | undefined = getCard
 ): ContinuousResult {
-  let working = structuredClone(state);
+  // Run every passive straight onto one working copy first. Each effect
+  // keeping its own copy to roll back to was most of what a step cost, and a
+  // passive almost never throws — so when one does, the sweep starts over
+  // from the untouched `state` with the careful, copy-per-effect version.
+  return sweepContinuous(state, resolve, false) ?? sweepContinuous(state, resolve, true)!;
+}
+
+/**
+ * One pass over every continuous effect. Without `rollback`, returns null the
+ * moment an effect needs undoing, having left `state` itself untouched.
+ */
+function sweepContinuous(
+  state: MatchState,
+  resolve: (cardId: string) => CardDef | undefined,
+  rollback: boolean
+): ContinuousResult | null {
+  let working = cloneData(state);
   // Everything a continuous effect produced is thrown away and rebuilt, which
   // is what makes this safe to call as often as we like.
   working.statModifiers = working.statModifiers.filter((modifier) => !modifier.derived);
@@ -1286,6 +1311,8 @@ export function recomputeContinuous(
 
   const manual: ResolvedEffect[] = [];
   const log: LogLine[] = [];
+  const fresh = (): AnswerCursor => ({ answers: [], next: 0 });
+  const undone = (status: ResolvedEffect["status"]) => status === "failed" || status === "awaiting";
 
   for (const [playerId, board] of Object.entries(working.boards)) {
     // Action cards carry passives too — "〈Echo〉 is capped at 1 on the Action
@@ -1301,7 +1328,8 @@ export function recomputeContinuous(
       const card = resolve(runtime.id);
       if (!card) continue;
       for (const effect of effectsForContinuous(card, "passive")) {
-        const result = runEffect(effect, working, { card, controllerId: playerId, zone }, true);
+        const result = runEffect(effect, working, { card, controllerId: playerId, zone }, true, fresh(), rollback);
+        if (!rollback && undone(result.entry.status)) return null;
         working = result.state;
         log.push(...result.entry.log);
         if (result.entry.status === "manual") manual.push(result.entry);
@@ -1329,7 +1357,8 @@ export function recomputeContinuous(
               controllerId: playerId,
               zone: slot.position === "leader" ? "leader" : "back",
             };
-            const result = runEffect(effect, working, source, true);
+            const result = runEffect(effect, working, source, true, fresh(), rollback);
+            if (!rollback && undone(result.entry.status)) return null;
             working = result.state;
             log.push(...result.entry.log);
             if (result.entry.status === "manual") manual.push(result.entry);
@@ -1414,7 +1443,7 @@ export function expireModifiers(state: MatchState, moment: "battle" | "turn"): M
   const age = <T extends { duration: ModifierDuration }>(entry: T): T =>
     moment === "turn" && entry.duration === "nextTurn" ? { ...entry, duration: "turn" } : entry;
 
-  const next = structuredClone(state);
+  const next = cloneData(state);
   next.statModifiers = state.statModifiers
     .filter((m) => alive(m.duration, m.sourceCardId))
     .map(age);

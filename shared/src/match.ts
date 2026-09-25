@@ -70,6 +70,7 @@ import {
   type PlayerBoard,
   hiddenActionCard,
   hiddenCharacterCard,
+  cloneData,
 } from "./game";
 import {
   applyEndPhase,
@@ -320,7 +321,7 @@ class Run {
   private readonly reported = new Set<string>();
 
   constructor(state: MatchState, answers: ChoiceAnswer[]) {
-    this.state = structuredClone(state);
+    this.state = cloneData(state);
     this.cursor = makeCursor(answers);
   }
 
@@ -864,7 +865,9 @@ function startTurn(run: Run): void {
   board.hand.push(...drawn);
   run.note(LOG.draws(turnPlayer, drawn.length));
 
-  run.fire("turnStart");
+  // "[At start of own turn]" — the turn player's cards only. Fired board-wide,
+  // the other player's copy went off too and drew on a turn that was not theirs.
+  run.fireFor("turnStart", turnPlayer);
   run.settle();
   run.state.phase = "action";
 }
@@ -1544,7 +1547,7 @@ export function opponentOf(state: MatchState, playerId: string): string | null {
  * sends this, never the raw state.
  */
 export function viewFor(state: MatchState, playerId: string): MatchState {
-  const view = structuredClone(state);
+  const view = cloneData(state);
   for (const [id, board] of Object.entries(view.boards)) {
     if (id === playerId) continue;
     // Backs, not nothing: the number of cards someone holds, the size of
