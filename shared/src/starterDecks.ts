@@ -28,9 +28,9 @@ export function isStarterDeckId(id: string): boolean {
 }
 
 const JINSHI_SAN_YANG = `
-# Jinshi-San-Yang
+# Jinshi-San-Ro
 
-# Characters: Jinshi, Sanhua, Yangyang
+# Characters: Jinshi, Sanhua, Rover (F)
 BP01-029x1
 BP01-028x1
 BP01-030x1
@@ -41,20 +41,19 @@ BP01-032x1
 BP01-033x1
 SD02-003x1
 SD02-004x1
-BP01-022x1
-BP01-023x1
-BP01-024x1
-SD01-003x1
-SD01-004x1
+BP01-016x1
+BP01-017x1
+BP01-018x1
+SD01-001x1
+SD01-002x1
 
 # Action Deck (40)
-BP01-069x3
-BP01-071x3
 BP01-073x3
 BP01-074x3
 BP01-075x3
-SD01-013x3
-SD01-015x3
+BP01-076x3
+SD01-020x3
+SD01-021x3
 SD02-007x3
 SD02-008x3
 SD02-009x3
@@ -62,6 +61,7 @@ SD02-010x3
 SD02-011x3
 SD02-012x1
 SD02-013x3
+SD02-014x3
 `;
 
 const ENCORE_YANG_ROF = `
