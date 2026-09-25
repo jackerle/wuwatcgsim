@@ -39,6 +39,14 @@ export interface ActionCard {
   damage: number;
   speed: number;
   imageId: string;
+  /**
+   * This physical copy, as opposed to the printed card (`id`). Given out when
+   * the match is dealt. Two copies of one card share an `id`, so an ability
+   * that buffs "this card" has to name the copy — otherwise the first copy's
+   * +2 lands on the second one as well. Absent on hidden placeholders and on
+   * cards built by hand in tests, which fall back to matching by `id`.
+   */
+  uid?: string;
 }
 
 /**

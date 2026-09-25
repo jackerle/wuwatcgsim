@@ -71,6 +71,7 @@ export function filterableFor(card: ActionCard): FilterableCard {
   const definition = getCard(card.id);
   return {
     id: card.id,
+    uid: card.uid,
     color: card.color,
     character: definition?.character ?? null,
     subtypes: definition && definition.type === "action" ? definition.subtypes : undefined,
@@ -87,6 +88,8 @@ export interface EffectSource {
    * They resolve exactly like printed ones, with `ctx.self` set to this card.
    */
   granted?: CardEffect[];
+  /** The physical copy, for an action card in play — see ActionCard.uid. */
+  uid?: string;
 }
 
 export type EffectStatus = "applied" | "manual" | "skipped" | "failed" | "awaiting";
@@ -233,7 +236,9 @@ function createContext(
    * context that have to tell one of a card's abilities from another look at
    * it — see grantFollowUp.
    */
-  effect?: CardEffect
+  effect?: CardEffect,
+  /** The physical copy resolving, when it is an action card in play. */
+  uid?: string
 ): EffectContext {
   const opponentId = Object.keys(state.boards).find((id) => id !== controllerId) ?? "";
   const boardOf = (playerId?: string): PlayerBoard => {
@@ -295,6 +300,17 @@ function createContext(
     (state.reveals ??= []).push(structuredClone({ ...entry, sourceCardId: card.id, controllerId }));
   };
   const names = (cards: ActionCard[]) => cards.map((c) => c.name);
+
+  /**
+   * "This card gets +2" is written `{ cardId: ctx.self.id }`, which names the
+   * printed card — every copy of it. Narrow that to the copy actually
+   * resolving, or a second copy played later in the battle inherits the
+   * first one's buff on top of its own (SD02-009 hitting for 4, SD02-011 for
+   * 11). Only the exact self-target is narrowed; "your Camellya cards" and
+   * the like still mean every copy.
+   */
+  const scopeToSelf = (filter: CardFilter): CardFilter =>
+    uid && filter.cardId === card.id ? { ...filter, uid } : filter;
 
   /** ask(), carrying whatever this step has revealed so far — see PendingChoice.revealed. */
   const askHere = (choice: PendingChoice): ChoiceAnswer => {
@@ -582,7 +598,7 @@ function createContext(
         sourceCardId: card.id,
         stat,
         amount,
-        filter: { ...filter, ...(options.side ? { side: options.side } : {}) },
+        filter: { ...scopeToSelf(filter), ...(options.side ? { side: options.side } : {}) },
         duration,
         ...(options.limit ? { limit: options.limit } : {}),
       });
@@ -595,7 +611,7 @@ function createContext(
         stat,
         amount: value,
         mode: "set",
-        filter: { ...filter, ...(options.side ? { side: options.side } : {}) },
+        filter: { ...scopeToSelf(filter), ...(options.side ? { side: options.side } : {}) },
         duration,
         ...(options.limit ? { limit: options.limit } : {}),
       });
@@ -1125,7 +1141,7 @@ function runEffect(
   };
   const log: LogLine[] = [];
   const before = structuredClone(state);
-  const ctx = createContext(state, source.card, source.controllerId, log, derived, cursor, effect);
+  const ctx = createContext(state, source.card, source.controllerId, log, derived, cursor, effect, source.uid);
 
   const blocked = conditionBlocking(effect.condition, ctx, source.zone);
   if (blocked) {

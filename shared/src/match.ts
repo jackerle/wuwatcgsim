@@ -169,7 +169,8 @@ export function createMatch(setup: MatchSetup): MatchState {
     }
 
     const board = emptyBoard(player.playerId);
-    const deck = [...player.actionDeck];
+    // Each physical copy gets its own uid — see ActionCard.uid.
+    const deck = player.actionDeck.map((card, index) => ({ ...card, uid: `${player.playerId}-${index}` }));
     board.hand = deck.splice(0, INITIAL_HAND_SIZE);
     board.actionDeck = deck;
 
@@ -485,6 +486,7 @@ function sourcesOnBoard(state: MatchState): EffectSource[] {
           controllerId: playerId,
           zone: "actionZone",
           granted: grantedFor(state, card, playerId),
+          uid: card.uid,
         });
       }
     }
@@ -506,6 +508,7 @@ function sourceForCard(
       controllerId,
       zone: "actionZone",
       granted: grantedFor(state, card, controllerId),
+      uid: card.uid,
     },
   ];
 }

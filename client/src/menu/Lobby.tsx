@@ -7,12 +7,26 @@
 // not the deck's name, its characters or its 40 cards.
 
 import { useState } from "react";
-import { isDeckPlayable, type DeckList, type Room } from "@wuwatcg/shared";
+import { isDeckPlayable, type DeckList, type Room, type Seat } from "@wuwatcg/shared";
 import { socket } from "../socket";
 import { DeckManager } from "../decks/DeckManager";
 import { allDecks, rememberDeckId, rememberedDeckId } from "../decks/storage";
 import { useLang } from "../i18n/LanguageContext";
 import "./MainMenu.css";
+
+/**
+ * Has this seat handed in a deck?
+ *
+ * Read defensively: a client can be newer than the server it is talking to
+ * for a while during a deploy (the page is rebuilt before the server
+ * restarts), and an older server sends `picks` — the character names —
+ * instead of `ready`. Reading `room.ready.p1` off that blanked the screen.
+ */
+function seatReady(room: Room, seat: Seat): boolean {
+  if (room.ready) return Boolean(room.ready[seat]);
+  const legacy = (room as { picks?: Partial<Record<Seat, string[]>> }).picks;
+  return (legacy?.[seat]?.length ?? 0) > 0;
+}
 
 export function Lobby({
   room,
@@ -28,11 +42,12 @@ export function Lobby({
   const { t } = useLang();
   const [picking, setPicking] = useState(false);
   const player = room.players.find((p) => p.id === me);
+  const isSeatReady = (seat: Seat) => seatReady(room, seat);
   // Back from a rematch the server still holds this seat's deck, so show it
   // rather than asking again. The server keeps only the list, so it is found
   // again by the id remembered when it was handed in.
   const [deck, setDeck] = useState<DeckList | null>(() =>
-    player && room.ready[player.seat]
+    player && isSeatReady(player.seat)
       ? (allDecks().find((entry) => entry.id === rememberedDeckId()) ?? null)
       : null
   );
@@ -41,7 +56,7 @@ export function Lobby({
 
   const isHost = player?.isHost ?? false;
   const both = room.players.length === room.maxPlayers;
-  const ready = both && room.ready.p1 && room.ready.p2;
+  const ready = both && isSeatReady("p1") && isSeatReady("p2");
 
   function submit(chosen: DeckList) {
     socket.emit("submitDeck", { deck: chosen }, (result) => {
@@ -96,7 +111,7 @@ export function Lobby({
             </p>
           )}
           {room.players.map((p) => {
-            const isReady = Boolean(room.ready[p.seat]);
+            const isReady = isSeatReady(p.seat);
             return (
               <div key={p.id} className="room-row">
                 <div className="room-row-main">

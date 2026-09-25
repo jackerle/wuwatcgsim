@@ -208,7 +208,7 @@ export const BP01: CardDef[] = [
     speed: 6,
     attack: 1,
     rarity: 1,
-    subtypes: ["Basic Attack"],
+    subtypes: ["Normal Attack"], // printed 通常攻撃 — see BP01-050
     effects: [
       {
         condition: ["judgement"],
@@ -368,16 +368,16 @@ export const BP01: CardDef[] = [
       {
         condition: ["enter", "levelUp"],
         text: {
-          th: "[Enter] / [Level up] สามารถนำการ์ด {Basic Attack} 1 ใบจากกองทิ้งขึ้นมือ",
-          en: "[Enter] / [Level up] You may take 1 {Basic Attack} card from the trash to hand",
+          th: "[Enter] / [Level up] สามารถนำการ์ด {Normal Attack} 1 ใบจากกองทิ้งขึ้นมือ",
+          en: "[Enter] / [Level up] You may take 1 {Normal Attack} card from the trash to hand",
         },
         resolve: (ctx) => {
           // "สามารถ" — the player may decline, so ask before touching anything.
           const candidates = ctx
             .board()
-            .trash.filter((c) => ctx.countMatching([c], { subtype: "Basic Attack" }) > 0);
+            .trash.filter((c) => ctx.countMatching([c], { subtype: "Normal Attack" }) > 0);
           const picked = ctx.chooseCard(
-            { th: "นำการ์ด {Basic Attack} 1 ใบจากกองทิ้งขึ้นมือไหม", en: "Return a Basic Attack card from the trash to hand?" },
+            { th: "นำการ์ด {Normal Attack} 1 ใบจากกองทิ้งขึ้นมือไหม", en: "Return a Normal Attack card from the trash to hand?" },
             candidates,
             { optional: true }
           );
@@ -433,12 +433,12 @@ export const BP01: CardDef[] = [
       {
         condition: ["leader", "judgement"],
         text: {
-          th: "[Leader] [Judgement] หากชนะ นำการ์ด {Basic attack} 1 ใบจากกองทิ้งขึ้นมือ",
-          en: "[Leader] [Judgement] If you win, take 1 {Basic Attack} card from the trash to hand",
+          th: "[Leader] [Judgement] หากชนะ นำการ์ด {Normal Attack} 1 ใบจากกองทิ้งขึ้นมือ",
+          en: "[Leader] [Judgement] If you win, take 1 {Normal Attack} card from the trash to hand",
         },
         resolve: (ctx) => {
           if (!ctx.wonLastBattle()) return;
-          ctx.trashToHand(1, { subtype: "Basic Attack" });
+          ctx.trashToHand(1, { subtype: "Normal Attack" });
         },
       },
     ],
@@ -1509,16 +1509,23 @@ export const BP01: CardDef[] = [
     speed: 6,
     attack: 1,
     rarity: 1,
-    subtypes: ["Basic Attack"],
+    // Printed 通常攻撃 (Normal Attack) — not 基本攻撃 (Basic Attack), which
+    // is a different tag (BP01-052 carries both). 消滅 beside it is the
+    // element, not a subtype.
+    subtypes: ["Normal Attack"],
     effects: [
       {
         condition: ["combo"],
         text: {
-          th: "[Combo] หากใน Action area ของเจ้าของมีการ์มากกว่าหรือเท่ากับ 2 ใบ การ์ดใบนี้ได้รับ +1 ดาเมจ",
-          en: "[Combo] If your Action area has 2 or more cards, this card gains +1 damage",
+          th: "[Combo] หากใน Action area ของเจ้าของมีการ์ด {Normal Attack} 2 ใบขึ้นไป การ์ดใบนี้ได้รับ +1 ดาเมจ",
+          en: "[Combo] If your Action area has 2 or more {Normal Attack} cards, this card gains +1 damage",
         },
         resolve: (ctx) => {
-            if (ctx.actionZone().length >= 2) ctx.buff({ cardId: ctx.self.id }, "attack", 1, "battle");
+            // Counts this card too: by the time [Combo] resolves it is already
+            // in the Action Area, and it is a Normal Attack itself.
+            if (ctx.countMatching(ctx.actionZone(), { subtype: "Normal Attack" }) >= 2) {
+              ctx.buff({ cardId: ctx.self.id }, "attack", 1, "battle");
+            }
           },
       },
     ],

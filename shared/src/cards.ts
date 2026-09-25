@@ -290,6 +290,12 @@ export interface CardFilter {
   character?: string | string[];
   cardId?: string | string[];
   /**
+   * One physical copy (ActionCard.uid). Not written by card definitions:
+   * the engine adds it when an ability targets its own card — see scopeToSelf
+   * in effects.ts.
+   */
+  uid?: string;
+  /**
    * Printed card category, e.g. "Normal Attack" or "Echo". A card matches
    * when it carries ANY of the listed subtypes.
    */
@@ -361,6 +367,8 @@ export interface FilterableCard {
   /** Keywords printed anywhere on the card, for `filter.keyword`. */
   keywords?: CardKeyword[];
   id: string;
+  /** See ActionCard.uid. */
+  uid?: string;
   color: CardColor;
   character?: string | null;
   subtypes?: string[];
@@ -384,6 +392,7 @@ export function matchesFilter(card: FilterableCard, filter: CardFilter): boolean
 
   const ids = asList(filter.cardId);
   if (ids && !ids.includes(card.id)) return false;
+  if (filter.uid !== undefined && card.uid !== filter.uid) return false;
 
   // The printed data spells these inconsistently ("Basic attack" vs
   // "Basic Attack"), so compare without case.

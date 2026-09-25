@@ -1231,6 +1231,43 @@ let game = newMatch();
   );
 }
 
+{
+  // Two copies of one card in the same Combo Step: SD02-011 "[Combo] 3+ cards
+  // in your Action Area -> this card +3". Each copy hits for 5+3 = 8. The
+  // buff used to name the printed card, so the second copy also picked up
+  // the first one's +3 and hit for 11.
+  const s = createMatch({
+    matchId: "self-buff-copies",
+    startingPlayerId: "p1",
+    skipMulligan: true,
+    players: [
+      { playerId: "p1", characterDeck: ENCORE.map(character), actionDeck: deck(["SD02-011", "BP01-044"]) },
+      { playerId: "p2", characterDeck: CAMELLYA.map(character), actionDeck: deck(P2_DECK) },
+    ],
+  });
+  const p1 = s.boards.p1;
+  const jinshiAt = p1.back.findIndex((slot) => slot.card.id === "BP01-030");
+  const jinshi = p1.back[jinshiAt];
+  p1.back[jinshiAt] = { ...p1.leader!, position: "back" };
+  p1.leader = { ...jinshi, position: "leader" };
+  const pool = [...p1.hand, ...p1.actionDeck];
+  const copies = pool.filter((c) => c.id === "SD02-011").slice(0, 2);
+  const fillers = pool.filter((c) => c.id === "BP01-044").slice(0, 8);
+  check("การ์ดแต่ละใบมี uid ของตัวเอง", copies.length === 2 && copies[0].uid !== copies[1].uid && Boolean(copies[0].uid));
+  p1.hand = copies;
+  p1.competitionArea = fillers.slice(2);
+  s.actionZone.p1 = fillers.slice(0, 2);
+  s.phase = "combo";
+  s.combo = { playerId: "p1", unlimited: true, remaining: Infinity };
+
+  const first = drive(s, "p1", { kind: "combo", cardId: "SD02-011" }).result;
+  const hit1 = 20 - first.state.boards.p2.life;
+  const second = drive(first.state, "p1", { kind: "combo", cardId: "SD02-011" }).result;
+  const hit2 = first.state.boards.p2.life - second.state.boards.p2.life;
+  check("SD02-011 ใบแรก -> 8", hit1 === 8, `${hit1} ${first.error ?? ""}`);
+  check("SD02-011 ใบที่สอง -> 8 ไม่ใช่ 11 (บัฟไม่ซ้อนข้ามใบ)", hit2 === 8, `${hit2} ${second.error ?? ""}`);
+}
+
 // --- The published turn order ----------------------------------------------
 //
 // Four rules taken from the official rules page, each of which the engine got

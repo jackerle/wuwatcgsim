@@ -85,25 +85,39 @@ const check = (name: string, ok: boolean, detail = "") => {
   check("BP01-002 levelUp -> กลับเข้า pool", out.state.boards.p1.characterPool.some(c => c.id === "BP01-002") && out.state.boards.p1.leader === null);
 }
 
-// BP01-005: on a win, pull a {Basic attack} back out of the trash.
-// The printed text spells it "Basic attack"; the card data says "Basic
-// Attack" — the filter has to match regardless of case.
+// BP01-005: on a win, pull a {Normal Attack} (通常攻撃) back out of the trash.
+// Not {Basic Attack} (基本攻撃) — the two are separate printed tags, and the
+// card says 通常攻撃.
 {
   const s = state();
   s.lastBattleWinnerId = "p1";
-  s.boards.p1.trash = [card("BP01-062"), card("BP01-044"), card("BP01-047")];
+  s.boards.p1.trash = [card("BP01-062"), card("BP01-047")];
   const out = resolveTrigger(s, "judgement", [src("BP01-005")]);
   const hand = out.state.boards.p1.hand.map((c) => c.id);
   const pulled = hand.length === 1 ? getCard(hand[0]) : undefined;
-  const isBasic =
+  const isNormal =
     pulled && pulled.type === "action" &&
-    (pulled.subtypes ?? []).some((x) => x.toLowerCase() === "basic attack");
-  check("BP01-005 ชนะ -> ดึง {Basic Attack} จากกองทิ้ง", Boolean(isBasic), `hand=${hand.join(",")}`);
+    (pulled.subtypes ?? []).some((x) => x.toLowerCase() === "normal attack");
+  check("BP01-005 ชนะ -> ดึง {Normal Attack} จากกองทิ้ง", Boolean(isNormal), `hand=${hand.join(",")}`);
 
   const lost = state();
   lost.boards.p1.trash = [card("BP01-044")];
   const b = resolveTrigger(lost, "judgement", [src("BP01-005")]);
   check("BP01-005 แพ้ -> ไม่ดึง", b.state.boards.p1.hand.length === 0);
+}
+
+// BP01-050: [Combo] +1 damage with 2+ {Normal Attack} in your Action Area —
+// Normal Attacks only (not any 2 cards), and it counts itself.
+{
+  const two = state();
+  two.actionZone.p1 = [card("BP01-044"), card("BP01-050")];
+  const a = resolveTrigger(two, "combo", [{ ...src("BP01-050"), zone: "actionZone" }]);
+  const mixed = state();
+  mixed.actionZone.p1 = [card("BP01-062"), card("BP01-050")];
+  const b = resolveTrigger(mixed, "combo", [{ ...src("BP01-050"), zone: "actionZone" }]);
+  const buffed = (st: typeof a.state) => st.statModifiers.some((m) => m.sourceCardId === "BP01-050");
+  check("BP01-050 Normal Attack 2 ใบ (นับตัวเอง) -> +1", buffed(a.state));
+  check("BP01-050 อีกใบไม่ใช่ Normal Attack -> ไม่ได้ +1", !buffed(b.state));
 }
 
 // BP01-025: 2+ {Normal Attack} in the Action area -> 3 damage.
@@ -128,11 +142,11 @@ const check = (name: string, ok: boolean, detail = "") => {
   check("BP01-025 มีใบเดียว -> ไม่ทำดาเมจ", b.state.boards.p2.life === 20, `p2life=${b.state.boards.p2.life}`);
 }
 
-// BP01-003: "you MAY take a {Basic Attack} from the trash" — the engine has
+// BP01-003: "you MAY take a {Normal Attack} from the trash" — the engine has
 // to stop and ask, then act on the answer.
 {
   const base = state();
-  base.boards.p1.trash = [card("BP01-062"), card("BP01-044")]; // 044 is Basic Attack
+  base.boards.p1.trash = [card("BP01-062"), card("BP01-044")]; // 044 is a Normal Attack
   base.boards.p1.leader = { position: "leader", card: { id: "BP01-003", name: "Camellya", level: 1, imageId: "x" }, under: [] };
 
   // First pass: no answers yet, so it should suspend and change nothing.
