@@ -55,6 +55,16 @@ function line(th: string, en: string): LogLine {
 }
 
 /**
+ * ": Name, Name" after a line whose cards both players are allowed to know —
+ * so the log says WHAT was revealed or taken, not just how many. Names only,
+ * never card numbers: a "[BP01-010]" in the line would be read as the card
+ * that caused it (creditCard, boardEvents).
+ */
+function named(names?: string[]): string {
+  return names && names.length > 0 ? `: ${names.join(", ")}` : "";
+}
+
+/**
  * What the engine asks a player, when a card leaves them a choice it cannot
  * make for them.
  *
@@ -81,6 +91,10 @@ export const PROMPT = {
   discard: (count: number) => ({
     th: `เลือกการ์ดในมือที่จะทิ้ง ${count} ใบ`,
     en: `Discard ${count} card(s) from hand`,
+  }),
+  discardToLimit: (count: number, limit: number) => ({
+    th: `มือเกิน ${limit} ใบ — เลือกการ์ดที่จะทิ้ง ${count} ใบ`,
+    en: `Over the ${limit}-card hand limit — discard ${count} card(s)`,
   }),
   charge: (count: number) => ({
     th: `เลือกการ์ดในมือไปชาร์จ ${count} ใบ`,
@@ -126,8 +140,11 @@ export const LOG = {
       `${player} ชาร์จการ์ด 1 ใบ (Concerto มี ${inArea} ใบ)`,
       `${player} charges 1 card (Concerto has ${inArea})`
     ),
-  discardsToLimit: (player: string, limit: number) =>
-    line(`${player} ทิ้งการ์ดให้เหลือ ${limit} ใบ`, `${player} discards down to ${limit} card(s)`),
+  discardsToLimit: (player: string, limit: number, names?: string[]) =>
+    line(
+      `${player} ทิ้งการ์ดให้เหลือ ${limit} ใบ${named(names)}`,
+      `${player} discards down to ${limit} card(s)${named(names)}`
+    ),
 
   // --- characters ---
   levelsUp: (player: string, character: string, level: number) =>
@@ -206,18 +223,28 @@ export const LOG = {
     ),
 
   // --- cards moving about ---
-  discards: (player: string, count: number) => line(`${player} ทิ้งการ์ด ${count} ใบ`, `${player} discards ${count} card(s)`),
+  discards: (player: string, count: number, names?: string[]) =>
+    line(`${player} ทิ้งการ์ด ${count} ใบ${named(names)}`, `${player} discards ${count} card(s)${named(names)}`),
   chargesCards: (player: string, count: number) => line(`${player} ชาร์จการ์ด ${count} ใบ`, `${player} charges ${count} card(s)`),
-  revealsTop: (player: string, count: number) =>
-    line(`${player} เปิดการ์ดบนสุดของเด็ค ${count} ใบ`, `${player} reveals the top ${count} card(s) of their deck`),
+  revealsTop: (player: string, count: number, names?: string[]) =>
+    line(
+      `${player} เปิดการ์ดบนสุดของเด็ค ${count} ใบ${named(names)}`,
+      `${player} reveals the top ${count} card(s) of their deck${named(names)}`
+    ),
   deckToConcerto: (player: string, count: number) =>
     line(`${player} นำการ์ด ${count} ใบจากเด็คไปวางที่ Concerto`, `${player} puts ${count} card(s) from their deck into the Concerto area`),
-  deckToHand: (player: string, count: number) =>
-    line(`${player} นำการ์ด ${count} ใบบนสุดของเด็คขึ้นมือ`, `${player} takes the top ${count} card(s) of their deck to hand`),
+  deckToHand: (player: string, count: number, names?: string[]) =>
+    line(
+      `${player} นำการ์ด ${count} ใบบนสุดของเด็คขึ้นมือ${named(names)}`,
+      `${player} takes the top ${count} card(s) of their deck to hand${named(names)}`
+    ),
   deckToTrash: (player: string, count: number) =>
     line(`${player} ทิ้งการ์ด ${count} ใบบนสุดของเด็ค`, `${player} discards the top ${count} card(s) of their deck`),
-  trashToHand: (player: string, count: number) =>
-    line(`${player} นำการ์ด ${count} ใบจากกองทิ้งขึ้นมือ`, `${player} takes ${count} card(s) from the trash to hand`),
+  trashToHand: (player: string, count: number, names?: string[]) =>
+    line(
+      `${player} นำการ์ด ${count} ใบจากกองทิ้งขึ้นมือ${named(names)}`,
+      `${player} takes ${count} card(s) from the trash to hand${named(names)}`
+    ),
   trashToConcerto: (player: string, count: number) =>
     line(`${player} นำการ์ด ${count} ใบจากกองทิ้งไปวางที่ Concerto`, `${player} puts ${count} card(s) from the trash into the Concerto area`),
   concertoToTrash: (player: string, count: number) =>
@@ -225,10 +252,14 @@ export const LOG = {
   toDeckBottom: (player: string, count: number) =>
     line(`การ์ด ${count} ใบถูกวางไว้ใต้เด็คของ ${player}`, `${count} card(s) are put on the bottom of ${player}'s deck`),
   spendsConcerto: (player: string, amount: number) => line(`${player} ใช้ Concerto ไป ${amount}`, `${player} spends ${amount} Concerto`),
-  searchesDeck: (player: string, found: number) =>
-    line(`${player} ค้นเด็คและนำขึ้นมือ ${found} ใบ`, `${player} searches their deck and takes ${found} card(s) to hand`),
+  searchesDeck: (player: string, found: number, names?: string[]) =>
+    line(
+      `${player} ค้นเด็คและนำขึ้นมือ ${found} ใบ${named(names)}`,
+      `${player} searches their deck and takes ${found} card(s) to hand${named(names)}`
+    ),
   shuffles: (player: string) => line(`${player} สับเด็ค`, `${player} shuffles their deck`),
-  revealsHand: (player: string) => line(`${player} เปิดการ์ดในมือให้ดู`, `${player} reveals their hand`),
+  revealsHand: (player: string, names?: string[]) =>
+    line(`${player} เปิดการ์ดในมือให้ดู${named(names)}`, `${player} reveals their hand${named(names)}`),
   returnsToHand: (card: string) => line(`${card} กลับขึ้นมือ`, `${card} returns to hand`),
   cannotStackHigher: (name: string) =>
     line(

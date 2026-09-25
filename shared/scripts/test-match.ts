@@ -18,11 +18,12 @@ import {
   levelUpOptions,
   step,
   viewFor,
+
   type MatchIntent,
   type StepResult,
 } from "../src/match";
 import type { ActionCard, CharacterCard, MatchState } from "../src/game";
-import { CHARGE_PER_TURN, HAND_LIMIT, HIDDEN_CARD_ID, INITIAL_HAND_SIZE } from "../src/game";
+import { CHARGE_PER_TURN, HAND_LIMIT, HIDDEN_CARD_ID, INITIAL_HAND_SIZE, isHiddenCard } from "../src/game";
 import { ACTION_DECK_SIZE } from "../src/rules";
 import type { LogLine } from "../src/log";
 
@@ -288,6 +289,26 @@ function pastLeaderSelect(state: MatchState): MatchState {
     s = step(s, playerId, { kind: "chooseLeader", leaderId: s.boards[playerId].leader!.card.id }).state;
   }
   return s;
+}
+
+{
+  // Nobody sees the other side's starters until the mulligan is over.
+  const s = mulliganMatch();
+  const back = s.boards.p1.back[0].card.id;
+  const picked = step(s, "p1", { kind: "chooseLeader", leaderId: back });
+  check("เลือก Leader: log ไม่บอกอีกฝ่าย", !picked.log.some((l) => l.en.includes("as Leader")));
+  const other = viewFor(picked.state, "p2").boards.p1;
+  check(
+    "ช่วงเลือก Leader: อีกฝ่ายเห็นตัวละครคว่ำอยู่",
+    [other.leader, ...other.back].every((slot) => !slot || isHiddenCard(slot.card))
+  );
+  check("ฝั่งตัวเองยังเห็นของตัวเอง", viewFor(picked.state, "p1").boards.p1.leader?.card.id === back);
+  let m = step(picked.state, "p2", { kind: "chooseLeader", leaderId: s.boards.p2.leader!.card.id }).state;
+  check("ช่วงเปลี่ยนมือ: ยังคว่ำอยู่", isHiddenCard(viewFor(m, "p2").boards.p1.leader!.card));
+  m = step(m, "p1", { kind: "mulligan", cardIds: [] }).state;
+  const done = step(m, "p2", { kind: "mulligan", cardIds: [] });
+  check("เปลี่ยนมือเสร็จทั้งคู่: เห็น Leader อีกฝ่าย", viewFor(done.state, "p2").boards.p1.leader?.card.id === back);
+  check("เปลี่ยนมือเสร็จ: log บอก Leader ทั้งสองฝ่าย", done.log.filter((l) => l.en.includes("as Leader")).length === 2);
 }
 
 {
@@ -1062,6 +1083,26 @@ let game = newMatch();
   check("จบเทิร์น: กลับไปเฟสจั่ว", result.state.phase === "draw");
   game = result.state;
 
+  // Mixed cards: which ones go is the turn player's pick, not the engine's.
+  const mixed = structuredClone(s);
+  mixed.boards.p1.hand = [
+    ...Array.from({ length: 5 }, () => action("BP01-044")),
+    ...Array.from({ length: 5 }, () => action("BP01-045")),
+  ];
+  const asked = step(mixed, "p1", { kind: "endTurn" });
+  check(
+    "มือเกิน 8: ถามให้เลือกทิ้ง 2 ใบ",
+    asked.pending?.kind === "pickCard" && asked.pending.playerId === "p1" && asked.pending.min === 2,
+    JSON.stringify(asked.pending?.prompt)
+  );
+  const blues = asked.pending!.options.filter((o) => o.cardId === "BP01-045").slice(0, 2);
+  const chosen = step(mixed, "p1", { kind: "endTurn" }, [blues.map((o) => o.value)]);
+  check(
+    "มือเกิน 8: ทิ้งใบที่เลือก",
+    chosen.state.boards.p1.hand.filter((c) => c.id === "BP01-045").length === 3 &&
+      chosen.state.boards.p1.hand.length === HAND_LIMIT
+  );
+
   const notYours = step(game, "p1", { kind: "endTurn" });
   check("จบเทิร์นแทนคนอื่นไม่ได้", notYours.error === "It is not your turn", notYours.error ?? "");
 
@@ -1134,6 +1175,21 @@ let game = newMatch();
     result.state.boards.p1.hand.length === 1,
     `hand=${result.state.boards.p1.hand.length}`
   );
+  check(
+    "ระหว่างถาม: คำถามแนบการ์ดที่เปิดมาให้คนตอบเห็น",
+    Boolean(first.pending?.revealed?.some((r) => r.kind === "revealTop" && r.cards[0]?.id === "BP01-052"))
+  );
+  const shown = result.state.reveals.find((r) => r.kind === "revealTop");
+  check(
+    "เปิดการ์ดแล้วนำขึ้นมือ -> ทั้งสองฝ่ายเห็น จนจบเฟส",
+    shown?.playerId === "p1" && shown.taken === 1 && shown.phase === result.state.phase,
+    JSON.stringify(shown)
+  );
+  check(
+    "log บอกชื่อการ์ดที่เปิด",
+    result.log.some((l) => l.en.includes("reveals the top 1") && l.en.includes(action("BP01-052").name))
+  );
+  check("ไม่ใช่ฝ่ายเจ้าของ ก็ยังเห็นการ์ดที่เปิด", viewFor(result.state, "p2").reveals.length > 0);
 }
 
 // --- The published turn order ----------------------------------------------

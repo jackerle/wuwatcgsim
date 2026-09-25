@@ -66,6 +66,16 @@ export function hiddenActionCard(index: number): ActionCard {
   };
 }
 
+/** A face-down character, for a starter the opponent may not see yet. */
+export function hiddenCharacterCard(index: number): CharacterCard {
+  return { id: `${HIDDEN_CARD_ID}-char-${index}`, name: "", level: 0, imageId: "" };
+}
+
+/** Is this one of the placeholders viewFor() puts in place of a hidden card? */
+export function isHiddenCard(card: { id: string }): boolean {
+  return card.id.startsWith(`${HIDDEN_CARD_ID}-`);
+}
+
 /** What happened in the most recent battle, for abilities that ask. */
 export interface BattleRecord {
   winnerId: string | null;
@@ -121,6 +131,39 @@ export interface TurnLog {
    * "noCombo", "noLeaderSwitch".
    */
   flags: Record<string, string[]>;
+  /**
+   * The clash this turn was a draw. Nothing is left to do in a turn whose
+   * clash drew — there is no Combo Step — so the client ends it on its own.
+   */
+  clashDrawn?: boolean;
+}
+
+/**
+ * Cards an ability turned face-up for both players: the top of a deck, a card
+ * taken to hand from a deck or the trash, a whole hand. Public information,
+ * so viewFor() leaves these alone — this is how the opponent sees them.
+ */
+export interface RevealEntry {
+  /** Whose cards they are. */
+  playerId: string;
+  /** The card whose ability showed them. */
+  sourceCardId: string;
+  /**
+   *   revealTop    shown off the top of the deck
+   *   toHand       taken from the deck to hand
+   *   trashToHand  taken from the trash to hand
+   *   search       found by searching the deck
+   *   hand         a whole hand turned face-up
+   */
+  kind: "revealTop" | "toHand" | "trashToHand" | "search" | "hand";
+  cards: ActionCard[];
+  /** For a reveal: how many of those cards then went to hand. */
+  taken?: number;
+  /**
+   * The phase the reveal is shown for. Unset while the step that made it is
+   * still running; step() stamps it and drops the entry once the phase moves on.
+   */
+  phase?: TurnPhase;
 }
 
 export type CharacterPosition = "leader" | "back";
@@ -283,6 +326,8 @@ export interface MatchState {
   zoneLimits: ZoneLimit[];
   /** Players whose hand is currently face-up to everyone. */
   revealedHands: string[];
+  /** Cards an ability is showing both players right now — see RevealEntry. */
+  reveals: RevealEntry[];
   /**
    * Restrictions that start applying NEXT turn — "next round your opponent
    * cannot use follow-up attacks". resetTurnLog moves these into the log.
@@ -392,6 +437,7 @@ export function emptyMatchState(matchId: string, playerIds: string[]): MatchStat
     grantedEffects: [],
     zoneLimits: [],
     revealedHands: [],
+    reveals: [],
     pendingFlags: {},
     rngSeed: 0x9e3779b9,
     winnerId: null,

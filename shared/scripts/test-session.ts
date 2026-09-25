@@ -288,15 +288,20 @@ function withQuestion(): MatchSession {
     check("p1 ไม่เห็นคำถามของ p2", session.updateFor("p1").pending === null);
     check("แต่ p1 รู้ว่ากำลังรอ p2 อยู่", session.updateFor("p1").askingSeat === "p2");
 
-    // The half-applied board is a move that has not landed yet. Only the
-    // person deciding sees it — cancelling would take it straight back.
+    // The clash reveal is the one half-applied board both sides see: the
+    // cards are up either way, and the reveal cut-in has to play for both
+    // at once rather than for p1 only after p2 has answered.
     check(
       "p2 เห็นกระดานครึ่งทาง (การ์ดเปิดแล้ว)",
       session.updateFor("p2").view.actionZone.p2.length > 0
     );
     check(
-      "p1 ยังเห็นกระดานเดิม ไม่ใช่ครึ่งทาง",
-      session.updateFor("p1").view.actionZone.p2.length === 0
+      "ตอนเปิดการ์ด p1 ก็เห็นการ์ดที่เปิดพร้อมกัน",
+      session.updateFor("p1").view.actionZone.p2.length > 0
+    );
+    check(
+      "แต่มือของ p2 ยังคว่ำอยู่สำหรับ p1",
+      session.updateFor("p1").view.boards.p2.hand.every((c) => c.id.startsWith("hidden"))
     );
 
     check("p1 ตอบแทน p2 ไม่ได้", !session.answer("p1", true));

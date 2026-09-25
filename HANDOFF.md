@@ -63,7 +63,9 @@ Consequences:
   Never feed it back into `step()`.
 - `MatchSession.updateFor()` shows the preview **only to the player being
   asked**. Everyone else keeps the committed board, because the move can still
-  be cancelled.
+  be cancelled. The one exception is `resolveCounter`: both cards are up either
+  way, so both seats see the preview and the reveal cut-in plays for both at
+  once.
 
 ### 3. Hidden information is stripped server-side, not hidden in the UI
 

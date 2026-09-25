@@ -1948,3 +1948,138 @@
     animation: none;
   }
 }
+
+/* --- Revealed cards (RevealPanel) ----------------------------------------
+   Cards an ability turned face-up for both players. Pinned to the board's
+   upper middle, clear of both hands, and not modal: play goes on under it. */
+.reveal-panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 150;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  max-width: min(92%, 760px);
+  pointer-events: none;
+}
+
+.reveal-entry {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border: 1px solid rgba(232, 201, 138, 0.45);
+  border-radius: 12px;
+  background: rgba(13, 18, 32, 0.92);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 18px rgba(232, 201, 138, 0.12);
+  animation: reveal-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reveal-title {
+  color: #e8c98a;
+  font-size: calc(var(--board-text) * 1.2);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.reveal-taken {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(110, 231, 160, 0.14);
+  color: #8fe3b0;
+  font-size: calc(var(--board-text) * 1.05);
+}
+
+.reveal-close {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  background: transparent;
+  color: #b9c6e8;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.reveal-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.reveal-cards,
+.choice-revealed-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.reveal-card {
+  width: var(--card-w, 84px);
+  aspect-ratio: 5 / 7;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.reveal-card img,
+.reveal-card .card-art-missing {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Revealed but not taken — still shown, but clearly not in the hand. */
+.reveal-card.left {
+  opacity: 0.45;
+  filter: grayscale(0.4);
+}
+
+.choice-revealed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.choice-revealed-label {
+  color: #e8c98a;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.choice-revealed .reveal-card {
+  width: 110px;
+}
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-entry {
+    animation: none;
+  }
+}

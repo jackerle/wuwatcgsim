@@ -31,7 +31,7 @@ import type {
 } from "./cards";
 import type { CardColor, CharacterLevel } from "./game";
 import { KEYWORD_COLOR, KEYWORD_LABEL, isContinuous, isTrigger, keywordForTag, localize } from "./cards";
-import type { ActionCard, MatchState, PlayerBoard } from "./game";
+import type { ActionCard, MatchState, PlayerBoard, RevealEntry } from "./game";
 
 // --- What an effect can see and do -----------------------------------------
 
@@ -397,6 +397,11 @@ export interface PendingChoice {
   max: number;
   /** What the pick is for, where the engine knows. See ChoiceTag. */
   tag?: ChoiceTag;
+  /**
+   * Cards the same ability has just turned face-up — "reveal the top card,
+   * then you may take it" — so the player sees what they are deciding about.
+   */
+  revealed?: RevealEntry[];
 }
 
 /** What a player sent back: yes/no, one value, or several. */

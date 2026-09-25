@@ -69,6 +69,7 @@ import {
   type MatchState,
   type PlayerBoard,
   hiddenActionCard,
+  hiddenCharacterCard,
 } from "./game";
 import {
   applyEndPhase,
@@ -673,6 +674,8 @@ export function step(
     throw error;
   }
 
+  stampReveals(run.state);
+
   // Checked once per step, after the rebuild sweep in settle() has had its go:
   // an empty deck is only a loss when the trash was empty too, so asking before
   // the rebuild would kill a player who still had cards to shuffle back.
@@ -690,6 +693,17 @@ export function step(
     error: null,
     preview: run.state,
   };
+}
+
+/**
+ * Cards an ability showed stay face-up for the rest of the phase they were
+ * shown in: this step's new reveals are stamped with the phase the step ended
+ * in, and anything stamped with another phase is dropped.
+ */
+function stampReveals(state: MatchState): void {
+  const reveals = state.reveals ?? [];
+  for (const entry of reveals) entry.phase ??= state.phase;
+  state.reveals = reveals.filter((entry) => entry.phase === state.phase);
 }
 
 function apply(run: Run, playerId: string, intent: MatchIntent): void {
@@ -758,7 +772,8 @@ function chooseLeader(run: Run, playerId: string, leaderId: string): void {
     const incoming = board.back[index];
     board.back[index] = { ...current, position: "back" };
     board.leader = { ...incoming, position: "leader" };
-    run.note(LOG.picksLeader(playerId, incoming.card.name), incoming.card.id);
+    // Not logged here: the log goes to both seats, and nobody learns the
+    // other side's Leader until the mulligan is over (see mulligan()).
   }
 
   run.state.leaderChosen[playerId] = true;
@@ -813,6 +828,10 @@ function mulligan(run: Run, playerId: string, cardIds: string[]): void {
   if (Object.keys(run.state.boards).every((id) => run.state.mulliganDone[id])) {
     run.state.phase = "draw";
     run.note(LOG.mulliganOver());
+    // Both Leaders are turned face-up now, and only now — see viewFor().
+    for (const [id, each] of Object.entries(run.state.boards)) {
+      if (each.leader) run.note(LOG.picksLeader(id, each.leader.card.name), each.leader.card.id);
+    }
   }
 }
 
@@ -1215,6 +1234,7 @@ function resolveCounter(run: Run): void {
   } else {
     run.note(LOG.clashDraw());
     run.state.combo = null;
+    run.state.turnLog.clashDrawn = true;
   }
 
   // "勝敗決定後、…判定スキルを発動させ、…ダメージを…与える" — the winner is
@@ -1464,13 +1484,9 @@ function endTurn(run: Run, playerId: string): void {
   // the hand limit. Applying the limit to both sides took cards off a player on
   // a turn that was not theirs.
   for (const id of Object.keys(run.state.boards)) {
-    const before = run.board(id).hand.length;
-    run.state = applyEndPhase(run.state, id, undefined, {
-      discardToLimit: id === run.state.turnPlayerId,
-    });
-    const after = run.board(id).hand.length;
-    if (after < before) run.note(LOG.discardsToLimit(id, HAND_LIMIT));
+    run.state = applyEndPhase(run.state, id, undefined, { discardToLimit: false });
   }
+  discardToLimit(run, run.state.turnPlayerId);
 
   run.state = expireModifiers(run.state, "turn");
   run.state.combo = null;
@@ -1482,6 +1498,33 @@ function endTurn(run: Run, playerId: string): void {
   run.note(LOG.turnStarts(run.state.turnNumber, run.state.turnPlayerId));
 
   run.settle();
+}
+
+/**
+ * The End Phase's hand limit: the turn player picks which cards go, rather
+ * than the engine binning the newest ones for them. Asked of the turn player
+ * even when the combo owner pressed End — it is their hand.
+ */
+function discardToLimit(run: Run, playerId: string): void {
+  const board = run.board(playerId);
+  const over = board.hand.length - HAND_LIMIT;
+  if (over <= 0) return;
+  const gone = pickCardsFrom(
+    (choice) => run.ask(choice),
+    "",
+    board.hand,
+    over,
+    undefined,
+    playerId,
+    PROMPT.discardToLimit(over, HAND_LIMIT),
+    "discard"
+  );
+  for (const card of gone) {
+    const at = board.hand.indexOf(card);
+    if (at >= 0) board.hand.splice(at, 1);
+  }
+  board.trash.push(...gone);
+  run.note(LOG.discardsToLimit(playerId, HAND_LIMIT, gone.map((c) => c.name)));
 }
 
 // --- Small helpers ---------------------------------------------------------
@@ -1512,6 +1555,17 @@ export function viewFor(state: MatchState, playerId: string): MatchState {
     }
     board.actionDeck = board.actionDeck.map((_, index) => hiddenActionCard(index));
     if (view.facedown[id]) view.facedown[id] = hiddenActionCard(0);
+    // The starting characters stay face-down until both sides have finished
+    // the mulligan: which of the three is the Leader is not the opponent's
+    // to know while they are still arranging their own.
+    if (view.phase === "leaderSelect" || view.phase === "mulligan") {
+      let index = 0;
+      for (const slot of [board.leader, ...board.back]) {
+        if (!slot) continue;
+        slot.card = hiddenCharacterCard(index++);
+        slot.under = [];
+      }
+    }
   }
   return view;
 }

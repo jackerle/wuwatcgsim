@@ -332,6 +332,33 @@ export const STRINGS = {
     en: "Holds Advantage this turn — from winning last turn's battle",
   },
 
+  // --- RevealPanel.tsx -------------------------------------------------------
+  "reveal.revealTop": {
+    th: (name: string, n: number) => `${name} เปิดการ์ดบนสุดของเด็ค ${n} ใบ`,
+    en: (name: string, n: number) => `${name} reveals the top ${n} of their deck`,
+  },
+  "reveal.toHand": {
+    th: (name: string, n: number) => `${name} นำการ์ดจากเด็คขึ้นมือ ${n} ใบ`,
+    en: (name: string, n: number) => `${name} takes ${n} from their deck to hand`,
+  },
+  "reveal.trashToHand": {
+    th: (name: string, n: number) => `${name} นำการ์ดจากกองทิ้งขึ้นมือ ${n} ใบ`,
+    en: (name: string, n: number) => `${name} takes ${n} from the trash to hand`,
+  },
+  "reveal.search": {
+    th: (name: string, n: number) => `${name} ค้นเด็คได้ ${n} ใบ`,
+    en: (name: string, n: number) => `${name} searches out ${n}`,
+  },
+  "reveal.hand": {
+    th: (name: string) => `การ์ดในมือของ ${name}`,
+    en: (name: string) => `${name}'s hand`,
+  },
+  "reveal.taken": {
+    th: (n: number) => (n > 0 ? `นำขึ้นมือ ${n} ใบ` : "ไม่นำขึ้นมือ"),
+    en: (n: number) => (n > 0 ? `${n} taken to hand` : "none taken"),
+  },
+  "reveal.inChoice": { th: "การ์ดที่เปิด", en: "Revealed" },
+
   // --- PlayGame.tsx -------------------------------------------------------
   "playGame.offlineSuffix": { th: " · หลุด", en: " · disconnected" },
   "playGame.viewHand": { th: (name: string) => `ดูมือ ${name}`, en: (name: string) => `View ${name}'s hand` },
@@ -388,6 +415,10 @@ export const STRINGS = {
 
   // --- CharacterSlot.tsx ---------------------------------------------------
   "characterSlot.view": { th: "ดู", en: "View" },
+  "characterSlot.hiddenTitle": {
+    th: "ยังไม่เปิด — จะเห็นหลังทั้งสองฝ่ายเปลี่ยนการ์ดในมือเสร็จ",
+    en: "Face-down until both sides finish the mulligan",
+  },
   "characterSlot.wholePileHint": { th: (n: number) => `กองการ์ดทั้งหมด (${n} ใบ)`, en: (n: number) => `Whole pile (${n} cards)` },
   "characterSlot.levelUp": { th: "เลเวลอัป", en: "Level Up" },
   "characterSlot.playableHint": { th: (n: number) => `${n} ใบที่ลงได้`, en: (n: number) => `${n} playable` },

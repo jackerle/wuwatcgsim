@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { characterStack, type CharacterCard, type CharacterInstance } from "@wuwatcg/shared";
+import { characterStack, isHiddenCard, type CharacterCard, type CharacterInstance } from "@wuwatcg/shared";
 import { CardImage } from "./CardImage";
 import { CardMenu, useDismiss, type CardMenuItem } from "./CardMenu";
 import { useDrag, useDropTarget } from "./DragContext";
@@ -86,6 +86,18 @@ export function CharacterSlot({
     return (
       <div className="character-slot empty">
         {label && <span className="character-position">{label}</span>}
+      </div>
+    );
+  }
+
+  // The opponent's starters before the mulligan is over: face-down, and
+  // nothing to click — see viewFor() in shared/src/match.ts.
+  if (isHiddenCard(slot.card)) {
+    return (
+      <div className="character-slot-wrap">
+        <div className={`character-slot ${slot.position} facedown`} title={t("characterSlot.hiddenTitle")}>
+          <div className="character-layer top card-back" />
+        </div>
       </div>
     );
   }

@@ -318,7 +318,15 @@ export class MatchSession {
     // The preview is a move that has not landed yet: only the player who has
     // to decide sees it. Everyone else keeps the committed board until the
     // answer comes back, so nothing is shown that could still be cancelled.
-    const board = open && asked === seat ? open.preview : this.state;
+    //
+    // The one exception is the clash reveal. Both cards are turned up the
+    // moment resolveCounter starts, whatever an ability then asks, and the
+    // move is the engine's own (PlayGame presses it) — there is nothing to
+    // take back. Holding the other seat on the old board made their reveal
+    // cut-in play only after the question was answered, out of step with
+    // the player being asked.
+    const shared = open?.intent.kind === "resolveCounter";
+    const board = open && (asked === seat || shared) ? open.preview : this.state;
     return {
       view: viewFor(board, seat),
       pending: asked === seat ? open!.choice : null,

@@ -24,6 +24,7 @@ import { HoverPreviewProvider } from "../board/HoverPreviewContext";
 import { PileModalProvider } from "../board/PileModalContext";
 import { PileModal } from "../board/PileModal";
 import { DragProvider, type DragPayload, type DropTargets } from "../board/DragContext";
+import { RevealPanel } from "../board/RevealPanel";
 import { ChoiceDialog } from "../board/ChoiceDialog";
 import { LevelUpConfirm } from "../board/LevelUpConfirm";
 import type { CardMenuItem } from "../board/CardMenu";
@@ -118,17 +119,23 @@ export function PlayGame({
     sendRef.current = match.send;
   });
   const autoSeat = state.turnPlayerId;
-  const autoKind: "startTurn" | "resolveCounter" | null = (() => {
+  const autoKind: "startTurn" | "resolveCounter" | "endTurn" | null = (() => {
     if (state.winnerId || match.askingSeat || fxPlaying) return null;
     if (!match.controls.includes(autoSeat as Seat)) return null;
     const legal = legalIntents(state, autoSeat);
     if (state.phase === "draw" && legal.includes("startTurn")) return "startTurn";
     if (state.phase === "counter" && legal.includes("resolveCounter")) return "resolveCounter";
+    // A drawn clash leaves nothing to do — no Combo Step — so the turn ends
+    // itself once the draw has been on screen long enough to read.
+    if (state.phase === "end" && state.turnLog.clashDrawn && legal.includes("endTurn")) return "endTurn";
     return null;
   })();
   useEffect(() => {
     if (!autoKind) return;
-    const timer = window.setTimeout(() => sendRef.current(autoSeat, { kind: autoKind }), 450);
+    // Longer when an ability has cards face-up: ending the turn takes them
+    // off the board, so give both players time to read them first.
+    const delay = autoKind !== "endTurn" ? 450 : state.reveals?.length ? 4000 : 1800;
+    const timer = window.setTimeout(() => sendRef.current(autoSeat, { kind: autoKind }), delay);
     return () => window.clearTimeout(timer);
     // `state` too: a new board is a new moment to act on, even when the move
     // that is due has not changed.
@@ -447,6 +454,7 @@ export function PlayGame({
                 onPlayingChange={setClashFxPlaying}
               />
               <LevelUpFx state={state} nameOf={nameOf} onPlayingChange={setLevelUpFxPlaying} />
+              <RevealPanel state={state} nameOf={nameOf} hidden={fxPlaying} />
               <PileModal />
               <ChoiceDialog
                 choice={fxPlaying ? null : match.pending}

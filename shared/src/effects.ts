@@ -48,6 +48,7 @@ import type {
   ComboGrant,
   MatchState,
   PlayerBoard,
+  RevealEntry,
 } from "./game";
 
 /** Where a card sits while its effect is being considered. */
@@ -285,6 +286,22 @@ function createContext(
     return moved.map(({ slot }) => slot.card.name);
   };
 
+  /**
+   * Turns cards face-up for both players — see RevealEntry. A copy, so what
+   * is shown stays what was revealed whatever happens to the cards next.
+   */
+  const show = (entry: Omit<RevealEntry, "phase" | "sourceCardId">): void => {
+    if (derived || entry.cards.length === 0) return;
+    (state.reveals ??= []).push(structuredClone({ ...entry, sourceCardId: card.id }));
+  };
+  const names = (cards: ActionCard[]) => cards.map((c) => c.name);
+
+  /** ask(), carrying whatever this step has revealed so far — see PendingChoice.revealed. */
+  const askHere = (choice: PendingChoice): ChoiceAnswer => {
+    const fresh = (state.reveals ?? []).filter((entry) => !entry.phase);
+    return ask(cursor, fresh.length > 0 ? { ...choice, revealed: structuredClone(fresh) } : choice);
+  };
+
   // This card's own version of pickCardsFrom (above): same question, with
   // `cursor` and `card.id` filled in from this effect's own context instead
   // of being passed by every call site below.
@@ -296,7 +313,7 @@ function createContext(
     prompt: LocalizedText,
     tag: ChoiceTag
   ): ActionCard[] =>
-    pickCardsFrom((choice) => ask(cursor, choice), card.id, pile, count, filter, owner, prompt, tag);
+    pickCardsFrom((choice) => askHere(choice), card.id, pile, count, filter, owner, prompt, tag);
 
   /** Lifts specific cards out of a pile, by identity. */
   const lift = (pile: ActionCard[], cards: ActionCard[]): ActionCard[] => {
@@ -427,7 +444,7 @@ function createContext(
         pickFrom(board.hand, count, undefined, board.playerId, PROMPT.discard(count), "discard")
       );
       board.trash.push(...moved);
-      log.push(LOG.discards(board.playerId, moved.length));
+      log.push(LOG.discards(board.playerId, moved.length, names(moved)));
     },
     charge(count, playerId) {
       const board = boardOf(playerId);
@@ -500,7 +517,10 @@ function createContext(
       // (rebuildEmptyDecks). Rebuilding here would hand the card three extra
       // cards and empty the trash mid-effect.
       const revealed = board.actionDeck.slice(0, count);
-      log.push(LOG.revealsTop(board.playerId, revealed.length));
+      // taken: 0 until a take follows — every reveal in the card pool is a
+      // "reveal, then you may take it", and a declined take is worth saying.
+      show({ playerId: board.playerId, kind: "revealTop", cards: revealed, taken: 0 });
+      log.push(LOG.revealsTop(board.playerId, revealed.length, names(revealed)));
       return revealed;
     },
     topToConcerto(count, playerId) {
@@ -516,7 +536,17 @@ function createContext(
       // deck up mid-count.
       const moved = takeFromDeck(state, board, count, log, { recycle: false });
       board.hand.push(...moved);
-      log.push(LOG.deckToHand(board.playerId, moved.length));
+      // Usually the cards this same ability just revealed: mark that reveal
+      // as taken rather than showing the same cards twice.
+      const shown = [...(state.reveals ?? [])]
+        .reverse()
+        .find((entry) => !entry.phase && entry.playerId === board.playerId && entry.kind === "revealTop");
+      if (shown && moved.every((c, i) => shown.cards[i]?.id === c.id)) {
+        shown.taken = moved.length;
+      } else {
+        show({ playerId: board.playerId, kind: "toHand", cards: moved });
+      }
+      log.push(LOG.deckToHand(board.playerId, moved.length, names(moved)));
       return moved;
     },
     deckToTrash(count, playerId) {
@@ -536,7 +566,8 @@ function createContext(
       // Silent when nothing matched — an ability that found no target should
       // not leave a line in the battle log claiming it did something.
       if (moved.length > 0) {
-        log.push(LOG.trashToHand(board.playerId, moved.length));
+        show({ playerId: board.playerId, kind: "trashToHand", cards: moved });
+        log.push(LOG.trashToHand(board.playerId, moved.length, names(moved)));
       }
     },
     buff(filter: CardFilter, stat, amount, duration: ModifierDuration = "turn", options = {}) {
@@ -673,7 +704,7 @@ function createContext(
       // a real play. Only worth asking when the answer is not forced.
       let chosen = candidates[0];
       if (candidates.length > 1) {
-        const answer = ask(cursor, {
+        const answer = askHere({
           kind: "pickCard",
           playerId: board.playerId,
           cardId: card.id,
@@ -810,7 +841,8 @@ function createContext(
       board.hand.push(...found);
       // Searching exposes the deck order, so it is shuffled afterwards.
       board.actionDeck = shuffleWithState(state, board.actionDeck);
-      log.push(LOG.searchesDeck(board.playerId, found.length));
+      show({ playerId: board.playerId, kind: "search", cards: found });
+      log.push(LOG.searchesDeck(board.playerId, found.length, names(found)));
       return found;
     },
     shuffleDeck(playerId) {
@@ -826,7 +858,9 @@ function createContext(
     revealHand(playerId) {
       const target = playerId ?? controllerId;
       if (!state.revealedHands.includes(target)) state.revealedHands.push(target);
-      log.push(LOG.revealsHand(target));
+      const hand = boardOf(target).hand;
+      show({ playerId: target, kind: "hand", cards: hand });
+      log.push(LOG.revealsHand(target, names(hand)));
     },
 
     isTurnPlayer: (playerId) => state.turnPlayerId === (playerId ?? controllerId),
@@ -838,14 +872,15 @@ function createContext(
     },
     discardCards(cards, playerId) {
       const board = boardOf(playerId);
-      let moved = 0;
+      const moved: ActionCard[] = [];
       for (const target of cards) {
         const at = board.hand.findIndex((c) => c.id === target.id);
         if (at < 0) continue;
-        board.trash.push(...board.hand.splice(at, 1));
-        moved += 1;
+        const [gone] = board.hand.splice(at, 1);
+        board.trash.push(gone);
+        moved.push(gone);
       }
-      if (moved > 0) log.push(LOG.discards(board.playerId, moved));
+      if (moved.length > 0) log.push(LOG.discards(board.playerId, moved.length, names(moved)));
     },
 
     restrictNextTurn(flag, playerId) {
@@ -871,7 +906,7 @@ function createContext(
 
     confirm(prompt, playerId) {
       return Boolean(
-        ask(cursor, {
+        askHere({
           kind: "confirm",
           playerId: playerId ?? controllerId,
           cardId: card.id,
@@ -884,7 +919,7 @@ function createContext(
     },
     chooseCard(prompt, from, options = {}) {
       if (from.length === 0) return null;
-      const answer = ask(cursor, {
+      const answer = askHere({
         kind: "pickCard",
         playerId: options.playerId ?? controllerId,
         cardId: card.id,
@@ -899,7 +934,7 @@ function createContext(
     },
     chooseCards(prompt, from, options = {}) {
       if (from.length === 0) return [];
-      const answer = ask(cursor, {
+      const answer = askHere({
         kind: "pickCard",
         playerId: options.playerId ?? controllerId,
         cardId: card.id,
@@ -922,7 +957,7 @@ function createContext(
       return chosen;
     },
     chooseOption(prompt, options, playerId) {
-      const answer = ask(cursor, {
+      const answer = askHere({
         kind: "pickOption",
         playerId: playerId ?? controllerId,
         cardId: card.id,

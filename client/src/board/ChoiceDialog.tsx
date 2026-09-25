@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { localize, type ChoiceAnswer, type PendingChoice } from "@wuwatcg/shared";
 import { CardImage } from "./CardImage";
 import { useLang } from "../i18n/LanguageContext";
+import { RevealedInChoice } from "./RevealPanel";
 
 /**
  * The question a card is waiting on, shown over the board.
@@ -76,6 +77,7 @@ export function ChoiceDialog({
   return (
     <div className="choice-backdrop" role="dialog" aria-modal="true">
       <div className="choice-dialog">
+        {choice.revealed && <RevealedInChoice entries={choice.revealed} />}
         <p className="choice-prompt">{localize(prompt, lang)}</p>
 
         {kind === "pickCard" && (
