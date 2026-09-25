@@ -3,8 +3,8 @@
 //
 // Choosing a deck is a real submission, not a local selection — the server
 // checks it with the same deckIssues() the builder does and keeps it until
-// the match is dealt, so what it publishes back is only the three character
-// names, never the 40 cards.
+// the match is dealt, so what it publishes back is only THAT a seat is ready —
+// not the deck's name, its characters or its 40 cards.
 
 import { useState } from "react";
 import { isDeckPlayable, type DeckList, type Room } from "@wuwatcg/shared";
@@ -27,14 +27,21 @@ export function Lobby({
 }) {
   const { t } = useLang();
   const [picking, setPicking] = useState(false);
-  const [deck, setDeck] = useState<DeckList | null>(null);
+  const player = room.players.find((p) => p.id === me);
+  // Back from a rematch the server still holds this seat's deck, so show it
+  // rather than asking again. The server keeps only the list, so it is found
+  // again by the id remembered when it was handed in.
+  const [deck, setDeck] = useState<DeckList | null>(() =>
+    player && room.ready[player.seat]
+      ? (allDecks().find((entry) => entry.id === rememberedDeckId()) ?? null)
+      : null
+  );
   const [deckError, setDeckError] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
 
-  const player = room.players.find((p) => p.id === me);
   const isHost = player?.isHost ?? false;
   const both = room.players.length === room.maxPlayers;
-  const ready = both && room.picks.p1 && room.picks.p2;
+  const ready = both && room.ready.p1 && room.ready.p2;
 
   function submit(chosen: DeckList) {
     socket.emit("submitDeck", { deck: chosen }, (result) => {
@@ -89,7 +96,7 @@ export function Lobby({
             </p>
           )}
           {room.players.map((p) => {
-            const picks = room.picks[p.seat] ?? [];
+            const isReady = Boolean(room.ready[p.seat]);
             return (
               <div key={p.id} className="room-row">
                 <div className="room-row-main">
@@ -99,12 +106,12 @@ export function Lobby({
                     {p.id === me && ` ${t("lobby.you")}`}
                   </div>
                   <div className="room-row-sub">
-                    {picks.length > 0 ? picks.join(" · ") : t("lobby.noDeckPicked")}
+                    {isReady ? t("lobby.deckPicked") : t("lobby.noDeckPicked")}
                     {!p.connected && ` — ${t("lobby.disconnectedSuffix")}`}
                   </div>
                 </div>
-                <span className={`deck-row-badge ${picks.length > 0 ? "ok" : ""}`}>
-                  {picks.length > 0 ? t("lobby.ready") : t("lobby.waiting")}
+                <span className={`deck-row-badge ${isReady ? "ok" : ""}`}>
+                  {isReady ? t("lobby.ready") : t("lobby.waiting")}
                 </span>
               </div>
             );

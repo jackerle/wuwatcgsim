@@ -292,13 +292,19 @@ function createContext(
    */
   const show = (entry: Omit<RevealEntry, "phase" | "sourceCardId">): void => {
     if (derived || entry.cards.length === 0) return;
-    (state.reveals ??= []).push(structuredClone({ ...entry, sourceCardId: card.id }));
+    (state.reveals ??= []).push(structuredClone({ ...entry, sourceCardId: card.id, controllerId }));
   };
   const names = (cards: ActionCard[]) => cards.map((c) => c.name);
 
   /** ask(), carrying whatever this step has revealed so far — see PendingChoice.revealed. */
   const askHere = (choice: PendingChoice): ChoiceAnswer => {
-    const fresh = (state.reveals ?? []).filter((entry) => !entry.phase);
+    // Only what THIS ability revealed. Both sides' [Counter]/[Judgement]
+    // skills resolve in one step, so the turn player's reveal is already in
+    // the list when the other player is asked — and is no part of their
+    // question. Both still land on the board's reveal panel afterwards.
+    const fresh = (state.reveals ?? []).filter(
+      (entry) => !entry.phase && entry.sourceCardId === card.id && entry.controllerId === controllerId
+    );
     return ask(cursor, fresh.length > 0 ? { ...choice, revealed: structuredClone(fresh) } : choice);
   };
 

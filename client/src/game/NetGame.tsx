@@ -1,4 +1,5 @@
 import { PlayGame } from "./PlayGame";
+import { socket } from "../socket";
 import { useNetMatch } from "./useNetMatch";
 import { useLang } from "../i18n/LanguageContext";
 
@@ -23,5 +24,5 @@ export function NetGame({ isHost, onLeave }: { isHost: boolean; onLeave: () => v
     );
   }
 
-  return <PlayGame match={match} onLeave={onLeave} />;
+  return <PlayGame match={match} onLeave={onLeave} onRematch={() => socket.emit("rematch")} />;
 }

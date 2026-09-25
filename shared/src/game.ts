@@ -148,6 +148,8 @@ export interface RevealEntry {
   playerId: string;
   /** The card whose ability showed them. */
   sourceCardId: string;
+  /** Who controls that ability — not always `playerId` ("reveal your hand"). */
+  controllerId?: string;
   /**
    *   revealTop    shown off the top of the deck
    *   toHand       taken from the deck to hand

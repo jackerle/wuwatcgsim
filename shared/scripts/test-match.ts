@@ -1192,6 +1192,45 @@ let game = newMatch();
   check("ไม่ใช่ฝ่ายเจ้าของ ก็ยังเห็นการ์ดที่เปิด", viewFor(result.state, "p2").reveals.length > 0);
 }
 
+{
+  // Both sides reveal in the same [Counter]: BP01-018 (turn player) first,
+  // then BP01-010. The second player's question carries only their own card,
+  // not the two the turn player turned up just before.
+  const s = createMatch({
+    matchId: "counter-two-reveals",
+    startingPlayerId: "p1",
+    players: [
+      { playerId: "p1", characterDeck: ENCORE.map(character), actionDeck: deck(["BP01-052"]) },
+      { playerId: "p2", characterDeck: ENCORE.map(character), actionDeck: deck(["BP01-044"]) },
+    ],
+  });
+  s.boards.p1.leader = { position: "leader", card: character("BP01-018"), under: [] };
+  s.boards.p2.leader = { position: "leader", card: character("BP01-010"), under: [] };
+  s.phase = "counter";
+  s.boards.p1.hand = [action("BP01-058")];
+  s.boards.p2.hand = [action("BP01-058")];
+  const c1 = step(s, "p1", { kind: "commit", cardId: "BP01-058" });
+  const c2 = step(c1.state, "p2", { kind: "commit", cardId: "BP01-058" });
+  check("เปิดสองฝั่ง: ลงการ์ดเขียวได้ทั้งคู่", c1.error === null && c2.error === null, `${c1.error} ${c2.error}`);
+
+  const first = step(c2.state, "p1", { kind: "resolveCounter" });
+  check("BP01-018 ถามเจ้าของเทิร์นก่อน", first.pending?.playerId === "p1", first.pending?.cardId ?? "-");
+  const second = step(c2.state, "p1", { kind: "resolveCounter" }, ["2"]);
+  check("แล้วถาม BP01-010 ของอีกฝ่าย", second.pending?.playerId === "p2", second.pending?.cardId ?? "-");
+  const shownToP2 = second.pending?.revealed ?? [];
+  check(
+    "คำถามของอีกฝ่ายแนบแค่การ์ดที่ตัวเองเปิด ไม่ติดของเจ้าของเทิร์น",
+    shownToP2.length === 1 && shownToP2[0].playerId === "p2" && shownToP2[0].cards.length === 1,
+    JSON.stringify(shownToP2.map((r) => [r.playerId, r.cards.length]))
+  );
+  const done = step(c2.state, "p1", { kind: "resolveCounter" }, ["2", true]);
+  check(
+    "จบแล้วทั้งสองฝั่งเห็นการ์ดที่เปิดของทั้งคู่",
+    done.state.reveals.filter((r) => r.kind === "revealTop").map((r) => r.playerId).join(",") === "p1,p2",
+    done.error ?? ""
+  );
+}
+
 // --- The published turn order ----------------------------------------------
 //
 // Four rules taken from the official rules page, each of which the engine got

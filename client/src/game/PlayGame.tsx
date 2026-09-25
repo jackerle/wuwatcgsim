@@ -47,10 +47,13 @@ import "./PlayGame.css";
 export function PlayGame({
   match,
   onLeave,
+  onRematch,
 }: {
   match: MatchController;
   /** Online and vs-bot: whoever started the match owns what leaving it means. */
   onLeave?: () => void;
+  /** Offered once the match is over: back to the deck picks for another. */
+  onRematch?: () => void;
 }) {
   const { t } = useLang();
   // Hand POSITIONS, not card ids — several copies of one printed card can sit
@@ -374,6 +377,7 @@ export function PlayGame({
                   />
                 }
                 state={state}
+                onRematch={onRematch}
                 onSend={send}
                 onClearSelection={() => setSelected([])}
                 error={match.error}

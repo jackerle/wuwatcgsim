@@ -70,11 +70,6 @@ export function PlayMenu({
                     <div className="room-row-sub">
                       <span className="room-code">{room.code}</span> ·{" "}
                       {t("playMenu.playerCount", room.players, room.maxPlayers)}
-                      {room.picks.some((pick) => pick.length > 0) &&
-                        ` · ${room.picks
-                          .filter((pick) => pick.length > 0)
-                          .map((pick) => pick.join("/"))
-                          .join(" vs ")}`}
                     </div>
                   </div>
                   <button

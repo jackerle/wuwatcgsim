@@ -118,6 +118,7 @@ export const STRINGS = {
   },
   "lobby.you": { th: "(คุณ)", en: "(you)" },
   "lobby.noDeckPicked": { th: "ยังไม่ได้เลือกเด็ค", en: "Hasn't picked a deck yet" },
+  "lobby.deckPicked": { th: "เลือกเด็คแล้ว", en: "Deck chosen" },
   "lobby.disconnectedSuffix": { th: "หลุดการเชื่อมต่อ", en: "disconnected" },
   "lobby.ready": { th: "พร้อม", en: "Ready" },
   "lobby.waiting": { th: "รอ", en: "Waiting" },
@@ -252,6 +253,7 @@ export const STRINGS = {
     en: (winner: string) => `Game Over — ${winner}`,
   },
   "controlBar.draw": { th: "เสมอ", en: "Draw" },
+  "controlBar.rematch": { th: "Rematch · เลือกเด็คใหม่", en: "Rematch · Pick Decks" },
   "controlBar.wins": { th: (name: string) => `${name} ชนะ`, en: (name: string) => `${name} wins` },
   "controlBar.leaderSelectHint": {
     th: "แตะตัวละครที่จะให้เป็น Leader",

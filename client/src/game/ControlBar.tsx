@@ -116,6 +116,8 @@ export interface ControlBarProps {
    * phase, including once the match is over.
    */
   leading?: ReactNode;
+  /** Once the match is over: back to picking decks for another one. */
+  onRematch?: (() => void) | null;
 }
 
 export function ControlBar({
@@ -132,6 +134,7 @@ export function ControlBar({
   mulligan,
   levelUp,
   leading,
+  onRematch,
 }: ControlBarProps) {
   const { t } = useLang();
   const [confirming, setConfirming] = useState<{
@@ -331,6 +334,13 @@ export function ControlBar({
             state.winnerId === "draw" ? t("controlBar.draw") : t("controlBar.wins", nameOf(state.winnerId))
           )}
         </span>
+        {onRematch && (
+          <span className="control-actions">
+            <button type="button" className="primary" onClick={onRematch}>
+              {t("controlBar.rematch")}
+            </button>
+          </span>
+        )}
       </div>
     );
   }

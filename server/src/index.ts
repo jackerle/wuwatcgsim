@@ -380,6 +380,21 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("rematch", () => {
+    guard("rematch", () => {
+      const record = recordFor(socket);
+      // Only once the match is decided: mid-game this would be a way to
+      // walk away from a losing board without conceding.
+      if (!record?.session?.winnerId) return;
+      endMatch(record);
+      // Decks are kept — "same again" is one press of Start — and each seat
+      // can still change theirs in the room.
+      io.to(record.room.code).emit("matchEnded");
+      emitRoom(record);
+      emitRooms();
+    });
+  });
+
   socket.on("sendChat", ({ text }) => {
     const record = recordFor(socket);
     if (!record) return;

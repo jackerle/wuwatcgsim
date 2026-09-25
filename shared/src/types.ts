@@ -47,12 +47,11 @@ export interface Room {
   maxPlayers: number;
   visibility: RoomVisibility;
   /**
-   * The three characters each seat is bringing, once they have chosen a
-   * deck. The deck list itself stays on the server — an opponent should not
-   * be handed your 40 cards before the first turn — but who is on the field
-   * is public the moment the match starts anyway.
+   * Which seats have handed in a deck. Only THAT they have: the deck, its
+   * name and even its characters stay on the server until the match is
+   * dealt — who you are bringing is not the opponent's to plan around.
    */
-  picks: Partial<Record<Seat, string[]>>;
+  ready: Partial<Record<Seat, boolean>>;
   /** True once a match is running, so a rejoining client goes to the board. */
   inMatch: boolean;
 }
@@ -63,8 +62,6 @@ export interface RoomSummary {
   hostName: string;
   players: number;
   maxPlayers: number;
-  /** Characters already chosen, so a browser shows what is being brought. */
-  picks: string[][];
 }
 
 export interface ApiError {
@@ -153,6 +150,12 @@ export interface ClientToServerEvents {
 
   /** Deal a fresh game to the same two seats. */
   restartMatch: () => void;
+
+  /**
+   * After a match is over: take both seats back to the room, where each may
+   * keep their deck or pick another before the host deals again.
+   */
+  rematch: () => void;
 
   sendChat: (payload: { text: string }) => void;
 }

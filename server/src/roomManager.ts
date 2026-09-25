@@ -204,7 +204,7 @@ export function createRoom(
     status: "waiting",
     maxPlayers: MAX_PLAYERS,
     visibility,
-    picks: {},
+    ready: {},
     inMatch: false,
   });
   record.lastNames[host.seat] = host.name;
@@ -307,7 +307,7 @@ export function submitDeck(record: RoomRecord, seat: Seat, deck: DeckList): stri
   if (issues.length > 0) return issues.join("; ");
 
   record.decks[seat] = deck;
-  record.room.picks[seat] = [...deck.characters];
+  record.room.ready[seat] = true;
   return null;
 }
 
@@ -358,7 +358,6 @@ export function publicRooms(): RoomSummary[] {
       hostName: room.players.find((p) => p.isHost)?.name ?? room.players[0]?.name ?? "?",
       players: room.players.length,
       maxPlayers: room.maxPlayers,
-      picks: room.players.map((p) => room.picks[p.seat] ?? []),
     });
   }
   return out;
@@ -576,6 +575,12 @@ export function leaveRoom(playerId: string): RoomRecord | undefined {
 
   record.room.players = record.room.players.filter((p) => p.id !== playerId);
   playerRoom.delete(playerId);
+  // Their deck goes with them: whoever takes the empty seat next picks
+  // their own, rather than showing as ready with somebody else's.
+  if (seat) {
+    delete record.decks[seat];
+    delete record.room.ready[seat];
+  }
 
   if (record.room.players.length === 0) {
     clearActivityTimer(record);

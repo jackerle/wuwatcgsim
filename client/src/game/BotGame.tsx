@@ -30,7 +30,8 @@ function BotMatch({
   onLeave: () => void;
 }) {
   const match = useBotMatch({ deck, botDeck });
-  return <PlayGame match={match} onLeave={onLeave} />;
+  // A rematch is the deck picks again — the same place leaving goes.
+  return <PlayGame match={match} onLeave={onLeave} onRematch={onLeave} />;
 }
 
 const randomDeck = (decks: DeckList[]): DeckList | null =>
