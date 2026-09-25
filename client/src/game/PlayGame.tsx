@@ -110,27 +110,40 @@ export function PlayGame({
    *   both have chosen  resolveCounter — the reveal. Once each side has laid
    *                     a card down or passed, turning them up is all that is
    *                     left to do.
+   *   nothing to follow endTurn — the Combo Step or End Phase with no
+   *                     follow-up the player could make: no window, or no
+   *                     red card in hand they can pay for. End Turn is the
+   *                     only button left, so it presses itself.
    *
    * Still the very same moves the buttons sent, through the engine; this only
-   * presses them, from the turn player's screen (they are turn-player-only
-   * moves — see TURN_PLAYER_ONLY in session.ts). Held until any cut-in is
-   * over, and a beat after the state settles, so what happens next lands
-   * where the player is looking.
+   * presses them, from the screen of whoever owns the move — the turn player,
+   * or in the Combo Step whoever won the clash (see legalIntents). Held until
+   * any cut-in is over, and a beat after the state settles, so what happens
+   * next lands where the player is looking.
    */
   const sendRef = useRef(match.send);
   useEffect(() => {
     sendRef.current = match.send;
   });
-  const autoSeat = state.turnPlayerId;
+  const autoSeat = state.phase === "combo" && state.combo ? state.combo.playerId : state.turnPlayerId;
   const autoKind: "startTurn" | "resolveCounter" | "endTurn" | null = (() => {
     if (state.winnerId || match.askingSeat || fxPlaying) return null;
     if (!match.controls.includes(autoSeat as Seat)) return null;
     const legal = legalIntents(state, autoSeat);
     if (state.phase === "draw" && legal.includes("startTurn")) return "startTurn";
     if (state.phase === "counter" && legal.includes("resolveCounter")) return "resolveCounter";
-    // A drawn clash leaves nothing to do — no Combo Step — so the turn ends
-    // itself once the draw has been on screen long enough to read.
-    if (state.phase === "end" && state.turnLog.clashDrawn && legal.includes("endTurn")) return "endTurn";
+    if ((state.phase === "combo" || state.phase === "end") && legal.includes("endTurn")) {
+      // A follow-up is a red card the engine would take — the same test the
+      // hand's own combo click is gated on. None of those, and ending is all
+      // that is left, whether the clash drew, was lost, or was won with a
+      // hand that has nothing to extend it with.
+      const canFollow =
+        legal.includes("combo") &&
+        (state.boards[autoSeat]?.hand ?? []).some(
+          (card) => card.color === "red" && !whyUnplayable(state, card, autoSeat)
+        );
+      if (!canFollow) return "endTurn";
+    }
     return null;
   })();
   useEffect(() => {
@@ -166,6 +179,7 @@ export function PlayGame({
    * card out for Charge or Level Up, commit it face-down, or combo with it.
    */
   function handleHandClick(playerId: string, card: ActionCard, index: number) {
+    if (waitingOnOther) return;
     // A combo is played straight from hand — there is nothing to pick first.
     if (state.phase === "combo" && state.combo?.playerId === playerId) {
       match.send(playerId, { kind: "combo", cardId: card.id });
@@ -194,7 +208,15 @@ export function PlayGame({
     return selected.map((i) => hand[i]?.id).filter((id): id is string => Boolean(id));
   };
 
+  /**
+   * A question put to the other seat. Until it is answered the move that
+   * asked it is still in progress, and the engine refuses every other move —
+   * so the board offers none, rather than letting a click earn a refusal.
+   */
+  const waitingOnOther = Boolean(match.askingSeat && match.askingSeat !== bottom);
+
   const send = (playerId: string, intent: MatchIntent) => {
+    if (waitingOnOther) return;
     match.send(playerId, intent);
     setSelected([]);
   };
@@ -292,7 +314,9 @@ export function PlayGame({
    */
   const dropTargetsFor = (payload: DragPayload): DropTargets => {
     const targets: DropTargets = {};
-    if (!match.controls.includes(bottom) || levelUp || mulliganing || choosingLeader) return targets;
+    if (!match.controls.includes(bottom) || waitingOnOther || levelUp || mulliganing || choosingLeader) {
+      return targets;
+    }
 
     if (payload.kind === "hand") {
       const { card } = payload;

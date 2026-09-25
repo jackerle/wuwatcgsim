@@ -151,7 +151,11 @@ export function ControlBar({
   // other phase continues to follow turn ownership.
   const phaseOwner = state.phase === "combo" && state.combo ? state.combo.playerId : me;
   const mine = controls.includes(phaseOwner);
-  const allowed = mine ? legalIntents(state, phaseOwner) : [];
+  // Nothing moves while the other seat owes an answer: the move that asked is
+  // still half-played, and the engine refuses everything until it lands. The
+  // board behind the question still reads as it did before it, so without
+  // this it would go on offering End Turn to a player who cannot use it.
+  const allowed = mine && !waitingOn ? legalIntents(state, phaseOwner) : [];
   const act = (intent: MatchIntent) => {
     onSend(phaseOwner, intent);
     onClearSelection();
@@ -192,7 +196,7 @@ export function ControlBar({
   // canPassCounter, not waitingToCommit: the turn player may only decline the
   // clash when nothing in hand is playable, so offering the button to them
   // otherwise would only produce a rejection. The non-turn player always may.
-  const onPass = canPassCounter(state, viewer) && controls.includes(viewer)
+  const onPass = canPassCounter(state, viewer) && controls.includes(viewer) && !waitingOn
     ? () =>
         setConfirming({
           prompt: t("controlBar.passPrompt"),
