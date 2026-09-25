@@ -5,8 +5,8 @@ import { LanguageSwitch } from "./LanguageSwitch";
 import { MusicToggle } from "../audio/MusicToggle";
 import "./MainMenu.css";
 
-/** The Discord invite line is hidden for now; flip this to bring it back. */
-const SHOW_DISCORD = false;
+/** Set to false to hide the Discord invite line. */
+const SHOW_DISCORD = true;
 
 export function MainMenu({
   playerName,

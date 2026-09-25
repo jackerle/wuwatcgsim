@@ -79,7 +79,7 @@ export const STRINGS = {
   "mainMenu.credit": { th: "สร้างโดย", en: "Made by" },
   "mainMenu.discordJoin": {
     th: "เข้าร่วม Discord เพื่อรับข่าวสาร",
-    en: "Join our Discord for information",
+    en: "Join Discord for news",
   },
 
   // --- PlayMenu.tsx -------------------------------------------------------
