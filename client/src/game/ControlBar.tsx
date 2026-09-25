@@ -13,6 +13,7 @@
 
 import { useState, type ReactNode } from "react";
 import { PhaseTrack, type PhaseStepKey } from "./PhaseTrack";
+import { nothingLeftToDo } from "./turnFlow";
 import { ConfirmDialog } from "../board/ConfirmDialog";
 import { useLang } from "../i18n/LanguageContext";
 import {
@@ -230,7 +231,9 @@ export function ControlBar({
   // End now only ever means the end of the turn. It cannot collide with Pass:
   // legalIntents() never offers endTurn during the Battle Phase, which is the
   // only phase a card is committed in.
-  if (allowed.includes("endTurn")) {
+  // Not offered when there is nothing left to follow up with: the turn ends
+  // by itself then (PlayGame), and a button would only race it.
+  if (allowed.includes("endTurn") && !nothingLeftToDo(state)) {
     const holdingCombo = state.phase === "combo" && state.combo?.playerId === phaseOwner;
     phaseMoves.end = {
       onPick: () =>

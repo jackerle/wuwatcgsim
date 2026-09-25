@@ -37,6 +37,7 @@ import { useBoardEvents } from "./boardEvents";
 import { useCardSfx } from "../audio/useCardSfx";
 import { ChatPanel } from "../board/ChatPanel";
 import { ControlBar } from "./ControlBar";
+import { nothingLeftToDo, turnEnder } from "./turnFlow";
 import { MatchLog } from "./MatchLog";
 import { MatchSettings } from "./MatchSettings";
 import type { MatchController } from "./matchController";
@@ -111,46 +112,37 @@ export function PlayGame({
    *                     a card down or passed, turning them up is all that is
    *                     left to do.
    *   nothing to follow endTurn — the Combo Step or End Phase with no
-   *                     follow-up the player could make: no window, or no
-   *                     red card in hand they can pay for. End Turn is the
-   *                     only button left, so it presses itself.
+   *                     follow-up the player could make (see nothingLeftToDo).
+   *                     ControlBar shows no End Turn then, so this is the only
+   *                     way the turn moves on — at once, since there is
+   *                     nothing to wait for.
    *
    * Still the very same moves the buttons sent, through the engine; this only
    * presses them, from the screen of whoever owns the move — the turn player,
    * or in the Combo Step whoever won the clash (see legalIntents). Held until
-   * any cut-in is over, and a beat after the state settles, so what happens
-   * next lands where the player is looking.
+   * any cut-in is over, so what happens next lands where the player is
+   * looking.
    */
   const sendRef = useRef(match.send);
   useEffect(() => {
     sendRef.current = match.send;
   });
-  const autoSeat = state.phase === "combo" && state.combo ? state.combo.playerId : state.turnPlayerId;
+  const autoSeat = turnEnder(state);
   const autoKind: "startTurn" | "resolveCounter" | "endTurn" | null = (() => {
     if (state.winnerId || match.askingSeat || fxPlaying) return null;
     if (!match.controls.includes(autoSeat as Seat)) return null;
     const legal = legalIntents(state, autoSeat);
     if (state.phase === "draw" && legal.includes("startTurn")) return "startTurn";
     if (state.phase === "counter" && legal.includes("resolveCounter")) return "resolveCounter";
-    if ((state.phase === "combo" || state.phase === "end") && legal.includes("endTurn")) {
-      // A follow-up is a red card the engine would take — the same test the
-      // hand's own combo click is gated on. None of those, and ending is all
-      // that is left, whether the clash drew, was lost, or was won with a
-      // hand that has nothing to extend it with.
-      const canFollow =
-        legal.includes("combo") &&
-        (state.boards[autoSeat]?.hand ?? []).some(
-          (card) => card.color === "red" && !whyUnplayable(state, card, autoSeat)
-        );
-      if (!canFollow) return "endTurn";
-    }
+    if (nothingLeftToDo(state)) return "endTurn";
     return null;
   })();
   useEffect(() => {
     if (!autoKind) return;
-    // Longer when an ability has cards face-up: ending the turn takes them
-    // off the board, so give both players time to read them first.
-    const delay = autoKind !== "endTurn" ? 450 : state.reveals?.length ? 4000 : 1800;
+    // Ending the turn is immediate — except while an ability has cards
+    // face-up, which ending the turn takes off the board: those stay long
+    // enough for both players to read.
+    const delay = autoKind !== "endTurn" ? 450 : state.reveals?.length ? 4000 : 0;
     const timer = window.setTimeout(() => sendRef.current(autoSeat, { kind: autoKind }), delay);
     return () => window.clearTimeout(timer);
     // `state` too: a new board is a new moment to act on, even when the move
