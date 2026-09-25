@@ -334,6 +334,14 @@ export interface MatchState {
    * any other continuous effect.
    */
   zoneLimits: ZoneLimit[];
+  /**
+   * One entry per heal not yet reacted to, naming who recovered the Life.
+   * An effect that heals only records it here; the "heal" trigger is raised
+   * once that effect has finished (see Run.fireOn), so a card reacting to the
+   * heal never runs half-way through another card's ability. Always empty
+   * between steps. Optional because a match saved before it existed has none.
+   */
+  healQueue?: string[];
   /** Players whose hand is currently face-up to everyone. */
   revealedHands: string[];
   /** Cards an ability is showing both players right now — see RevealEntry. */
@@ -468,6 +476,7 @@ export function emptyMatchState(matchId: string, playerIds: string[]): MatchStat
     turnLog: emptyTurnLog(),
     grantedEffects: [],
     zoneLimits: [],
+    healQueue: [],
     revealedHands: [],
     reveals: [],
     pendingFlags: {},

@@ -457,14 +457,15 @@ export const BP01: CardDef[] = [
     element: "spectro",
     effects: [
       {
-        condition: ["passive"],
+        // A reaction to each heal, not something always true — as a passive
+        // it ran inside the continuous sweep, which can neither ask a question
+        // nor keep a draw, so it never once went off.
+        condition: ["heal"],
         text: {
           th: "2 ครั้งต่อรอบการเล่น หากฟื้นฟูพลังชีวิต สามารถจั่วการ์ด 1 ใบขึ้นมือ",
           en: "Up to twice per round, whenever you heal life, you may draw 1 card",
         },
         resolve: (ctx) => {
-          // Only fires off a heal, and only twice a round.
-          if (ctx.healedThisTurn() <= 0) return;
           if (!ctx.useLimit(2)) return;
           if (ctx.confirm({ th: "จั่วการ์ด 1 ใบไหม", en: "Draw a card?" })) ctx.draw(1);
         },

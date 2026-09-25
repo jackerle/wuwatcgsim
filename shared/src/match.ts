@@ -297,6 +297,9 @@ export interface StepResult {
 
 // --- The run ---------------------------------------------------------------
 
+/** How many heals in a row one trigger may set reacting — see Run.fireOn. */
+const HEAL_REACTIONS_MAX = 20;
+
 /** Thrown to abandon a step: either a question came up, or the intent was illegal. */
 class Suspended {
   readonly pending: PendingChoice | null;
@@ -405,6 +408,16 @@ class Run {
     // pending check: a question replays the whole step from its original
     // state, so settling a half-resolved trigger would corrupt the replay.
     this.settle();
+
+    // Heals the trigger just made, each answered by the healed player's own
+    // "whenever you heal" cards. After the trigger rather than inside it, so
+    // no ability is interrupted half-way; and in a loop, since a reaction can
+    // heal again — the cards' own "N times per round" limits end it, and the
+    // guard is for a card that forgot one.
+    for (let guard = 0; guard < HEAL_REACTIONS_MAX && this.state.healQueue?.length; guard += 1) {
+      const healed = this.state.healQueue.shift()!;
+      this.fireFor("heal", healed);
+    }
   }
 
   /**

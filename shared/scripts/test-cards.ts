@@ -371,19 +371,23 @@ const check = (name: string, ok: boolean, detail = "") => {
   );
 }
 
-// BP01-006: twice a round, and only after a heal.
+// BP01-006: "whenever you heal" — a trigger, answered twice a round at most.
 {
-  const healed = state();
-  healed.turnLog.healed.p1 = 2;
-  healed.boards.p1.leader = { position: "leader", card: { id: "BP01-006", name: "Shorekeeper", level: 2, imageId: "x" }, under: [] };
+  let s = state();
+  s.boards.p1.leader = { position: "leader", card: { id: "BP01-006", name: "Shorekeeper", level: 2, imageId: "x" }, under: [] };
+  const before = s.boards.p1.hand.length;
 
-  const first = recomputeContinuous(healed);
-  check("BP01-006 ฟื้นแล้ว -> ถามว่าจะจั่วไหม", first.manual.length === 0, `manual=${first.manual.length}`);
+  const asks = resolveTrigger(s, "heal", [src("BP01-006")]);
+  check("BP01-006 ฟื้นแล้ว -> ถามว่าจะจั่วไหม", asks.pending?.cardId === "BP01-006", asks.pending?.cardId ?? "ไม่ถาม");
 
-  const noHeal = state();
-  noHeal.boards.p1.leader = { position: "leader", card: { id: "BP01-006", name: "Shorekeeper", level: 2, imageId: "x" }, under: [] };
-  const none = recomputeContinuous(noHeal);
-  check("ยังไม่ได้ฟื้น -> ไม่เกิดอะไร", none.state.turnLog.uses["BP01-006"] === undefined);
+  // Three heals, each answered yes: the third finds the round's two used up.
+  let asked = 0;
+  for (let heal = 0; heal < 3; heal += 1) {
+    const out = resolveTrigger(s, "heal", [src("BP01-006")], [true]);
+    if (out.state.boards.p1.hand.length > s.boards.p1.hand.length) asked += 1;
+    s = out.state;
+  }
+  check("BP01-006 จั่วได้ 2 ครั้งต่อรอบ", asked === 2 && s.boards.p1.hand.length === before + 2, `จั่ว ${asked} ครั้ง`);
 }
 
 const withResolve = ALL_CARDS.filter(c => c.effects.some(e => !isManual(e))).length;

@@ -422,7 +422,9 @@ function createContext(
     damageTakenThisTurn: (playerId) => state.turnLog.damageTaken[playerId ?? controllerId] ?? 0,
     healedThisTurn: (playerId) => state.turnLog.healed[playerId ?? controllerId] ?? 0,
     useLimit(max, label) {
-      const key = label ? `${card.id}:${label}` : card.id;
+      // Per controller: both players can run the same card, and one player's
+      // copy using its twice-a-round must not use up the other's.
+      const key = `${controllerId}:${label ? `${card.id}:${label}` : card.id}`;
       const used = state.turnLog.uses[key] ?? 0;
       if (used >= max) return false;
       state.turnLog.uses[key] = used + 1;
@@ -458,6 +460,7 @@ function createContext(
       const seen = state.turnLog.healed[board.playerId] ?? 0;
       state.turnLog.healed[board.playerId] = seen + amount;
       log.push(LOG.healsFrom(board.playerId, amount, `${card.name} [${card.id}]`, board.life));
+      if (amount > 0) (state.healQueue ??= []).push(board.playerId);
     },
     discard(count, playerId) {
       const board = boardOf(playerId);

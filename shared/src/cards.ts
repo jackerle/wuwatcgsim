@@ -64,6 +64,11 @@ export const CARD_KEYWORDS = [
   /** Fires at the start of this player's own turn. */
   "turnStart",
   /**
+   * Fires each time this card's controller recovers Life — "whenever you
+   * heal". Raised once per heal, after the effect that healed has finished.
+   */
+  "heal",
+  /**
    * [Counter] / UI [Battle] — applies to one of the two cards initially
    * committed face-down and revealed for the determining clash. Follow-ups
    * use the separate `combo` trigger, even though they happen later in the
@@ -119,6 +124,7 @@ export const TRIGGER_KEYWORDS = [
   "counterPhaseStart",
   "counterPhaseEnd",
   "turnStart",
+  "heal",
   "counter",
   "switch",
   "endTurn",
@@ -159,6 +165,9 @@ export const KEYWORD_LABEL: Record<CardKeyword, { en: string; th: string }> = {
   },
   counterPhaseEnd: { en: "At end of Battle phase", th: "เมื่อจบเฟสประลอง" },
   turnStart: { en: "At start of own turn", th: "เมื่อเริ่มเทิร์นของตัวเอง" },
+  // No printed tag: the cards say it in words ("whenever you heal"), so this
+  // label only ever shows as the tag the engine writes out.
+  heal: { en: "When you heal", th: "เมื่อฟื้นฟูพลังชีวิต" },
   // The game's own word for this clash is Battle — ประลอง — so that is what
   // a player sees, even though the engine and the cards' printed text both
   // still say Counter. PRINTED_TAG_KEYWORD is what maps the printed word to
@@ -244,6 +253,7 @@ export const KEYWORD_COLOR: Record<CardKeyword, string> = {
   counterPhaseStart: "#ff8648",
   counterPhaseEnd: "#ff8648",
   turnStart: "#ff8648",
+  heal: "#ff8648",
   counter: "#ff8648",
   switch: "#ff8648",
   endTurn: "#ff8648",

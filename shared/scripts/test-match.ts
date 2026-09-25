@@ -2460,5 +2460,41 @@ let game = newMatch();
   }
 }
 
+// --- "Whenever you heal" reacts to every heal --------------------------------
+
+{
+  // BP01-006 Shorekeeper Lv.2: "up to twice per round, whenever you heal,
+  // you may draw 1". Written as a passive it ran inside the continuous sweep,
+  // which cannot ask or keep a draw, and never went off at all.
+  const base = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
+  const healWith = (who: "p1" | "p2") => {
+    const s = structuredClone(base);
+    s.phase = "counter";
+    s.boards[who].back[0].card = character("BP01-006");
+    s.boards.p1.life = 15;
+    s.boards.p1.hand = [action("BP01-053")]; // blue, [Judgement] if you win, heal 1
+    s.boards.p2.hand = [action("BP01-044")]; // red: blue beats it
+    const c1 = step(s, "p1", { kind: "commit", cardId: "BP01-053" });
+    const c2 = step(c1.state, "p2", { kind: "commit", cardId: "BP01-044" });
+    return { before: c2.state, ...drive(c2.state, "p1", { kind: "resolveCounter" }) };
+  };
+
+  const mine = healWith("p1");
+  check("BP01-006: ฮีลแล้ว -> ถามว่าจะจั่วไหม", mine.asked.includes("BP01-006"), mine.asked.join(","));
+  check(
+    "BP01-006: ตอบจั่ว -> ได้การ์ด 1 ใบ",
+    mine.result.state.boards.p1.hand.length === mine.before.boards.p1.hand.length + 1,
+    `${mine.before.boards.p1.hand.length} -> ${mine.result.state.boards.p1.hand.length}`
+  );
+  check("ฮีลจริง 15 -> 16", mine.result.state.boards.p1.life === 16, `${mine.result.state.boards.p1.life}`);
+
+  const theirs = healWith("p2");
+  check(
+    "BP01-006 ของอีกฝ่าย -> ไม่ทำงานตอนเราฮีล",
+    !theirs.asked.includes("BP01-006"),
+    theirs.asked.join(",")
+  );
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);
