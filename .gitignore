@@ -45,3 +45,6 @@ coverage/
 
 # Misc local tools
 .qodo/
+
+# Bug reports saved from Discord (they hold whole match states)
+bug/
