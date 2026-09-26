@@ -502,3 +502,9 @@
   color: #ff9d9d;
   font-size: 0.82rem;
 }
+
+/* A button with no character art beside it: no room held for one. */
+.menu-button.menu-button-plain {
+  min-height: 60px;
+  padding: 10px 16px;
+}

@@ -173,6 +173,9 @@ export function CharacterSlot({
           pickable ? "picking" : ""
         } ${pickable?.picked ? "picked" : ""} ${draggable && !pickable ? "draggable" : ""} ${dropClass}`}
         onClick={open}
+        // What the tutorial's guide finds a character by.
+        data-card-id={slot.card.id}
+        data-name={slot.card.name}
         onPointerDown={
           draggable && !pickable
             ? (event) => drag.press(event, { kind: "character", slot }, previewOf(slot.card))

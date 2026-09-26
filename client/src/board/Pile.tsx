@@ -31,6 +31,7 @@ export function Pile({
   return (
     <div
       className={`pile ${clickable ? "pile-clickable" : ""} ${faceDown ? "pile-facedown" : ""}`}
+      data-pile={label.toLowerCase()}
       onClick={clickable ? () => setOpenPile({ label, cards: cards! }) : undefined}
       role={clickable ? "button" : undefined}
     >

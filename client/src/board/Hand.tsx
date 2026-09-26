@@ -149,6 +149,9 @@ export function Hand({
                 justDrawn ? "just-drawn" : ""
               } ${open ? "menu-open" : ""} ${draggable ? "draggable" : ""}`}
               style={style}
+              // What the tutorial's guide finds a card by — see tutorial/GuideOverlay.
+              data-card-id={card.id}
+              data-color={card.color}
               title={unplayable?.(card, index) ?? undefined}
               onClick={click}
               onPointerDown={

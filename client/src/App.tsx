@@ -14,6 +14,7 @@ import { clearMatch } from "./game/matchStore";
 import { HotseatGame } from "./game/HotseatGame";
 import { BotGame } from "./game/BotGame";
 import { NetGame } from "./game/NetGame";
+import { Tutorial } from "./tutorial/Tutorial";
 import { MainMenu } from "./menu/MainMenu";
 import { PlayMenu } from "./menu/PlayMenu";
 import { DeckManager } from "./decks/DeckManager";
@@ -21,9 +22,11 @@ import { allDecks } from "./decks/storage";
 import { Lobby } from "./menu/Lobby";
 import { warmCardImages } from "./board/imagePreload";
 import {
+  isTutorialPath,
   isVsBotPath,
   pathForScreen,
   screenFromPath,
+  TUTORIAL_PATH,
   VS_BOT_PATH,
   type Screen,
 } from "./routing";
@@ -50,11 +53,19 @@ export default function App() {
     const path = on ? VS_BOT_PATH : pathForScreen("menu");
     if (location.pathname !== path) history.pushState({}, "", path);
   }, []);
+  // The tutorial, the same way.
+  const [tutorial, setTutorialState] = useState(() => isTutorialPath(location.pathname));
+  const setTutorial = useCallback((on: boolean) => {
+    setTutorialState(on);
+    const path = on ? TUTORIAL_PATH : pathForScreen("menu");
+    if (location.pathname !== path) history.pushState({}, "", path);
+  }, []);
 
   useEffect(() => {
     const onPopState = () => {
       setScreenState(screenFromPath(location.pathname));
       setVsBotState(isVsBotPath(location.pathname));
+      setTutorialState(isTutorialPath(location.pathname));
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -231,6 +242,10 @@ export default function App() {
     return <BotGame onBack={() => setVsBot(false)} />;
   }
 
+  if (tutorial) {
+    return <Tutorial onBack={() => setTutorial(false)} />;
+  }
+
   if (room?.inMatch && seat) {
     const isHost = room.players.find((p) => p.id === ME)?.isHost ?? false;
     return (
@@ -280,6 +295,7 @@ export default function App() {
       }}
       onDecks={() => setScreen("decks")}
       onVsBot={() => setVsBot(true)}
+      onTutorial={() => setTutorial(true)}
     />
   );
 }

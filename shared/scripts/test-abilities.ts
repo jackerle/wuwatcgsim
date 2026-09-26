@@ -83,8 +83,12 @@ const check = (name: string, ok: boolean, detail = "") => {
   // Follow{8}, which combat applies when the card wins the clash, and the
   // resolve saying it a second time is the same ability written twice. See
   // grantFollowUp in effects.ts, and the end-to-end count further down.
+  //
+  // It is printed [Leader Skill] (リーダースキル), so both of its abilities
+  // need Jinshi in the Leader slot — the board here puts her there.
   const won = state();
   won.lastBattleWinnerId = "p1";
+  won.boards.p1.leader = chara("BP01-030"); // Jinshi
   const out = resolveTrigger(won, "judgement", [src("SD02-010", "actionZone")]);
   check("SD02-010 ชนะ -> จั่ว 3 ใบ", out.state.boards.p1.hand.length === 3, `hand=${out.state.boards.p1.hand.length}`);
   check(
@@ -93,8 +97,14 @@ const check = (name: string, ok: boolean, detail = "") => {
     `${out.state.combo?.remaining}`
   );
 
+  const noJinshi = state();
+  noJinshi.lastBattleWinnerId = "p1";
+  const blocked = resolveTrigger(noJinshi, "judgement", [src("SD02-010", "actionZone")]);
+  check("SD02-010 Leader ไม่ใช่ Jinshi -> ไม่จั่ว", blocked.state.boards.p1.hand.length === 0);
+
   const lost = state();
   lost.lastBattleWinnerId = "p2";
+  lost.boards.p1.leader = chara("BP01-030");
   const none = resolveTrigger(lost, "judgement", [src("SD02-010", "actionZone")]);
   check("SD02-010 แพ้ -> ไม่ได้อะไร", none.state.combo === null && none.state.boards.p1.hand.length === 0);
 

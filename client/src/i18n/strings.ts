@@ -80,6 +80,37 @@ export const STRINGS = {
     en: "The bot has no move it can make — start a new game to carry on.",
   },
 
+  // --- tutorial/ ----------------------------------------------------------------
+  "tutorial.title": { th: "วิธีเล่น", en: "Tutorial" },
+  "tutorial.intro": {
+    th: "เล่นจริงบนกระดานจริง พร้อมไกด์บอกทีละขั้น",
+    en: "Real turns on the real board, with a guide at every step.",
+  },
+  "tutorial.start": { th: "เริ่ม", en: "Start" },
+  "tutorial.replay": { th: "เล่นอีกครั้ง", en: "Replay" },
+  "tutorial.finished": { th: "ผ่านแล้ว", en: "Done" },
+  "tutorial.more": { th: "บทเรียนอื่นกำลังตามมา", en: "More lessons are on the way." },
+  "tutorial.opponent": { th: "คู่ซ้อม", en: "Sparring partner" },
+  "tutorial.next": { th: "ถัดไป", en: "Next" },
+  "tutorial.finish": { th: "จบบทเรียน", en: "Finish" },
+  "tutorial.exit": { th: "ออกจากบทเรียน", en: "Leave lesson" },
+  "tutorial.collapse": { th: "ย่อ", en: "Collapse" },
+  "tutorial.expand": { th: "ขยาย", en: "Expand" },
+  "tutorial.yourMove": { th: "▶ ตาคุณแล้ว", en: "▶ Your move" },
+  "tutorial.watch": { th: "กำลังเล่น…", en: "Playing…" },
+  "tutorial.followGuide": {
+    th: "ทำตามไกด์ก่อนนะ — ดูกล่องข้อความด้านข้าง",
+    en: "Follow the guide first — see the box beside the board",
+  },
+  "tutorial.doneTitle": { th: "จบบทเรียนแล้ว!", en: "Lesson complete!" },
+  "tutorial.doneBody": {
+    th: (lesson: string) => `คุณผ่านบทเรียน "${lesson}" แล้ว`,
+    en: (lesson: string) => `You've finished "${lesson}".`,
+  },
+  "tutorial.again": { th: "เล่นบทนี้อีกครั้ง", en: "Play it again" },
+  "tutorial.backToLessons": { th: "กลับไปหน้าบทเรียน", en: "Back to lessons" },
+  "mainMenu.tutorial": { th: "เรียนวิธีเล่นทีละขั้น", en: "Learn to play, step by step" },
+
   // --- ServerNotice.tsx -------------------------------------------------------
   "notice.restarting": {
     th: "เซิร์ฟเวอร์กำลังรีสตาร์ทเพื่ออัปเดต — ห้องที่เปิดค้างไว้จะถูกปิด แล้วระบบจะต่อใหม่ให้เอง ไม่ต้องรีเฟรช",

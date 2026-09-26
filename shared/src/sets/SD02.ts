@@ -679,8 +679,8 @@ export const SD02: CardDef[] = [
       {
         condition: ["leader"],
         text: {
-          th: "",
-          en: "",
+          th: "[Leader Skill] (ลงการ์ดใบนี้ได้เฉพาะเมื่อ Leader ของคุณเป็นตัวละครที่กำหนด)",
+          en: "[Leader Skill] (This card can only be played while your Leader is a specific character)",
         },
         resolve: () => { }
       }
@@ -704,8 +704,8 @@ export const SD02: CardDef[] = [
       {
         condition: ["leader"],
         text: {
-          th: "",
-          en: "",
+          th: "[Leader Skill] (ลงการ์ดใบนี้ได้เฉพาะเมื่อ Leader ของคุณเป็นตัวละครที่กำหนด)",
+          en: "[Leader Skill] (This card can only be played while your Leader is a specific character)",
         },
         resolve: () => { }
       }

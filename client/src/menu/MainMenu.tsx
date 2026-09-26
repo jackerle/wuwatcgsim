@@ -16,6 +16,7 @@ export function MainMenu({
   onPlay,
   onDecks,
   onVsBot,
+  onTutorial,
   deckCount,
 }: {
   playerName: string;
@@ -23,6 +24,7 @@ export function MainMenu({
   onPlay: () => void;
   onDecks: () => void;
   onVsBot: () => void;
+  onTutorial: () => void;
   deckCount: number;
 }) {
   const { t } = useLang();
@@ -83,6 +85,13 @@ export function MainMenu({
             alt=""
             aria-hidden="true"
           />
+        </button>
+
+        <button type="button" className="menu-button menu-button-plain" onClick={onTutorial}>
+          <span className="menu-button-text">
+            <span className="menu-button-label">Tutorial</span>
+            <span className="menu-button-sub">{t("mainMenu.tutorial")}</span>
+          </span>
         </button>
       </div>
 

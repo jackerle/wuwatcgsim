@@ -80,7 +80,6 @@ import {
   checkWinner,
   drawCount,
   levelUpCost,
-  MAX_ACTIONS_PER_TURN,
   recordCardPlayed,
   recordCharacterPlayed,
   recordDamage,
@@ -249,8 +248,9 @@ export type MatchIntent =
    * the player who laid the first card decided when everybody's Action Phase
    * ended, and on the other side of the table that ended it early.
    *
-   * The engine also opens the phase itself once all three Action Phase moves
-   * are spent, since nothing is left to do there.
+   * Never opened by the engine, even once Charge, Level Up and Switch are all
+   * spent: leaving the Action Phase is the turn player's call either way —
+   * into the battle with this, or past it with skipCounter (603.1.3).
    */
   | { kind: "toBattle" }
   /** Commit a card face-down for the clash. Both sides must choose. */
@@ -909,7 +909,6 @@ function charge(run: Run, playerId: string, cardIds: string[]): void {
   board.competitionArea.push(board.hand.splice(index, 1)[0]);
   run.note(LOG.charges(playerId, board.competitionArea.length));
   run.settle();
-  advanceIfActionsSpent(run, playerId);
 }
 
 function levelUp(run: Run, playerId: string, characterId: string, discardIds: string[]): void {
@@ -983,7 +982,6 @@ function levelUp(run: Run, playerId: string, characterId: string, discardIds: st
     beneath.flatMap((card) => sourceForCharacter(card, playerId, zone))
   );
   run.settle();
-  advanceIfActionsSpent(run, playerId);
 }
 
 function switchLeader(run: Run, playerId: string, toCardId: string): void {
@@ -1014,7 +1012,6 @@ function switchLeader(run: Run, playerId: string, toCardId: string): void {
     ...(outgoing ? sourcesForSlot({ ...outgoing, position: "back" }, playerId) : []),
   ]);
   run.settle();
-  advanceIfActionsSpent(run, playerId);
 }
 
 function isRestricted(state: MatchState, playerId: string, flag: string): boolean {
@@ -1077,19 +1074,6 @@ function openCounterPhase(run: Run): void {
   // board-wide because its printed form is "each Counter phase".
   run.fireFor("counterPhaseStart", run.state.turnPlayerId);
   run.settle();
-}
-
-/**
- * Closes the Action Phase once all three of its moves are spent.
- *
- * Charge, Level Up and Switch are once each per turn, so after the third
- * there is nothing left the phase can be used for and sitting in it is just
- * a click the player has to make for no reason.
- */
-function advanceIfActionsSpent(run: Run, playerId: string): void {
-  if (run.state.phase !== "action") return;
-  if (run.board(playerId).actionsTakenThisTurn.length < MAX_ACTIONS_PER_TURN) return;
-  openCounterPhase(run);
 }
 
 function commit(run: Run, playerId: string, cardId: string): void {

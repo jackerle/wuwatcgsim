@@ -590,13 +590,20 @@ let game = newMatch();
   const allowedOrdinary = step(ordinary, "p1", { kind: "commit", cardId: "BP01-062" });
   check("ไม่มี Leader Skill: BP01-062 ลงได้กับ Leader คนอื่น", allowedOrdinary.error === null, allowedOrdinary.error ?? "");
 
-  // BP01-061 is likewise not printed [Leader Skill]. The cleanup removes its
-  // accidental leader condition, so it does not become unplayable here.
-  const unscoped = structuredClone(wrongLeader);
-  unscoped.boards.p1.hand = [action("BP01-061")];
-  unscoped.boards.p1.competitionArea = [];
-  const allowedUnscoped = step(unscoped, "p1", { kind: "commit", cardId: "BP01-061" });
-  check("ไม่มี Leader Skill: BP01-061 ไม่ถูกบล็อกด้วย Leader", allowedUnscoped.error === null, allowedUnscoped.error ?? "");
+  // BP01-061, on the other hand, IS printed [Leader Skill] (リーダースキル on
+  // the card), so it needs Encore leading like any other.
+  const encoreSkill = structuredClone(wrongLeader);
+  encoreSkill.boards.p1.hand = [action("BP01-061")];
+  encoreSkill.boards.p1.competitionArea = [];
+  const blocked061 = step(encoreSkill, "p1", { kind: "commit", cardId: "BP01-061" });
+  check(
+    "Leader Skill: Leader ไม่ใช่ Encore -> ลง BP01-061 ไม่ได้",
+    blocked061.error?.includes("requires Encore as your active Leader") === true,
+    blocked061.error ?? ""
+  );
+  encoreSkill.boards.p1.leader = { position: "leader", card: character("BP01-015"), under: [] }; // Encore
+  const allowed061 = step(encoreSkill, "p1", { kind: "commit", cardId: "BP01-061" });
+  check("Leader Skill: Encore เป็น Leader -> ลง BP01-061 ได้", allowed061.error === null, allowed061.error ?? "");
 }
 
 // --- Level Up, and a card that asks a question -----------------------------
@@ -861,7 +868,10 @@ let game = newMatch();
   check("ยอมแพ้แล้วเล่นต่อไม่ได้", after.error === "The match is already over", after.error ?? "");
 }
 
-// --- The Action Phase closes itself once its three moves are spent ---------
+// --- The Action Phase stays open after its three moves are spent ----------
+//
+// Leaving it is the turn player's call (603.1.3): into the battle, or past it.
+// Opening the Battle Phase by itself took the second choice away.
 
 {
   let s = drive(newMatch(), "p1", { kind: "startTurn" }).result.state;
@@ -875,16 +885,21 @@ let game = newMatch();
   }).result.state;
   check("เลเวลอัปแล้ว ยังอยู่เฟสหลัก", s.phase === "action", s.phase);
 
-  // The third one leaves nothing the phase can still be used for, so the
-  // engine moves on rather than making the player click past an empty phase.
   const spent = drive(s, "p1", { kind: "switch", toCardId: s.boards.p1.back[0].card.id }).result
     .state;
-  check("ใช้แอ็กชันครบ 3 อย่าง -> เข้าเฟสประลองเอง", spent.phase === "counter", spent.phase);
+  check("ใช้แอ็กชันครบ 3 อย่าง -> ยังอยู่เฟสหลัก", spent.phase === "action", spent.phase);
+  const legal = legalIntents(spent, "p1");
   check(
-    "และยังไม่มีใครลงการ์ดหรือเลือกอะไร",
-    !spent.facedown.p1 && !spent.facedown.p2 && !spent.committed.p1 && !spent.committed.p2
+    "เลือกได้ทั้งเข้าเฟสประลองและข้าม",
+    legal.includes("toBattle") && legal.includes("skipCounter"),
+    legal.join(",")
   );
-  check("ทั้งสองฝ่ายลงคว่ำได้แล้ว", canCommit(spent, "p1") && canCommit(spent, "p2"));
+  check("ยังไม่มีใครลงคว่ำได้", !canCommit(spent, "p1") && !canCommit(spent, "p2"));
+
+  const skipped = drive(spent, "p1", { kind: "skipCounter" }).result.state;
+  check("ข้ามเฟสประลองได้ -> เฟสจบเทิร์น", skipped.phase === "end", skipped.phase);
+  const battle = drive(spent, "p1", { kind: "toBattle" }).result.state;
+  check("หรือเข้าเฟสประลอง -> ทั้งสองฝ่ายลงคว่ำได้", battle.phase === "counter" && canCommit(battle, "p1") && canCommit(battle, "p2"), battle.phase);
 }
 
 // --- Continuous sources activated during Counter affect that clash ----------

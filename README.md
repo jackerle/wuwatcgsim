@@ -123,6 +123,26 @@ that asks a question says which direction it wants through `ChoiceTag`,
 because "choose a card" means the opposite thing when the card is being taken
 away.
 
+## Tutorial
+
+"Tutorial" on the menu (`/tutorial`) lists the lessons. A lesson is a real
+match on the real board with a guide beside it: a box of text, and a glowing
+ring around whatever it is talking about.
+
+- `client/src/tutorial/director.ts` runs it. The decks are dealt in a fixed
+  order, the opponent plays exactly the cards the script names, and every
+  move the player makes is checked against the open step — anything else is
+  refused, so the lesson cannot be walked off its path. A step that is there
+  to be read holds the board still until Next.
+- A lesson is data — the deal, and a list of steps saying what to show, what
+  to ring (CSS selectors, see `lessonKit.ts`) and what ends each one. There are
+  four: `phaseLesson` (a turn, phase by phase), `colorLesson` (who beats whom),
+  `levelLesson` (Level Up and Switch) and `abilityLesson` (when each kind of
+  ability fires). `lessons.ts` sets the order the menu lists them in.
+- `npm run test:tutorial -w client` plays every lesson to the end, headless,
+  and checks each clash comes out the way its text says. Run it after changing
+  a rule or a card the lessons use.
+
 ## Decks
 
 A deck is three characters plus 40 Action cards. The three bring their own

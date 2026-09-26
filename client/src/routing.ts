@@ -35,3 +35,10 @@ export const VS_BOT_PATH = "/vs-bot";
 export function isVsBotPath(pathname: string): boolean {
   return pathname === VS_BOT_PATH;
 }
+
+/** The tutorial — like the bot match, an override with its own path. */
+export const TUTORIAL_PATH = "/tutorial";
+
+export function isTutorialPath(pathname: string): boolean {
+  return pathname === TUTORIAL_PATH;
+}

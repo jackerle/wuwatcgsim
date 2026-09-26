@@ -70,6 +70,7 @@ export function PhaseTrack({
             )}
             <span
               className={`phase-track-step ${isActive ? "active" : ""} ${why ? "waiting" : ""}`}
+              data-step={step.key}
               title={why ? `${stepTitle} — ${why}` : stepTitle}
               aria-current={isActive ? "step" : undefined}
             >
