@@ -382,6 +382,27 @@ export function roomLoad(): { rooms: number; matches: number; players: number } 
   return { rooms: rooms.size, matches, players };
 }
 
+/**
+ * Every room as the status page shows it — who is in it and how far a match
+ * has got. Names and counts only: no hands, no decks, no chat.
+ */
+export function roomsForStatus(): {
+  code: string;
+  visibility: string;
+  players: { name: string; seat: Seat; connected: boolean; host: boolean }[];
+  match: { turn: number; phase: string; winner: string | null } | null;
+}[] {
+  return [...rooms.values()].map((record) => {
+    const state = record.room.inMatch ? record.session?.state : null;
+    return {
+      code: record.room.code,
+      visibility: record.room.visibility,
+      players: record.room.players.map((p) => ({ name: p.name, seat: p.seat, connected: p.connected, host: p.isHost })),
+      match: state ? { turn: state.turnNumber, phase: state.phase, winner: state.winnerId } : null,
+    };
+  });
+}
+
 export function endMatch(record: RoomRecord): void {
   clearForfeitTimer(record);
   clearActivityTimer(record);

@@ -24,6 +24,7 @@ import {
   publicRooms,
   refreshMatchActivity,
   roomLoad,
+  roomsForStatus,
   seatInfo,
   seatOf,
   startMatch,
@@ -32,6 +33,7 @@ import {
   type RoomRecord,
 } from "./roomManager.js";
 import { sendBugReport } from "./bugReport.js";
+import { captureErrors, registerAdmin } from "./admin.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
 
@@ -54,6 +56,9 @@ const configuredOrigins = (process.env.CLIENT_ORIGIN ?? "")
   .filter(Boolean);
 const CLIENT_ORIGIN: boolean | string[] = configuredOrigins.length > 0 ? configuredOrigins : true;
 
+// First, so the status page sees every error from startup on.
+captureErrors();
+
 const app = express();
 app.use(cors({ origin: CLIENT_ORIGIN }));
 app.use(express.json());
@@ -64,6 +69,13 @@ app.get("/health", (_req, res) => {
   // the deploy waits for a moment when losing them costs nobody a game.
   res.json({ ok: true, characters: playableCharacters(), load: roomLoad() });
 });
+
+// The read-only status page, when ADMIN_TOKEN is set (see admin.ts).
+registerAdmin(app, () => ({
+  online: io.engine.clientsCount,
+  matches: roomLoad().matches,
+  rooms: roomsForStatus(),
+}));
 
 const httpServer = createServer(app);
 

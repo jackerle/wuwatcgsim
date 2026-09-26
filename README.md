@@ -79,6 +79,22 @@ DISCORD_BUG_FORUM_TAGS=123456789012345678
 Unset, the form tells the player reports are not being taken. One report a
 minute per player; nothing a player types can ping anyone.
 
+## Status page
+
+`/admin` on the server is a read-only page: players online, open rooms and
+how far each match has got, memory, uptime, and the last 50 errors the server
+printed. It is off until a token is set in `server/.env`, and asks for that
+token before it shows anything:
+
+```bash
+ADMIN_TOKEN=some-long-random-string
+```
+
+It lives on the Node server (port 3001), not the client build — behind a
+reverse proxy that only forwards `/socket.io`, `/admin` needs forwarding too.
+It refreshes every 15 seconds while the tab is open and does nothing
+otherwise; errors are kept in memory and gone on restart.
+
 ## Playing the bot
 
 "Play against the bot" on the menu (`/vs-bot`) deals a match against an
