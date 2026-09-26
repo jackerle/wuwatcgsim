@@ -54,6 +54,31 @@ bakes it into the static bundle when you run `npm run build`, so setting it
 as a runtime environment variable on an already-built deployment does
 nothing — rebuild after changing it.
 
+## Bug reports to Discord
+
+"Report a bug" (main menu, and the ⚙ menu in a match) posts what the player
+wrote to a Discord channel, with the match attached as a JSON file. It goes
+through a channel webhook (Server Settings → Integrations → Webhooks), whose
+URL goes in `server/.env` — it is a secret, anyone holding it can post there,
+and `.env` is git-ignored for that reason:
+
+```bash
+DISCORD_BUG_WEBHOOK_URL=https://discord.com/api/webhooks/...
+```
+
+For a **forum** channel, where each report becomes its own post titled from
+the first line of what the player wrote, say so — Discord refuses a post
+title for an ordinary channel — and optionally name forum tags to apply
+(tag ids, with Developer Mode on: right-click the tag → Copy ID):
+
+```bash
+DISCORD_BUG_FORUM=true
+DISCORD_BUG_FORUM_TAGS=123456789012345678
+```
+
+Unset, the form tells the player reports are not being taken. One report a
+minute per player; nothing a player types can ping anyone.
+
 ## Playing the bot
 
 "Play against the bot" on the menu (`/vs-bot`) deals a match against an

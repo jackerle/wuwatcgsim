@@ -10,12 +10,15 @@ import { useDismiss } from "../board/CardMenu";
 import { useLang } from "../i18n/LanguageContext";
 import { setMusicMuted, useMusicMuted } from "../audio/bgm";
 import { SpeakerIcon } from "../audio/MusicToggle";
+import { BugReport } from "../menu/BugReport";
 
 export function MatchSettings({
   onConcede,
   canRestart,
   onRestart,
   onLeave,
+  reportWhere,
+  snapshot,
 }: {
   onConcede: () => void;
   canRestart: boolean;
@@ -25,9 +28,14 @@ export function MatchSettings({
    * lifecycle, BotGame's setup screen), not the controller.
    */
   onLeave?: (() => void) | null;
+  /** How a bug report sent from here describes the screen. */
+  reportWhere: string;
+  /** The match to attach to a bug report, where it lives in this tab. */
+  snapshot?: () => unknown;
 }) {
   const { t } = useLang();
   const [open, setOpen] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const rootRef = useDismiss(open, () => setOpen(false));
   const musicMuted = useMusicMuted();
   const pick = (action: () => void) => {
@@ -74,8 +82,12 @@ export function MatchSettings({
               {t("common.leaveRoom")}
             </button>
           )}
+          <button type="button" role="menuitem" onClick={() => pick(() => setReporting(true))}>
+            {t("bugReport.open")}
+          </button>
         </div>
       )}
+      {reporting && <BugReport where={reportWhere} snapshot={snapshot} onClose={() => setReporting(false)} />}
     </div>
   );
 }

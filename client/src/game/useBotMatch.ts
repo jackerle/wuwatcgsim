@@ -165,6 +165,14 @@ export function useBotMatch(options: BotMatchOptions): MatchController {
       canRestart: true,
       chat: null,
       sendChat: () => {},
+      // The whole session, the bot's hand included: this goes to the
+      // developers, and the board as the player saw it is only half the story.
+      debugSnapshot: () => ({
+        mode: "bot",
+        state: session.current?.state,
+        question: session.current?.question,
+        log: session.current?.log,
+      }),
     };
     // `version` is the signal: the session mutates in place, so nothing else
     // here changes identity when the board moves.

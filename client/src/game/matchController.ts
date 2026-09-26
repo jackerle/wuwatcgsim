@@ -60,6 +60,13 @@ export interface MatchController {
   /** Whether this client may deal a new game (the host, over the network). */
   canRestart: boolean;
 
+  /**
+   * The whole game, for a bug report — only where it lives in this tab (vs
+   * bot, hotseat). An online match's real state is on the server, which
+   * attaches it itself; this client only ever held its own view of it.
+   */
+  debugSnapshot?: () => unknown;
+
   /** null when there is nobody to talk to — both players are at one screen. */
   chat: ChatMessage[] | null;
   sendChat: (text: string) => void;

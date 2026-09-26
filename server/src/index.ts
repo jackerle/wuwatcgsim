@@ -31,6 +31,7 @@ import {
   sweepRooms,
   type RoomRecord,
 } from "./roomManager.js";
+import { sendBugReport } from "./bugReport.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
 
@@ -402,6 +403,16 @@ io.on("connection", (socket) => {
     if (!trimmed) return;
     const from = record.room.players.find((p) => p.id === socket.data.playerId)?.name ?? "?";
     io.to(record.room.code).emit("chatMessage", addChat(record, from, trimmed));
+  });
+
+  socket.on("reportBug", (report, callback) => {
+    const record = recordFor(socket);
+    const playerId = socket.data.playerId || socket.id;
+    const name =
+      record?.room.players.find((p) => p.id === playerId)?.name ?? (String(report.playerName ?? "").trim() || null);
+    void sendBugReport(report, { playerId, name, record }).then((error) =>
+      callback(error ? { error } : { ok: true })
+    );
   });
 
   socket.on("disconnect", () => {

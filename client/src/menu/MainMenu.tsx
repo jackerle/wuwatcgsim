@@ -1,8 +1,10 @@
 // The front door: play, or build a deck.
 
+import { useState } from "react";
 import { useLang } from "../i18n/LanguageContext";
 import { LanguageSwitch } from "./LanguageSwitch";
 import { MusicToggle } from "../audio/MusicToggle";
+import { BugReport } from "./BugReport";
 import "./MainMenu.css";
 
 /** Set to false to hide the Discord invite line. */
@@ -24,6 +26,7 @@ export function MainMenu({
   deckCount: number;
 }) {
   const { t } = useLang();
+  const [reporting, setReporting] = useState(false);
 
   return (
     <main className="page menu-page">
@@ -98,7 +101,11 @@ export function MainMenu({
           </a>
         )}
         <span>{t("mainMenu.credit")} jackerle</span>
+        <button type="button" className="menu-bug" onClick={() => setReporting(true)}>
+          {t("bugReport.open")}
+        </button>
       </p>
+      {reporting && <BugReport where="main menu" onClose={() => setReporting(false)} />}
     </main>
   );
 }

@@ -158,7 +158,40 @@ export interface ClientToServerEvents {
   rematch: () => void;
 
   sendChat: (payload: { text: string }) => void;
+
+  /**
+   * A player's bug report, passed on to the developers' Discord channel.
+   * Answered with an error code — see BugReportError — for the client to
+   * word in the player's language.
+   */
+  reportBug: (payload: BugReport, callback: (result: { ok: true } | { error: BugReportError }) => void) => void;
 }
+
+/** What the "report a bug" form sends. */
+export interface BugReport {
+  /** What went wrong, in the player's own words. */
+  text: string;
+  /** The name the player goes by, for a report sent from outside a room. */
+  playerName?: string;
+  /** The screen it was sent from — "menu", "match (vs bot)", ... */
+  where: string;
+  lang: string;
+  userAgent: string;
+  /**
+   * A game that runs only in this browser — against the bot, or two people
+   * at one screen — sent whole, so it can be replayed. An online match is
+   * attached by the server, which holds the real one.
+   */
+  snapshot?: unknown;
+}
+
+/**
+ *   empty        nothing was written
+ *   cooldown     this player reported a moment ago
+ *   unavailable  the server has nowhere to send reports
+ *   failed       Discord did not take it
+ */
+export type BugReportError = "empty" | "cooldown" | "unavailable" | "failed";
 
 /**
  * Something the server has to say about itself, to everyone at once —

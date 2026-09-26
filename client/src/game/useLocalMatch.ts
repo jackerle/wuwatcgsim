@@ -109,6 +109,12 @@ export function useLocalMatch(options: LocalMatchOptions): MatchController {
       canRestart: true,
       chat: null,
       sendChat: () => {},
+      debugSnapshot: () => ({
+        mode: "hotseat",
+        state: session.current?.state,
+        question: session.current?.question,
+        log: session.current?.log,
+      }),
     }),
     // `version` is the signal: the session mutates in place, so nothing else
     // here changes identity when the board moves.

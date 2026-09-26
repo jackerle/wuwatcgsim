@@ -1,0 +1,90 @@
+/* The "report a bug" form. Self-contained rather than borrowing the board's
+   dialog classes: it opens from the main menu too, where Board.css is not
+   loaded. Portalled to <body>, so it sits over whatever screen opened it. */
+
+.bug-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.bug-dialog {
+  box-sizing: border-box;
+  width: min(480px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  background: #131a2c;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+  color: #eef2ff;
+  text-align: left;
+}
+
+.bug-dialog h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.bug-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #9aa1b4;
+}
+
+.bug-dialog textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 8rem;
+  resize: vertical;
+  padding: 0.6rem 0.7rem;
+  font: inherit;
+  font-size: 0.95rem;
+  color: #eef2ff;
+  background: #0c1120;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+}
+
+.bug-status {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.bug-status.error {
+  color: #ff8a8a;
+}
+
+.bug-status.ok {
+  color: #8fe3a5;
+}
+
+.bug-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* The main menu's way in: a quiet link beside the credit line. */
+.menu-credit button.menu-bug {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.menu-credit button.menu-bug:hover {
+  opacity: 1;
+}

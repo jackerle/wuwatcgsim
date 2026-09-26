@@ -390,6 +390,10 @@ export function PlayGame({
                       match.restart();
                     }}
                     onLeave={onLeave}
+                    reportWhere={
+                      match.chat ? "match (online)" : match.canFlip ? "match (hotseat)" : "match (vs bot)"
+                    }
+                    snapshot={match.debugSnapshot}
                   />
                 }
                 state={state}
