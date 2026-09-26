@@ -1,0 +1,1967 @@
+{
+ "reportedAt": "2026-09-26T04:08:30.563Z",
+ "where": "match (vs bot)",
+ "online": null,
+ "local": {
+  "mode": "bot",
+  "state": {
+   "matchId": "bot-373214048",
+   "turnNumber": 10,
+   "turnPlayerId": "p1",
+   "startingPlayerId": "p2",
+   "phase": "combo",
+   "boards": {
+    "p1": {
+     "playerId": "p1",
+     "life": 7,
+     "leader": {
+      "position": "leader",
+      "card": {
+       "id": "BP01-011",
+       "name": "Encore",
+       "level": 2,
+       "imageId": "BP01-011"
+      },
+      "under": [
+       {
+        "id": "BP01-015",
+        "name": "Encore",
+        "level": 0,
+        "imageId": "BP01-015"
+       },
+       {
+        "id": "BP01-013",
+        "name": "Encore",
+        "level": 1,
+        "imageId": "BP01-013"
+       }
+      ]
+     },
+     "back": [
+      {
+       "position": "back",
+       "card": {
+        "id": "SD02-003",
+        "name": "Sanhua",
+        "level": 2,
+        "imageId": "SD02-003"
+       },
+       "under": [
+        {
+         "id": "BP01-033",
+         "name": "Sanhua",
+         "level": 0,
+         "imageId": "BP01-033"
+        },
+        {
+         "id": "BP01-032",
+         "name": "Sanhua",
+         "level": 1,
+         "imageId": "BP01-032"
+        }
+       ]
+      },
+      {
+       "position": "back",
+       "card": {
+        "id": "BP01-007",
+        "name": "Shorekeeper",
+        "level": 2,
+        "imageId": "BP01-007"
+       },
+       "under": [
+        {
+         "id": "BP01-010",
+         "name": "Shorekeeper",
+         "level": 0,
+         "imageId": "BP01-010"
+        },
+        {
+         "id": "BP01-008",
+         "name": "Shorekeeper",
+         "level": 1,
+         "imageId": "BP01-008"
+        }
+       ]
+      }
+     ],
+     "characterPool": [
+      {
+       "id": "BP01-012",
+       "name": "Encore",
+       "level": 2,
+       "imageId": "BP01-012"
+      },
+      {
+       "id": "BP01-014",
+       "name": "Encore",
+       "level": 1,
+       "imageId": "BP01-014"
+      },
+      {
+       "id": "BP01-031",
+       "name": "Sanhua",
+       "level": 2,
+       "imageId": "BP01-031"
+      },
+      {
+       "id": "SD02-004",
+       "name": "Sanhua",
+       "level": 1,
+       "imageId": "SD02-004"
+      },
+      {
+       "id": "BP01-006",
+       "name": "Shorekeeper",
+       "level": 2,
+       "imageId": "BP01-006"
+      },
+      {
+       "id": "BP01-009",
+       "name": "Shorekeeper",
+       "level": 1,
+       "imageId": "BP01-009"
+      }
+     ],
+     "actionDeck": [
+      {
+       "id": "BP01-063",
+       "name": "Woolies Helpers",
+       "color": "red",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-063",
+       "uid": "p1-8"
+      },
+      {
+       "id": "BP01-054",
+       "name": "Enlightenment",
+       "color": "red",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-054",
+       "uid": "p1-16"
+      },
+      {
+       "id": "SD02-014",
+       "name": "Silversnow",
+       "color": "red",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "SD02-014",
+       "uid": "p1-22"
+      },
+      {
+       "id": "BP01-062",
+       "name": "Cosmos Rave",
+       "color": "red",
+       "cost": 2,
+       "damage": 3,
+       "speed": 11,
+       "imageId": "BP01-062",
+       "uid": "p1-7"
+      },
+      {
+       "id": "BP01-056",
+       "name": "Chaos Theory",
+       "color": "red",
+       "cost": 1,
+       "damage": 1,
+       "speed": 11,
+       "imageId": "BP01-056",
+       "uid": "p1-6"
+      },
+      {
+       "id": "SD02-013",
+       "name": "Frigid Light • Dodge",
+       "color": "blue",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "SD02-013",
+       "uid": "p1-31"
+      },
+      {
+       "id": "BP01-054",
+       "name": "Enlightenment",
+       "color": "red",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-054",
+       "uid": "p1-29"
+      },
+      {
+       "id": "BP01-062",
+       "name": "Cosmos Rave",
+       "color": "red",
+       "cost": 2,
+       "damage": 3,
+       "speed": 11,
+       "imageId": "BP01-062",
+       "uid": "p1-25"
+      },
+      {
+       "id": "BP01-064",
+       "name": "Wooly Attack • Dodge Counter",
+       "color": "blue",
+       "cost": 0,
+       "damage": 3,
+       "speed": 0,
+       "imageId": "BP01-064",
+       "uid": "p1-38"
+      },
+      {
+       "id": "BP01-058",
+       "name": "Supernal Stellarealm",
+       "color": "green",
+       "cost": 0,
+       "damage": 0,
+       "speed": 5,
+       "imageId": "BP01-058",
+       "uid": "p1-36"
+      },
+      {
+       "id": "BP01-057",
+       "name": "End loop",
+       "color": "green",
+       "cost": 1,
+       "damage": 0,
+       "speed": 11,
+       "imageId": "BP01-057",
+       "uid": "p1-26"
+      },
+      {
+       "id": "SD02-016",
+       "name": "Glacial Gaze",
+       "color": "red",
+       "cost": 2,
+       "damage": 4,
+       "speed": 13,
+       "imageId": "SD02-016",
+       "uid": "p1-2"
+      },
+      {
+       "id": "BP01-064",
+       "name": "Wooly Attack • Dodge Counter",
+       "color": "blue",
+       "cost": 0,
+       "damage": 3,
+       "speed": 0,
+       "imageId": "BP01-064",
+       "uid": "p1-35"
+      },
+      {
+       "id": "BP01-058",
+       "name": "Supernal Stellarealm",
+       "color": "green",
+       "cost": 0,
+       "damage": 0,
+       "speed": 5,
+       "imageId": "BP01-058",
+       "uid": "p1-39"
+      },
+      {
+       "id": "BP01-063",
+       "name": "Woolies Helpers",
+       "color": "red",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-063",
+       "uid": "p1-27"
+      }
+     ],
+     "hand": [
+      {
+       "id": "BP01-059",
+       "name": "Wooly Attack • Basic Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 5,
+       "imageId": "BP01-059",
+       "uid": "p1-20"
+      },
+      {
+       "id": "BP01-057",
+       "name": "End loop",
+       "color": "green",
+       "cost": 1,
+       "damage": 0,
+       "speed": 11,
+       "imageId": "BP01-057",
+       "uid": "p1-15"
+      }
+     ],
+     "competitionArea": [
+      {
+       "id": "BP01-076",
+       "name": "Freezing Thorns",
+       "color": "blue",
+       "cost": 1,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-076",
+       "uid": "p1-21"
+      }
+     ],
+     "trash": [
+      {
+       "id": "BP01-059",
+       "name": "Wooly Attack • Basic Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 5,
+       "imageId": "BP01-059",
+       "uid": "p1-37"
+      },
+      {
+       "id": "BP01-076",
+       "name": "Freezing Thorns",
+       "color": "blue",
+       "cost": 1,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-076",
+       "uid": "p1-3"
+      },
+      {
+       "id": "BP01-056",
+       "name": "Chaos Theory",
+       "color": "red",
+       "cost": 1,
+       "damage": 1,
+       "speed": 11,
+       "imageId": "BP01-056",
+       "uid": "p1-24"
+      },
+      {
+       "id": "BP01-057",
+       "name": "End loop",
+       "color": "green",
+       "cost": 1,
+       "damage": 0,
+       "speed": 11,
+       "imageId": "BP01-057",
+       "uid": "p1-4"
+      },
+      {
+       "id": "SD02-013",
+       "name": "Frigid Light • Dodge",
+       "color": "blue",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "SD02-013",
+       "uid": "p1-32"
+      },
+      {
+       "id": "BP01-058",
+       "name": "Supernal Stellarealm",
+       "color": "green",
+       "cost": 0,
+       "damage": 0,
+       "speed": 5,
+       "imageId": "BP01-058",
+       "uid": "p1-33"
+      },
+      {
+       "id": "BP01-061",
+       "name": "Black & White Woolies",
+       "color": "red",
+       "cost": 0,
+       "damage": 3,
+       "speed": 0,
+       "imageId": "BP01-061",
+       "uid": "p1-18"
+      },
+      {
+       "id": "SD02-014",
+       "name": "Silversnow",
+       "color": "red",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "SD02-014",
+       "uid": "p1-19"
+      },
+      {
+       "id": "BP01-076",
+       "name": "Freezing Thorns",
+       "color": "blue",
+       "cost": 1,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-076",
+       "uid": "p1-9"
+      },
+      {
+       "id": "BP01-053",
+       "name": "Origin Calculus • Dodge",
+       "color": "blue",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-053",
+       "uid": "p1-14"
+      },
+      {
+       "id": "SD02-016",
+       "name": "Glacial Gaze",
+       "color": "red",
+       "cost": 2,
+       "damage": 4,
+       "speed": 13,
+       "imageId": "SD02-016",
+       "uid": "p1-23"
+      },
+      {
+       "id": "BP01-056",
+       "name": "Chaos Theory",
+       "color": "red",
+       "cost": 1,
+       "damage": 1,
+       "speed": 11,
+       "imageId": "BP01-056",
+       "uid": "p1-5"
+      },
+      {
+       "id": "BP01-063",
+       "name": "Woolies Helpers",
+       "color": "red",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-063",
+       "uid": "p1-1"
+      },
+      {
+       "id": "BP01-053",
+       "name": "Origin Calculus • Dodge",
+       "color": "blue",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-053",
+       "uid": "p1-28"
+      },
+      {
+       "id": "SD02-015",
+       "name": "Eternal Frost",
+       "color": "red",
+       "cost": 1,
+       "damage": 3,
+       "speed": 9,
+       "imageId": "SD02-015",
+       "uid": "p1-11"
+      },
+      {
+       "id": "SD02-015",
+       "name": "Eternal Frost",
+       "color": "red",
+       "cost": 1,
+       "damage": 3,
+       "speed": 9,
+       "imageId": "SD02-015",
+       "uid": "p1-12"
+      },
+      {
+       "id": "BP01-061",
+       "name": "Black & White Woolies",
+       "color": "red",
+       "cost": 0,
+       "damage": 3,
+       "speed": 0,
+       "imageId": "BP01-061",
+       "uid": "p1-10"
+      },
+      {
+       "id": "SD02-013",
+       "name": "Frigid Light • Dodge",
+       "color": "blue",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "SD02-013",
+       "uid": "p1-0"
+      }
+     ],
+     "actionsTakenThisTurn": [
+      "levelUp",
+      "switch",
+      "charge"
+     ]
+    },
+    "p2": {
+     "playerId": "p2",
+     "life": 0,
+     "leader": {
+      "position": "leader",
+      "card": {
+       "id": "BP01-012",
+       "name": "Encore",
+       "level": 2,
+       "imageId": "BP01-012"
+      },
+      "under": [
+       {
+        "id": "BP01-015",
+        "name": "Encore",
+        "level": 0,
+        "imageId": "BP01-015"
+       },
+       {
+        "id": "BP01-013",
+        "name": "Encore",
+        "level": 1,
+        "imageId": "BP01-013"
+       }
+      ]
+     },
+     "back": [
+      {
+       "position": "back",
+       "card": {
+        "id": "SD01-003",
+        "name": "Yangyang",
+        "level": 2,
+        "imageId": "SD01-003"
+       },
+       "under": [
+        {
+         "id": "BP01-024",
+         "name": "Yangyang",
+         "level": 0,
+         "imageId": "BP01-024"
+        },
+        {
+         "id": "BP01-023",
+         "name": "Yangyang",
+         "level": 1,
+         "imageId": "BP01-023"
+        }
+       ]
+      },
+      {
+       "position": "back",
+       "card": {
+        "id": "SD01-002",
+        "name": "Rover (F)",
+        "level": 1,
+        "imageId": "SD01-002"
+       },
+       "under": [
+        {
+         "id": "BP01-018",
+         "name": "Rover (F)",
+         "level": 0,
+         "imageId": "BP01-018"
+        },
+        {
+         "id": "BP01-017",
+         "name": "Rover (F)",
+         "level": 1,
+         "imageId": "BP01-017"
+        }
+       ]
+      }
+     ],
+     "characterPool": [
+      {
+       "id": "BP01-014",
+       "name": "Encore",
+       "level": 1,
+       "imageId": "BP01-014"
+      },
+      {
+       "id": "BP01-022",
+       "name": "Yangyang",
+       "level": 2,
+       "imageId": "BP01-022"
+      },
+      {
+       "id": "SD01-004",
+       "name": "Yangyang",
+       "level": 1,
+       "imageId": "SD01-004"
+      },
+      {
+       "id": "BP01-016",
+       "name": "Rover (F)",
+       "level": 2,
+       "imageId": "BP01-016"
+      },
+      {
+       "id": "SD01-001",
+       "name": "Rover (F)",
+       "level": 2,
+       "imageId": "SD01-001"
+      },
+      {
+       "id": "BP01-011",
+       "name": "Encore",
+       "level": 2,
+       "imageId": "BP01-011"
+      }
+     ],
+     "actionDeck": [
+      {
+       "id": "BP01-063",
+       "name": "Woolies Helpers",
+       "color": "red",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-063",
+       "uid": "p2-14"
+      },
+      {
+       "id": "SD01-014",
+       "name": "Whispering Breeze",
+       "color": "red",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "SD01-014",
+       "uid": "p2-39"
+      },
+      {
+       "id": "SD01-022",
+       "name": "Resonating Slashes",
+       "color": "red",
+       "cost": 1,
+       "damage": 1,
+       "speed": 16,
+       "imageId": "SD01-022",
+       "uid": "p2-1"
+      },
+      {
+       "id": "BP01-060",
+       "name": "Wooly Attack • Heavy Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 3,
+       "imageId": "BP01-060",
+       "uid": "p2-23"
+      },
+      {
+       "id": "BP01-063",
+       "name": "Woolies Helpers",
+       "color": "red",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-063",
+       "uid": "p2-12"
+      },
+      {
+       "id": "SD01-012",
+       "name": "Feather as Blade • Basic Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 8,
+       "imageId": "SD01-012",
+       "uid": "p2-8"
+      },
+      {
+       "id": "SD01-023",
+       "name": "Echoing Orchestra",
+       "color": "red",
+       "cost": 3,
+       "damage": 5,
+       "speed": 14,
+       "imageId": "SD01-023",
+       "uid": "p2-7"
+      },
+      {
+       "id": "BP01-069",
+       "name": "Feather Release • Dodge",
+       "color": "blue",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-069",
+       "uid": "p2-33"
+      },
+      {
+       "id": "BP01-062",
+       "name": "Cosmos Rave",
+       "color": "red",
+       "cost": 2,
+       "damage": 3,
+       "speed": 11,
+       "imageId": "BP01-062",
+       "uid": "p2-18"
+      },
+      {
+       "id": "BP01-064",
+       "name": "Wooly Attack • Dodge Counter",
+       "color": "blue",
+       "cost": 0,
+       "damage": 3,
+       "speed": 0,
+       "imageId": "BP01-064",
+       "uid": "p2-6"
+      },
+      {
+       "id": "BP01-061",
+       "name": "Black & White Woolies",
+       "color": "red",
+       "cost": 0,
+       "damage": 3,
+       "speed": 0,
+       "imageId": "BP01-061",
+       "uid": "p2-24"
+      },
+      {
+       "id": "BP01-062",
+       "name": "Cosmos Rave",
+       "color": "red",
+       "cost": 2,
+       "damage": 3,
+       "speed": 11,
+       "imageId": "BP01-062",
+       "uid": "p2-10"
+      },
+      {
+       "id": "BP01-069",
+       "name": "Feather Release • Dodge",
+       "color": "blue",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-069",
+       "uid": "p2-31"
+      },
+      {
+       "id": "BP01-064",
+       "name": "Wooly Attack • Dodge Counter",
+       "color": "blue",
+       "cost": 0,
+       "damage": 3,
+       "speed": 0,
+       "imageId": "BP01-064",
+       "uid": "p2-19"
+      },
+      {
+       "id": "SD01-015",
+       "name": "Jump",
+       "color": "green",
+       "cost": 0,
+       "damage": 0,
+       "speed": 7,
+       "imageId": "SD01-015",
+       "uid": "p2-26"
+      },
+      {
+       "id": "SD01-015",
+       "name": "Jump",
+       "color": "green",
+       "cost": 0,
+       "damage": 0,
+       "speed": 7,
+       "imageId": "SD01-015",
+       "uid": "p2-16"
+      },
+      {
+       "id": "BP01-059",
+       "name": "Wooly Attack • Basic Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 5,
+       "imageId": "BP01-059",
+       "uid": "p2-34"
+      },
+      {
+       "id": "SD01-012",
+       "name": "Feather as Blade • Basic Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 8,
+       "imageId": "SD01-012",
+       "uid": "p2-20"
+      },
+      {
+       "id": "BP01-061",
+       "name": "Black & White Woolies",
+       "color": "red",
+       "cost": 0,
+       "damage": 3,
+       "speed": 0,
+       "imageId": "BP01-061",
+       "uid": "p2-13"
+      },
+      {
+       "id": "SD01-021",
+       "name": "Grapple",
+       "color": "green",
+       "cost": 1,
+       "damage": 0,
+       "speed": 8,
+       "imageId": "SD01-021",
+       "uid": "p2-36"
+      },
+      {
+       "id": "BP01-064",
+       "name": "Wooly Attack • Dodge Counter",
+       "color": "blue",
+       "cost": 0,
+       "damage": 3,
+       "speed": 0,
+       "imageId": "BP01-064",
+       "uid": "p2-11"
+      },
+      {
+       "id": "SD01-014",
+       "name": "Whispering Breeze",
+       "color": "red",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "SD01-014",
+       "uid": "p2-32"
+      }
+     ],
+     "hand": [
+      {
+       "id": "BP01-063",
+       "name": "Woolies Helpers",
+       "color": "red",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-063",
+       "uid": "p2-25"
+      },
+      {
+       "id": "BP01-062",
+       "name": "Cosmos Rave",
+       "color": "red",
+       "cost": 2,
+       "damage": 3,
+       "speed": 11,
+       "imageId": "BP01-062",
+       "uid": "p2-3"
+      }
+     ],
+     "competitionArea": [
+      {
+       "id": "SD01-023",
+       "name": "Echoing Orchestra",
+       "color": "red",
+       "cost": 3,
+       "damage": 5,
+       "speed": 14,
+       "imageId": "SD01-023",
+       "uid": "p2-35"
+      },
+      {
+       "id": "SD01-022",
+       "name": "Resonating Slashes",
+       "color": "red",
+       "cost": 1,
+       "damage": 1,
+       "speed": 16,
+       "imageId": "SD01-022",
+       "uid": "p2-37"
+      }
+     ],
+     "trash": [
+      {
+       "id": "SD01-021",
+       "name": "Grapple",
+       "color": "green",
+       "cost": 1,
+       "damage": 0,
+       "speed": 8,
+       "imageId": "SD01-021",
+       "uid": "p2-0"
+      },
+      {
+       "id": "BP01-069",
+       "name": "Feather Release • Dodge",
+       "color": "blue",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "BP01-069",
+       "uid": "p2-28"
+      },
+      {
+       "id": "SD01-020",
+       "name": "Sensor",
+       "color": "green",
+       "cost": 0,
+       "damage": 0,
+       "speed": 5,
+       "imageId": "SD01-020",
+       "uid": "p2-2"
+      },
+      {
+       "id": "BP01-060",
+       "name": "Wooly Attack • Heavy Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 3,
+       "imageId": "BP01-060",
+       "uid": "p2-5"
+      },
+      {
+       "id": "BP01-059",
+       "name": "Wooly Attack • Basic Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 5,
+       "imageId": "BP01-059",
+       "uid": "p2-38"
+      },
+      {
+       "id": "SD01-020",
+       "name": "Sensor",
+       "color": "green",
+       "cost": 0,
+       "damage": 0,
+       "speed": 5,
+       "imageId": "SD01-020",
+       "uid": "p2-30"
+      },
+      {
+       "id": "SD01-014",
+       "name": "Whispering Breeze",
+       "color": "red",
+       "cost": 0,
+       "damage": 0,
+       "speed": 0,
+       "imageId": "SD01-014",
+       "uid": "p2-21"
+      },
+      {
+       "id": "BP01-070",
+       "name": "Zephyr Domain",
+       "color": "red",
+       "cost": 1,
+       "damage": 2,
+       "speed": 14,
+       "imageId": "BP01-070",
+       "uid": "p2-22"
+      },
+      {
+       "id": "SD01-020",
+       "name": "Sensor",
+       "color": "green",
+       "cost": 0,
+       "damage": 0,
+       "speed": 5,
+       "imageId": "SD01-020",
+       "uid": "p2-29"
+      },
+      {
+       "id": "BP01-060",
+       "name": "Wooly Attack • Heavy Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 3,
+       "imageId": "BP01-060",
+       "uid": "p2-17"
+      },
+      {
+       "id": "SD01-022",
+       "name": "Resonating Slashes",
+       "color": "red",
+       "cost": 1,
+       "damage": 1,
+       "speed": 16,
+       "imageId": "SD01-022",
+       "uid": "p2-4"
+      },
+      {
+       "id": "SD01-015",
+       "name": "Jump",
+       "color": "green",
+       "cost": 0,
+       "damage": 0,
+       "speed": 7,
+       "imageId": "SD01-015",
+       "uid": "p2-15"
+      },
+      {
+       "id": "SD01-021",
+       "name": "Grapple",
+       "color": "green",
+       "cost": 1,
+       "damage": 0,
+       "speed": 8,
+       "imageId": "SD01-021",
+       "uid": "p2-27"
+      },
+      {
+       "id": "BP01-059",
+       "name": "Wooly Attack • Basic Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 5,
+       "imageId": "BP01-059",
+       "uid": "p2-9"
+      }
+     ],
+     "actionsTakenThisTurn": []
+    }
+   },
+   "facedown": {
+    "p1": null,
+    "p2": null
+   },
+   "committed": {
+    "p1": false,
+    "p2": false
+   },
+   "mulliganDone": {
+    "p1": true,
+    "p2": true
+   },
+   "leaderChosen": {
+    "p1": true,
+    "p2": true
+   },
+   "actionZone": {
+    "p1": [
+     {
+      "id": "BP01-062",
+      "name": "Cosmos Rave",
+      "color": "red",
+      "cost": 2,
+      "damage": 3,
+      "speed": 11,
+      "imageId": "BP01-062",
+      "uid": "p1-30"
+     },
+     {
+      "id": "BP01-060",
+      "name": "Wooly Attack • Heavy Attack",
+      "color": "red",
+      "cost": 0,
+      "damage": 1,
+      "speed": 3,
+      "imageId": "BP01-060",
+      "uid": "p1-13"
+     },
+     {
+      "id": "BP01-060",
+      "name": "Wooly Attack • Heavy Attack",
+      "color": "red",
+      "cost": 0,
+      "damage": 1,
+      "speed": 3,
+      "imageId": "BP01-060",
+      "uid": "p1-34"
+     },
+     {
+      "id": "BP01-060",
+      "name": "Wooly Attack • Heavy Attack",
+      "color": "red",
+      "cost": 0,
+      "damage": 1,
+      "speed": 3,
+      "imageId": "BP01-060",
+      "uid": "p1-17"
+     }
+    ],
+    "p2": []
+   },
+   "combo": {
+    "playerId": "p1",
+    "unlimited": true,
+    "remaining": null
+   },
+   "lastBattleWinnerId": "p1",
+   "advantageIds": [
+    "p2"
+   ],
+   "pendingAdvantageIds": [
+    "p1"
+   ],
+   "lastBattle": {
+    "winnerId": "p1",
+    "loserId": "p2",
+    "colorByPlayer": {
+     "p1": "red"
+    },
+    "cardIdByPlayer": {
+     "p1": "BP01-062"
+    }
+   },
+   "statModifiers": [
+    {
+     "controllerId": "p1",
+     "sourceCardId": "BP01-015",
+     "stat": "attack",
+     "amount": 2,
+     "filter": {
+      "character": "Encore",
+      "subtype": "Normal Attack"
+     },
+     "duration": "turn",
+     "limit": 1,
+     "id": "BP01-015-0-attack",
+     "derived": true
+    },
+    {
+     "controllerId": "p1",
+     "sourceCardId": "BP01-011",
+     "stat": "attack",
+     "amount": 1,
+     "filter": {
+      "character": "Encore",
+      "color": "red"
+     },
+     "duration": "turn",
+     "id": "BP01-011-1-attack",
+     "derived": true
+    },
+    {
+     "controllerId": "p2",
+     "sourceCardId": "BP01-062",
+     "stat": "cost",
+     "amount": -1,
+     "filter": {
+      "cardId": "BP01-062"
+     },
+     "duration": "turn",
+     "id": "BP01-062-2-cost",
+     "derived": true
+    },
+    {
+     "controllerId": "p2",
+     "sourceCardId": "BP01-015",
+     "stat": "attack",
+     "amount": 2,
+     "filter": {
+      "character": "Encore",
+      "subtype": "Normal Attack"
+     },
+     "duration": "turn",
+     "limit": 1,
+     "id": "BP01-015-3-attack",
+     "derived": true
+    }
+   ],
+   "turnLog": {
+    "cardsPlayed": {
+     "p1": [
+      {
+       "id": "BP01-062",
+       "name": "Cosmos Rave",
+       "color": "red",
+       "cost": 2,
+       "damage": 3,
+       "speed": 11,
+       "imageId": "BP01-062",
+       "uid": "p1-30"
+      },
+      {
+       "id": "BP01-060",
+       "name": "Wooly Attack • Heavy Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 3,
+       "imageId": "BP01-060",
+       "uid": "p1-13"
+      },
+      {
+       "id": "BP01-060",
+       "name": "Wooly Attack • Heavy Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 3,
+       "imageId": "BP01-060",
+       "uid": "p1-34"
+      },
+      {
+       "id": "BP01-060",
+       "name": "Wooly Attack • Heavy Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 3,
+       "imageId": "BP01-060",
+       "uid": "p1-17"
+      }
+     ]
+    },
+    "charactersPlayed": {
+     "p1": [
+      "BP01-013",
+      "BP01-011"
+     ]
+    },
+    "damageTaken": {
+     "p2": 16
+    },
+    "hitsTaken": {
+     "p2": 4
+    },
+    "healed": {},
+    "uses": {},
+    "flags": {}
+   },
+   "grantedEffects": [],
+   "zoneLimits": [],
+   "healQueue": [],
+   "revealedHands": [],
+   "reveals": [
+    {
+     "playerId": "p1",
+     "kind": "trashToHand",
+     "cards": [
+      {
+       "id": "BP01-060",
+       "name": "Wooly Attack • Heavy Attack",
+       "color": "red",
+       "cost": 0,
+       "damage": 1,
+       "speed": 3,
+       "imageId": "BP01-060",
+       "uid": "p1-17"
+      }
+     ],
+     "sourceCardId": "BP01-013",
+     "controllerId": "p1",
+     "phase": "combo"
+    }
+   ],
+   "pendingFlags": {},
+   "rngSeed": 3657582850,
+   "winnerId": "p1"
+  },
+  "question": null,
+  "log": [
+   {
+    "th": "สุ่มลำดับแล้ว — p2 เป็นฝ่ายเริ่มก่อน",
+    "en": "Coin flipped — p2 goes first"
+   },
+   {
+    "th": "ทั้งสองฝ่ายเลือก Leader แล้ว — ไปต่อที่มือเริ่มต้น",
+    "en": "Both sides have their Leader — on to the opening hand"
+   },
+   {
+    "th": "p2 คืนการ์ด 3 ใบเข้ากอง สับ แล้วจั่วใหม่ 3 ใบ",
+    "en": "p2 returns 3 card(s) to the deck, shuffles, and draws 3 new one(s)"
+   },
+   {
+    "th": "p1 คืนการ์ด 3 ใบเข้ากอง สับ แล้วจั่วใหม่ 3 ใบ",
+    "en": "p1 returns 3 card(s) to the deck, shuffles, and draws 3 new one(s)"
+   },
+   {
+    "th": "ทั้งสองฝ่ายเลือกมือเริ่มต้นแล้ว — เริ่มเกม",
+    "en": "Both sides have their opening hand — the match begins"
+   },
+   {
+    "th": "p1 เลือก Encore เป็น Leader [BP01-015]",
+    "en": "p1 picks Encore as Leader [BP01-015]"
+   },
+   {
+    "th": "p2 เลือก Rover (F) เป็น Leader [BP01-018]",
+    "en": "p2 picks Rover (F) as Leader [BP01-018]"
+   },
+   {
+    "th": "p2 จั่ว 1 ใบ",
+    "en": "p2 draws 1 card(s)"
+   },
+   {
+    "th": "p2 เลเวลอัป Rover (F) เป็น Lv.1 [BP01-017]",
+    "en": "p2 levels up Rover (F) to Lv.1 [BP01-017]"
+   },
+   {
+    "th": "p2 เปิดการ์ดบนสุดของเด็ค 1 ใบ: Echoing Orchestra [BP01-017]",
+    "en": "p2 reveals the top 1 card(s) of their deck: Echoing Orchestra [BP01-017]"
+   },
+   {
+    "th": "p2 นำการ์ด 1 ใบบนสุดของเด็คขึ้นมือ: Echoing Orchestra [BP01-017]",
+    "en": "p2 takes the top 1 card(s) of their deck to hand: Echoing Orchestra [BP01-017]"
+   },
+   {
+    "th": "p2 ชาร์จการ์ด 1 ใบ (Concerto มี 1 ใบ)",
+    "en": "p2 charges 1 card (Concerto has 1)"
+   },
+   {
+    "th": "p2 เข้าเฟสประลอง — ลงการ์ดคว่ำได้ทั้งสองฝ่าย",
+    "en": "p2 opens the Battle Phase — both sides may commit a card"
+   },
+   {
+    "th": "p2 ลงการ์ดคว่ำ",
+    "en": "p2 commits a card face-down"
+   },
+   {
+    "th": "p1 ลงการ์ดคว่ำ",
+    "en": "p1 commits a card face-down"
+   },
+   {
+    "th": "ทั้งสองฝ่ายเลือกแล้ว — เปิดการ์ดได้",
+    "en": "Both sides are ready — cards are revealed"
+   },
+   {
+    "th": "p2 เปิด Feather Release • Dodge [BP01-069]",
+    "en": "p2 reveals Feather Release • Dodge [BP01-069]"
+   },
+   {
+    "th": "p1 เปิด Wooly Attack • Basic Attack [BP01-059]",
+    "en": "p1 reveals Wooly Attack • Basic Attack [BP01-059]"
+   },
+   {
+    "th": "p2 ชนะการปะทะ (น้ำเงินชนะแดง)",
+    "en": "p2 wins the clash (blue beats red)"
+   },
+   {
+    "th": "p1 เสีย 0 จาก Feather Release • Dodge [BP01-069] (เลือดเหลือ 20)",
+    "en": "p1 takes 0 from Feather Release • Dodge [BP01-069] (20 life left)"
+   },
+   {
+    "th": "p2 จบการโจมตีต่อเนื่อง",
+    "en": "p2 ends the combo"
+   },
+   {
+    "th": "เทิร์น 2: ตาของ p1",
+    "en": "Turn 2: p1's turn"
+   },
+   {
+    "th": "p1 จั่ว 2 ใบ",
+    "en": "p1 draws 2 card(s)"
+   },
+   {
+    "th": "p1 เลเวลอัป Shorekeeper เป็น Lv.1 [BP01-008]",
+    "en": "p1 levels up Shorekeeper to Lv.1 [BP01-008]"
+   },
+   {
+    "th": "p1 สลับ Leader เป็น Shorekeeper [BP01-008]",
+    "en": "p1 switches Leader to Shorekeeper [BP01-008]"
+   },
+   {
+    "th": "p1 จั่ว 1 ใบ [BP01-008]",
+    "en": "p1 draws 1 card(s) [BP01-008]"
+   },
+   {
+    "th": "p1 ทิ้งการ์ด 1 ใบ: Chaos Theory [BP01-008]",
+    "en": "p1 discards 1 card(s): Chaos Theory [BP01-008]"
+   },
+   {
+    "th": "p1 ชาร์จการ์ด 1 ใบ (Concerto มี 1 ใบ)",
+    "en": "p1 charges 1 card (Concerto has 1)"
+   },
+   {
+    "th": "p1 เข้าเฟสประลอง — ลงการ์ดคว่ำได้ทั้งสองฝ่าย",
+    "en": "p1 opens the Battle Phase — both sides may commit a card"
+   },
+   {
+    "th": "p2 ลงการ์ดคว่ำ",
+    "en": "p2 commits a card face-down"
+   },
+   {
+    "th": "p1 ลงการ์ดคว่ำ",
+    "en": "p1 commits a card face-down"
+   },
+   {
+    "th": "ทั้งสองฝ่ายเลือกแล้ว — เปิดการ์ดได้",
+    "en": "Both sides are ready — cards are revealed"
+   },
+   {
+    "th": "p1 จ่าย 1 เพื่อเล่น End loop [BP01-057]",
+    "en": "p1 pays 1 to play End loop [BP01-057]"
+   },
+   {
+    "th": "p2 จ่าย 1 เพื่อเล่น Cosmos Rave [BP01-062]",
+    "en": "p2 pays 1 to play Cosmos Rave [BP01-062]"
+   },
+   {
+    "th": "p1 เปิด End loop [BP01-057]",
+    "en": "p1 reveals End loop [BP01-057]"
+   },
+   {
+    "th": "p2 เปิด Cosmos Rave [BP01-062]",
+    "en": "p2 reveals Cosmos Rave [BP01-062]"
+   },
+   {
+    "th": "p1 เปิดการ์ดบนสุดของเด็ค 1 ใบ: Frigid Light • Dodge [BP01-010]",
+    "en": "p1 reveals the top 1 card(s) of their deck: Frigid Light • Dodge [BP01-010]"
+   },
+   {
+    "th": "p1 นำการ์ด 1 ใบบนสุดของเด็คขึ้นมือ: Frigid Light • Dodge [BP01-010]",
+    "en": "p1 takes the top 1 card(s) of their deck to hand: Frigid Light • Dodge [BP01-010]"
+   },
+   {
+    "th": "Intro Skill cards ได้รับความสามารถเพิ่ม (เทิร์นนี้) [BP01-057]",
+    "en": "Intro Skill cards gains an ability (this turn) [BP01-057]"
+   },
+   {
+    "th": "p2 เลเวลอัป Encore เป็น Lv.2 [BP01-062]",
+    "en": "p2 levels up Encore to Lv.2 [BP01-062]"
+   },
+   {
+    "th": "p2 สลับ Leader เป็น Encore [BP01-062]",
+    "en": "p2 switches Leader to Encore [BP01-062]"
+   },
+   {
+    "th": "p2 ชนะการปะทะ (แดงชนะเขียว)",
+    "en": "p2 wins the clash (red beats green)"
+   },
+   {
+    "th": "p1 เสีย 4 จาก Cosmos Rave [BP01-062] (เลือดเหลือ 16)",
+    "en": "p1 takes 4 from Cosmos Rave [BP01-062] (16 life left)"
+   },
+   {
+    "th": "p2 โจมตีต่อเนื่องด้วย Wooly Attack • Heavy Attack [BP01-060]",
+    "en": "p2 combos with Wooly Attack • Heavy Attack [BP01-060]"
+   },
+   {
+    "th": "p1 เสีย 4 จาก Wooly Attack • Heavy Attack [BP01-060] (เลือดเหลือ 12)",
+    "en": "p1 takes 4 from Wooly Attack • Heavy Attack [BP01-060] (12 life left)"
+   },
+   {
+    "th": "p2 โจมตีต่อเนื่องด้วย Wooly Attack • Basic Attack [BP01-059]",
+    "en": "p2 combos with Wooly Attack • Basic Attack [BP01-059]"
+   },
+   {
+    "th": "p1 เสีย 2 จาก Wooly Attack • Basic Attack [BP01-059] (เลือดเหลือ 10)",
+    "en": "p1 takes 2 from Wooly Attack • Basic Attack [BP01-059] (10 life left)"
+   },
+   {
+    "th": "p2 จบการโจมตีต่อเนื่อง",
+    "en": "p2 ends the combo"
+   },
+   {
+    "th": "เทิร์น 3: ตาของ p2",
+    "en": "Turn 3: p2's turn"
+   },
+   {
+    "th": "p2 จั่ว 2 ใบ",
+    "en": "p2 draws 2 card(s)"
+   },
+   {
+    "th": "p2 สลับ Leader เป็น Yangyang [BP01-024]",
+    "en": "p2 switches Leader to Yangyang [BP01-024]"
+   },
+   {
+    "th": "p2 เลเวลอัป Yangyang เป็น Lv.1 [BP01-023]",
+    "en": "p2 levels up Yangyang to Lv.1 [BP01-023]"
+   },
+   {
+    "th": "p2 นำการ์ด 1 ใบจากเด็คไปวางที่ Concerto [BP01-023]",
+    "en": "p2 puts 1 card(s) from their deck into the Concerto area [BP01-023]"
+   },
+   {
+    "th": "p2 ข้ามเฟสประลองทั้งเฟส — ไปเฟสจบเทิร์นเลย",
+    "en": "p2 skips the Battle Phase entirely and goes to the End Phase"
+   },
+   {
+    "th": "BP01-011 กลับเข้า Character Deck เผยให้เห็น BP01-015 ที่อยู่ข้างใต้ [BP01-011]",
+    "en": "BP01-011 returns to the Character deck, exposing BP01-015 underneath [BP01-011]"
+   },
+   {
+    "th": "เทิร์น 4: ตาของ p1",
+    "en": "Turn 4: p1's turn"
+   },
+   {
+    "th": "p1 จั่ว 2 ใบ",
+    "en": "p1 draws 2 card(s)"
+   },
+   {
+    "th": "p1 สลับ Leader เป็น Sanhua [BP01-033]",
+    "en": "p1 switches Leader to Sanhua [BP01-033]"
+   },
+   {
+    "th": "p1 จั่ว 1 ใบ [BP01-008]",
+    "en": "p1 draws 1 card(s) [BP01-008]"
+   },
+   {
+    "th": "p1 ทิ้งการ์ด 1 ใบ: Origin Calculus • Dodge [BP01-008]",
+    "en": "p1 discards 1 card(s): Origin Calculus • Dodge [BP01-008]"
+   },
+   {
+    "th": "p1 ชาร์จการ์ด 1 ใบ (Concerto มี 1 ใบ)",
+    "en": "p1 charges 1 card (Concerto has 1)"
+   },
+   {
+    "th": "p1 เข้าเฟสประลอง — ลงการ์ดคว่ำได้ทั้งสองฝ่าย",
+    "en": "p1 opens the Battle Phase — both sides may commit a card"
+   },
+   {
+    "th": "p2 ลงการ์ดคว่ำ",
+    "en": "p2 commits a card face-down"
+   },
+   {
+    "th": "p1 ลงการ์ดคว่ำ",
+    "en": "p1 commits a card face-down"
+   },
+   {
+    "th": "ทั้งสองฝ่ายเลือกแล้ว — เปิดการ์ดได้",
+    "en": "Both sides are ready — cards are revealed"
+   },
+   {
+    "th": "p1 จ่าย 1 เพื่อเล่น Freezing Thorns [BP01-076]",
+    "en": "p1 pays 1 to play Freezing Thorns [BP01-076]"
+   },
+   {
+    "th": "p2 จ่าย 1 เพื่อเล่น Zephyr Domain [BP01-070]",
+    "en": "p2 pays 1 to play Zephyr Domain [BP01-070]"
+   },
+   {
+    "th": "p1 เปิด Freezing Thorns [BP01-076]",
+    "en": "p1 reveals Freezing Thorns [BP01-076]"
+   },
+   {
+    "th": "p2 เปิด Zephyr Domain [BP01-070]",
+    "en": "p2 reveals Zephyr Domain [BP01-070]"
+   },
+   {
+    "th": "p1 นำการ์ด 1 ใบจากเด็คไปวางที่ Concerto [BP01-033]",
+    "en": "p1 puts 1 card(s) from their deck into the Concerto area [BP01-033]"
+   },
+   {
+    "th": "p1 ชนะการปะทะ (น้ำเงินชนะแดง)",
+    "en": "p1 wins the clash (blue beats red)"
+   },
+   {
+    "th": "p1 เลเวลอัป Sanhua เป็น Lv.1 [BP01-076]",
+    "en": "p1 levels up Sanhua to Lv.1 [BP01-076]"
+   },
+   {
+    "th": "p1 นำการ์ด 1 ใบจากกองทิ้งไปวางที่ Concerto [BP01-076]",
+    "en": "p1 puts 1 card(s) from the trash into the Concerto area [BP01-076]"
+   },
+   {
+    "th": "p2 เสีย 0 จาก Freezing Thorns [BP01-076] (เลือดเหลือ 20)",
+    "en": "p2 takes 0 from Freezing Thorns [BP01-076] (20 life left)"
+   },
+   {
+    "th": "เทิร์น 5: ตาของ p2",
+    "en": "Turn 5: p2's turn"
+   },
+   {
+    "th": "p2 จั่ว 2 ใบ",
+    "en": "p2 draws 2 card(s)"
+   },
+   {
+    "th": "p2 เลเวลอัป Yangyang เป็น Lv.2 [SD01-003]",
+    "en": "p2 levels up Yangyang to Lv.2 [SD01-003]"
+   },
+   {
+    "th": "p2 นำการ์ด 1 ใบจากเด็คไปวางที่ Concerto [BP01-023]",
+    "en": "p2 puts 1 card(s) from their deck into the Concerto area [BP01-023]"
+   },
+   {
+    "th": "p2 เข้าเฟสประลอง — ลงการ์ดคว่ำได้ทั้งสองฝ่าย",
+    "en": "p2 opens the Battle Phase — both sides may commit a card"
+   },
+   {
+    "th": "p2 เปิดการ์ดในมือให้ดู — ไม่มีใบที่ลงได้ จึงข้ามการลงการ์ด",
+    "en": "p2 shows their hand — nothing in it can be played, so they skip laying a card"
+   },
+   {
+    "th": "p2 ไม่ลงการ์ดในการปะทะนี้",
+    "en": "p2 passes on this clash"
+   },
+   {
+    "th": "p1 ไม่ลงการ์ดในการปะทะนี้",
+    "en": "p1 passes on this clash"
+   },
+   {
+    "th": "ทั้งสองฝ่ายเลือกแล้ว — เปิดการ์ดได้",
+    "en": "Both sides are ready — cards are revealed"
+   },
+   {
+    "th": "p2 ไม่ได้ลงการ์ด",
+    "en": "p2 committed nothing"
+   },
+   {
+    "th": "p1 ไม่ได้ลงการ์ด",
+    "en": "p1 committed nothing"
+   },
+   {
+    "th": "การปะทะเสมอกัน",
+    "en": "The clash is a draw"
+   },
+   {
+    "th": "เทิร์น 6: ตาของ p1",
+    "en": "Turn 6: p1's turn"
+   },
+   {
+    "th": "p1 จั่ว 2 ใบ",
+    "en": "p1 draws 2 card(s)"
+   },
+   {
+    "th": "p1 เลเวลอัป Sanhua เป็น Lv.2 [SD02-003]",
+    "en": "p1 levels up Sanhua to Lv.2 [SD02-003]"
+   },
+   {
+    "th": "p1 นำการ์ด 1 ใบจากกองทิ้งไปวางที่ Concerto [BP01-032]",
+    "en": "p1 puts 1 card(s) from the trash into the Concerto area [BP01-032]"
+   },
+   {
+    "th": "p1 เข้าเฟสประลอง — ลงการ์ดคว่ำได้ทั้งสองฝ่าย",
+    "en": "p1 opens the Battle Phase — both sides may commit a card"
+   },
+   {
+    "th": "p2 ไม่ลงการ์ดในการปะทะนี้",
+    "en": "p2 passes on this clash"
+   },
+   {
+    "th": "p1 ลงการ์ดคว่ำ",
+    "en": "p1 commits a card face-down"
+   },
+   {
+    "th": "ทั้งสองฝ่ายเลือกแล้ว — เปิดการ์ดได้",
+    "en": "Both sides are ready — cards are revealed"
+   },
+   {
+    "th": "p1 จ่าย 2 เพื่อเล่น Glacial Gaze [SD02-016]",
+    "en": "p1 pays 2 to play Glacial Gaze [SD02-016]"
+   },
+   {
+    "th": "p1 เปิด Glacial Gaze [SD02-016]",
+    "en": "p1 reveals Glacial Gaze [SD02-016]"
+   },
+   {
+    "th": "p2 ไม่ได้ลงการ์ด",
+    "en": "p2 committed nothing"
+   },
+   {
+    "th": "p1 ใช้ Concerto ไป 1 [SD01-003]",
+    "en": "p1 spends 1 Concerto [SD01-003]"
+   },
+   {
+    "th": "p1 ชนะการปะทะ (อีกฝ่ายไม่ได้ลงการ์ด)",
+    "en": "p1 wins the clash (the other side committed nothing)"
+   },
+   {
+    "th": "p2 จะถูกจำกัดในเทิร์นหน้า: noFollowUp [SD02-016]",
+    "en": "p2 will be restricted next turn: noFollowUp [SD02-016]"
+   },
+   {
+    "th": "p2 เสีย 4 จาก Glacial Gaze [SD02-016] (เลือดเหลือ 16)",
+    "en": "p2 takes 4 from Glacial Gaze [SD02-016] (16 life left)"
+   },
+   {
+    "th": "p1 นำการ์ด 1 ใบจากเด็คไปวางที่ Concerto [SD02-003]",
+    "en": "p1 puts 1 card(s) from their deck into the Concerto area [SD02-003]"
+   },
+   {
+    "th": "เทิร์น 7: ตาของ p2",
+    "en": "Turn 7: p2's turn"
+   },
+   {
+    "th": "p2 จั่ว 2 ใบ",
+    "en": "p2 draws 2 card(s)"
+   },
+   {
+    "th": "p2 ชาร์จการ์ด 1 ใบ (Concerto มี 2 ใบ)",
+    "en": "p2 charges 1 card (Concerto has 2)"
+   },
+   {
+    "th": "p2 เลเวลอัป Encore เป็น Lv.1 [BP01-013]",
+    "en": "p2 levels up Encore to Lv.1 [BP01-013]"
+   },
+   {
+    "th": "p2 นำการ์ด 1 ใบจากกองทิ้งขึ้นมือ: Cosmos Rave [BP01-013]",
+    "en": "p2 takes 1 card(s) from the trash to hand: Cosmos Rave [BP01-013]"
+   },
+   {
+    "th": "p2 เข้าเฟสประลอง — ลงการ์ดคว่ำได้ทั้งสองฝ่าย",
+    "en": "p2 opens the Battle Phase — both sides may commit a card"
+   },
+   {
+    "th": "p2 ลงการ์ดคว่ำ",
+    "en": "p2 commits a card face-down"
+   },
+   {
+    "th": "p1 ไม่ลงการ์ดในการปะทะนี้",
+    "en": "p1 passes on this clash"
+   },
+   {
+    "th": "ทั้งสองฝ่ายเลือกแล้ว — เปิดการ์ดได้",
+    "en": "Both sides are ready — cards are revealed"
+   },
+   {
+    "th": "p2 เปิด Wooly Attack • Basic Attack [BP01-059]",
+    "en": "p2 reveals Wooly Attack • Basic Attack [BP01-059]"
+   },
+   {
+    "th": "p1 ไม่ได้ลงการ์ด",
+    "en": "p1 committed nothing"
+   },
+   {
+    "th": "p2 ชนะการปะทะ (อีกฝ่ายไม่ได้ลงการ์ด)",
+    "en": "p2 wins the clash (the other side committed nothing)"
+   },
+   {
+    "th": "p1 เสีย 1 จาก Wooly Attack • Basic Attack [BP01-059] (เลือดเหลือ 9)",
+    "en": "p1 takes 1 from Wooly Attack • Basic Attack [BP01-059] (9 life left)"
+   },
+   {
+    "th": "p2 จบการโจมตีต่อเนื่อง",
+    "en": "p2 ends the combo"
+   },
+   {
+    "th": "p1 นำการ์ด 1 ใบจากเด็คไปวางที่ Concerto [SD02-003]",
+    "en": "p1 puts 1 card(s) from their deck into the Concerto area [SD02-003]"
+   },
+   {
+    "th": "เทิร์น 8: ตาของ p1",
+    "en": "Turn 8: p1's turn"
+   },
+   {
+    "th": "p1 จั่ว 2 ใบ",
+    "en": "p1 draws 2 card(s)"
+   },
+   {
+    "th": "p1 สลับ Leader เป็น Shorekeeper [BP01-008]",
+    "en": "p1 switches Leader to Shorekeeper [BP01-008]"
+   },
+   {
+    "th": "p1 จั่ว 1 ใบ [BP01-008]",
+    "en": "p1 draws 1 card(s) [BP01-008]"
+   },
+   {
+    "th": "p1 ทิ้งการ์ด 1 ใบ: Chaos Theory [BP01-008]",
+    "en": "p1 discards 1 card(s): Chaos Theory [BP01-008]"
+   },
+   {
+    "th": "p1 เลเวลอัป Shorekeeper เป็น Lv.2 [BP01-007]",
+    "en": "p1 levels up Shorekeeper to Lv.2 [BP01-007]"
+   },
+   {
+    "th": "p1 เข้าเฟสประลอง — ลงการ์ดคว่ำได้ทั้งสองฝ่าย",
+    "en": "p1 opens the Battle Phase — both sides may commit a card"
+   },
+   {
+    "th": "p1 จั่ว 2 ใบ [BP01-007]",
+    "en": "p1 draws 2 card(s) [BP01-007]"
+   },
+   {
+    "th": "p2 ลงการ์ดคว่ำ",
+    "en": "p2 commits a card face-down"
+   },
+   {
+    "th": "p1 ลงการ์ดคว่ำ",
+    "en": "p1 commits a card face-down"
+   },
+   {
+    "th": "ทั้งสองฝ่ายเลือกแล้ว — เปิดการ์ดได้",
+    "en": "Both sides are ready — cards are revealed"
+   },
+   {
+    "th": "p2 จ่าย 1 เพื่อเล่น Cosmos Rave [BP01-062]",
+    "en": "p2 pays 1 to play Cosmos Rave [BP01-062]"
+   },
+   {
+    "th": "p1 เปิด Origin Calculus • Dodge [BP01-053]",
+    "en": "p1 reveals Origin Calculus • Dodge [BP01-053]"
+   },
+   {
+    "th": "p2 เปิด Cosmos Rave [BP01-062]",
+    "en": "p2 reveals Cosmos Rave [BP01-062]"
+   },
+   {
+    "th": "p2 เลเวลอัป Encore เป็น Lv.2 [BP01-062]",
+    "en": "p2 levels up Encore to Lv.2 [BP01-062]"
+   },
+   {
+    "th": "p2 นำการ์ด 1 ใบจากกองทิ้งขึ้นมือ: Wooly Attack • Basic Attack [BP01-062]",
+    "en": "p2 takes 1 card(s) from the trash to hand: Wooly Attack • Basic Attack [BP01-062]"
+   },
+   {
+    "th": "p2 สลับ Leader เป็น Encore [BP01-062]",
+    "en": "p2 switches Leader to Encore [BP01-062]"
+   },
+   {
+    "th": "p1 ชนะการปะทะ (น้ำเงินชนะแดง)",
+    "en": "p1 wins the clash (blue beats red)"
+   },
+   {
+    "th": "p1 ฟื้นฟู 1 จาก Origin Calculus • Dodge [BP01-053] (เลือดเป็น 10)",
+    "en": "p1 heals 1 from Origin Calculus • Dodge [BP01-053] (10 life now)"
+   },
+   {
+    "th": "p2 เสีย 0 จาก Origin Calculus • Dodge [BP01-053] (เลือดเหลือ 16)",
+    "en": "p2 takes 0 from Origin Calculus • Dodge [BP01-053] (16 life left)"
+   },
+   {
+    "th": "เทิร์น 9: ตาของ p2",
+    "en": "Turn 9: p2's turn"
+   },
+   {
+    "th": "p2 จั่ว 2 ใบ",
+    "en": "p2 draws 2 card(s)"
+   },
+   {
+    "th": "p2 ชาร์จการ์ด 1 ใบ (Concerto มี 2 ใบ)",
+    "en": "p2 charges 1 card (Concerto has 2)"
+   },
+   {
+    "th": "p2 เลเวลอัป Rover (F) เป็น Lv.1 [SD01-002]",
+    "en": "p2 levels up Rover (F) to Lv.1 [SD01-002]"
+   },
+   {
+    "th": "p2 เปิดการ์ดบนสุดของเด็ค 1 ใบ: Woolies Helpers [BP01-017]",
+    "en": "p2 reveals the top 1 card(s) of their deck: Woolies Helpers [BP01-017]"
+   },
+   {
+    "th": "p2 นำการ์ด 1 ใบบนสุดของเด็คขึ้นมือ: Woolies Helpers [BP01-017]",
+    "en": "p2 takes the top 1 card(s) of their deck to hand: Woolies Helpers [BP01-017]"
+   },
+   {
+    "th": "p2 เข้าเฟสประลอง — ลงการ์ดคว่ำได้ทั้งสองฝ่าย",
+    "en": "p2 opens the Battle Phase — both sides may commit a card"
+   },
+   {
+    "th": "p2 ลงการ์ดคว่ำ",
+    "en": "p2 commits a card face-down"
+   },
+   {
+    "th": "p1 ไม่ลงการ์ดในการปะทะนี้",
+    "en": "p1 passes on this clash"
+   },
+   {
+    "th": "ทั้งสองฝ่ายเลือกแล้ว — เปิดการ์ดได้",
+    "en": "Both sides are ready — cards are revealed"
+   },
+   {
+    "th": "p2 เปิด Wooly Attack • Basic Attack [BP01-059]",
+    "en": "p2 reveals Wooly Attack • Basic Attack [BP01-059]"
+   },
+   {
+    "th": "p1 ไม่ได้ลงการ์ด",
+    "en": "p1 committed nothing"
+   },
+   {
+    "th": "p2 ชนะการปะทะ (อีกฝ่ายไม่ได้ลงการ์ด)",
+    "en": "p2 wins the clash (the other side committed nothing)"
+   },
+   {
+    "th": "p1 เสีย 3 จาก Wooly Attack • Basic Attack [BP01-059] (เลือดเหลือ 7)",
+    "en": "p1 takes 3 from Wooly Attack • Basic Attack [BP01-059] (7 life left)"
+   },
+   {
+    "th": "p2 นำการ์ด 1 ใบจากกองทิ้งขึ้นมือ: Cosmos Rave [BP01-012]",
+    "en": "p2 takes 1 card(s) from the trash to hand: Cosmos Rave [BP01-012]"
+   },
+   {
+    "th": "เทิร์น 10: ตาของ p1",
+    "en": "Turn 10: p1's turn"
+   },
+   {
+    "th": "p1 จั่ว 2 ใบ",
+    "en": "p1 draws 2 card(s)"
+   },
+   {
+    "th": "p1 เลเวลอัป Encore เป็น Lv.1 [BP01-013]",
+    "en": "p1 levels up Encore to Lv.1 [BP01-013]"
+   },
+   {
+    "th": "p1 นำการ์ด 1 ใบจากกองทิ้งขึ้นมือ: Wooly Attack • Heavy Attack [BP01-013]",
+    "en": "p1 takes 1 card(s) from the trash to hand: Wooly Attack • Heavy Attack [BP01-013]"
+   },
+   {
+    "th": "p1 สลับ Leader เป็น Encore [BP01-013]",
+    "en": "p1 switches Leader to Encore [BP01-013]"
+   },
+   {
+    "th": "p1 จั่ว 1 ใบ [BP01-008]",
+    "en": "p1 draws 1 card(s) [BP01-008]"
+   },
+   {
+    "th": "p1 ทิ้งการ์ด 1 ใบ: Eternal Frost [BP01-008]",
+    "en": "p1 discards 1 card(s): Eternal Frost [BP01-008]"
+   },
+   {
+    "th": "p1 ชาร์จการ์ด 1 ใบ (Concerto มี 3 ใบ)",
+    "en": "p1 charges 1 card (Concerto has 3)"
+   },
+   {
+    "th": "p1 เข้าเฟสประลอง — ลงการ์ดคว่ำได้ทั้งสองฝ่าย",
+    "en": "p1 opens the Battle Phase — both sides may commit a card"
+   },
+   {
+    "th": "p2 ไม่ลงการ์ดในการปะทะนี้",
+    "en": "p2 passes on this clash"
+   },
+   {
+    "th": "p1 ลงการ์ดคว่ำ",
+    "en": "p1 commits a card face-down"
+   },
+   {
+    "th": "ทั้งสองฝ่ายเลือกแล้ว — เปิดการ์ดได้",
+    "en": "Both sides are ready — cards are revealed"
+   },
+   {
+    "th": "p1 จ่าย 2 เพื่อเล่น Cosmos Rave [BP01-062]",
+    "en": "p1 pays 2 to play Cosmos Rave [BP01-062]"
+   },
+   {
+    "th": "p1 เปิด Cosmos Rave [BP01-062]",
+    "en": "p1 reveals Cosmos Rave [BP01-062]"
+   },
+   {
+    "th": "p2 ไม่ได้ลงการ์ด",
+    "en": "p2 committed nothing"
+   },
+   {
+    "th": "p1 เลเวลอัป Encore เป็น Lv.2 [BP01-062]",
+    "en": "p1 levels up Encore to Lv.2 [BP01-062]"
+   },
+   {
+    "th": "p1 นำการ์ด 1 ใบจากกองทิ้งขึ้นมือ: Wooly Attack • Heavy Attack [BP01-062]",
+    "en": "p1 takes 1 card(s) from the trash to hand: Wooly Attack • Heavy Attack [BP01-062]"
+   },
+   {
+    "th": "p1 ชนะการปะทะ (อีกฝ่ายไม่ได้ลงการ์ด)",
+    "en": "p1 wins the clash (the other side committed nothing)"
+   },
+   {
+    "th": "p2 เสีย 4 จาก Cosmos Rave [BP01-062] (เลือดเหลือ 12)",
+    "en": "p2 takes 4 from Cosmos Rave [BP01-062] (12 life left)"
+   },
+   {
+    "th": "p1 โจมตีต่อเนื่องด้วย Wooly Attack • Heavy Attack [BP01-060]",
+    "en": "p1 combos with Wooly Attack • Heavy Attack [BP01-060]"
+   },
+   {
+    "th": "p2 เสีย 4 จาก Wooly Attack • Heavy Attack [BP01-060] (เลือดเหลือ 8)",
+    "en": "p2 takes 4 from Wooly Attack • Heavy Attack [BP01-060] (8 life left)"
+   },
+   {
+    "th": "p1 โจมตีต่อเนื่องด้วย Wooly Attack • Heavy Attack [BP01-060]",
+    "en": "p1 combos with Wooly Attack • Heavy Attack [BP01-060]"
+   },
+   {
+    "th": "p2 เสีย 4 จาก Wooly Attack • Heavy Attack [BP01-060] (เลือดเหลือ 4)",
+    "en": "p2 takes 4 from Wooly Attack • Heavy Attack [BP01-060] (4 life left)"
+   },
+   {
+    "th": "p1 โจมตีต่อเนื่องด้วย Wooly Attack • Heavy Attack [BP01-060]",
+    "en": "p1 combos with Wooly Attack • Heavy Attack [BP01-060]"
+   },
+   {
+    "th": "p2 เสีย 4 จาก Wooly Attack • Heavy Attack [BP01-060] (เลือดเหลือ 0)",
+    "en": "p2 takes 4 from Wooly Attack • Heavy Attack [BP01-060] (0 life left)"
+   },
+   {
+    "th": "p1 ชนะ",
+    "en": "p1 wins"
+   }
+  ]
+ }
+}

@@ -988,6 +988,32 @@ let game = newMatch();
   );
 }
 
+// --- "The first {Normal Attack}" is one card, not one printing ------------
+
+{
+  // Encore Lv.0's Leader Skill: once a turn, the first Encore {Normal Attack}
+  // gains +2. With three copies of the same Heavy Attack comboed, each copy
+  // used to find itself at the first copy's place in the turn log — they share
+  // a printed id — and all three hit for 3. Reported from a bot match
+  // (bug-local-1790395710563.json: three BP01-060 for 4 each under Lv.2).
+  const s = newMatch();
+  s.phase = "combo";
+  s.turnPlayerId = "p1";
+  s.combo = { playerId: "p1", unlimited: true, remaining: Infinity };
+  s.boards.p1.leader = { position: "leader", card: character("BP01-015"), under: [] };
+  s.boards.p1.hand = ["a", "b", "c"].map((copy) => ({ ...action("BP01-060"), uid: `p1-heavy-${copy}` }));
+  s.actionZone.p1 = [action("BP01-044")];
+
+  const hits: number[] = [];
+  let board = s;
+  for (let i = 0; i < 3; i += 1) {
+    const before = board.boards.p2.life;
+    board = drive(board, "p1", { kind: "combo", cardId: "BP01-060" }).result.state;
+    hits.push(before - board.boards.p2.life);
+  }
+  check("Encore Lv.0: +2 เฉพาะ Normal Attack ใบแรก แม้เป็นการ์ดเลขเดียวกัน", hits.join() === "3,1,1", hits.join());
+}
+
 // --- The clash -------------------------------------------------------------
 
 {

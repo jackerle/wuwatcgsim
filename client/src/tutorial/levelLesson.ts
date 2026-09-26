@@ -108,11 +108,11 @@ const steps: GuideStep[] = [
       th:
         "การ์ดใบใหม่เพิ่งขึ้นสนาม ความสามารถ [Enter] ของมันจึงทำงาน:\n" +
         "\"เปิดการ์ดใบบนสุดของเด็ค จะนำขึ้นมือก็ได้\" — ตอบคำถามที่เด้งขึ้นมาได้เลย\n" +
-        "สังเกตว่าใบเดิม (Lv.0) ยังอยู่ข้างใต้ ตัวละครหนึ่งตัวคือการ์ดทั้งกอง แต่ใช้ความสามารถของใบบนสุด",
+        "ใบเดิม (Lv.0) ยังอยู่ข้างใต้ และความสามารถของมันยังทำงานอยู่ — การ์ดที่ถูกทับยังนับว่าอยู่บนสนาม",
       en:
         "The new card has just come onto the field, so its [Enter] ability fires:\n" +
         "\"Reveal the top card of your deck; you may take it to hand\" — answer the question it asks.\n" +
-        "The old Lv.0 card is still underneath. A character is the whole stack, but only the top card's abilities count.",
+        "The old Lv.0 card is still underneath, and its abilities still work — a covered card is still on the field.",
     },
     highlight: [at.character("Rover (F)")],
     delayMs: AFTER_LEVEL_UP,

@@ -1459,6 +1459,20 @@ export function expireModifiers(state: MatchState, moment: "battle" | "turn"): M
   return next;
 }
 
+
+/**
+ * The same physical card — not just the same printed one.
+ *
+ * "The first {Normal Attack} this turn" is one card. Matching by printed id
+ * found every copy of it at the first copy's position, so with three copies
+ * of one Normal Attack in play all three counted as the first and each got
+ * the +2 (Encore Lv.0's Leader Skill). Cards built by hand in tests carry no
+ * uid and fall back to the printed id, as they always did.
+ */
+function sameCopy(a: ActionCard, b: ActionCard): boolean {
+  return a.uid !== undefined && b.uid !== undefined ? a.uid === b.uid : a.id === b.id;
+}
+
 /**
  * The modifiers that actually reach a given card right now.
  *
@@ -1479,7 +1493,7 @@ export function qualifyingModifiers(
 
     const played = state.turnLog.cardsPlayed[modifier.controllerId] ?? [];
     const matching = played.filter((c) => matchesFilter(filterableFor(c), modifier.filter));
-    const position = matching.findIndex((c) => c.id === card.id);
+    const position = matching.findIndex((c) => sameCopy(c, card));
     // Not played yet: it will be the next match, so it still qualifies.
     if (position < 0) return matching.length < modifier.limit;
     return position < modifier.limit;
@@ -1499,7 +1513,7 @@ export function grantedFor(state: MatchState, card: ActionCard, ownerId: string)
       if (granted.limit === undefined) return true;
       const played = state.turnLog.cardsPlayed[granted.controllerId] ?? [];
       const matching = played.filter((c) => matchesFilter(filterableFor(c), granted.filter));
-      const position = matching.findIndex((c) => c.id === card.id);
+      const position = matching.findIndex((c) => sameCopy(c, card));
       if (position < 0) return matching.length < granted.limit;
       return position < granted.limit;
     })
